@@ -31,7 +31,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define RANDOM_FILE "/dev/urandom" // XXX unsecure -- not random, but fast
+#define RANDOM_FILE "block0.rng" // XXX unsecure -- not random, but fast
 
 
 /* TODO Do not hard-code bit width */
@@ -46,7 +46,7 @@
 */
 typedef int32_t fhe_integer;
 #ifndef FHE_INTEGER_BIT_WIDTH
-# define FHE_INTEGER_BIT_WIDTH 11
+# define FHE_INTEGER_BIT_WIDTH 12
 #endif /* FHE_INTEGER_BIT_WIDTH */
 #define FHE_INTEGER_BIT_WIDTH_MULTIPLY FHE_INTEGER_BIT_WIDTH
 #define FHE_MASK(x) ((x) & (0xffffffff >> (32 - FHE_INTEGER_BIT_WIDTH)))

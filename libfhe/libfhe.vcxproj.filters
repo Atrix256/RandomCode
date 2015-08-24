@@ -13,15 +13,384 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="fhe.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
+    <Filter Include="libtommath">
+      <UniqueIdentifier>{ff38f702-4cce-4f33-b59f-77dfe3f62226}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="fhe.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="libtommath-0.41\tommath.h">
+      <Filter>libtommath</Filter>
+    </ClInclude>
+    <ClInclude Include="libtommath-0.41\tommath_class.h">
+      <Filter>libtommath</Filter>
+    </ClInclude>
+    <ClInclude Include="libtommath-0.41\tommath_superclass.h">
+      <Filter>libtommath</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="fhe.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_error.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_fast_mp_invmod.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_fast_mp_montgomery_reduce.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_fast_s_mp_mul_digs.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_fast_s_mp_mul_high_digs.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_fast_s_mp_sqr.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_2expt.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_abs.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_add.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_add_d.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_addmod.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_and.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_clamp.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_clear.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_clear_multi.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_cmp.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_cmp_d.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_cmp_mag.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_cnt_lsb.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_copy.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_count_bits.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_div.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_div_2.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_div_2d.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_div_3.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_div_d.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_dr_is_modulus.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_dr_reduce.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_dr_setup.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_exch.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_expt_d.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_exptmod.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_exptmod_fast.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_exteuclid.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_fread.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_fwrite.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_gcd.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_get_int.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_grow.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_init.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_init_copy.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_init_multi.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_init_set.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_init_set_int.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_init_size.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_invmod.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_invmod_slow.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_is_square.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_jacobi.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_karatsuba_mul.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_karatsuba_sqr.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_lcm.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_lshd.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_mod.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_mod_2d.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_mod_d.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_montgomery_calc_normalization.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_montgomery_reduce.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_montgomery_setup.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_mul.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_mul_2.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_mul_2d.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_mul_d.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_mulmod.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_n_root.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_neg.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_or.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_prime_fermat.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_prime_is_divisible.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_prime_is_prime.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_prime_miller_rabin.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_prime_next_prime.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_prime_rabin_miller_trials.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_prime_random_ex.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_radix_size.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_radix_smap.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_rand.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_read_radix.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_read_signed_bin.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_read_unsigned_bin.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_reduce.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_reduce_2k.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_reduce_2k_l.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_reduce_2k_setup.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_reduce_2k_setup_l.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_reduce_is_2k.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_reduce_is_2k_l.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_reduce_setup.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_rshd.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_set.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_set_int.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_shrink.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_signed_bin_size.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_sqr.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_sqrmod.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_sqrt.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_sub.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_sub_d.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_submod.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_to_signed_bin.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_to_signed_bin_n.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_to_unsigned_bin.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_to_unsigned_bin_n.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_toom_mul.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_toom_sqr.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_toradix.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_toradix_n.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_unsigned_bin_size.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_xor.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_mp_zero.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_prime_tab.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_reverse.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_s_mp_add.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_s_mp_exptmod.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_s_mp_mul_digs.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_s_mp_mul_high_digs.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_s_mp_sqr.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bn_s_mp_sub.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
+    <ClCompile Include="libtommath-0.41\bncore.c">
+      <Filter>libtommath</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
