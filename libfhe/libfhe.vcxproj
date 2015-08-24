@@ -41,11 +41,11 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>libtomcrypt-develop/src/headers/;libtommath-0.41;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)libtomcrypt-develop/src/headers/;$(SolutionDir)libtommath-0.41/;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>libtomcrypt-develop/src/headers/;libtommath-0.41;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)libtomcrypt-develop/src/headers/;$(SolutionDir)libtommath-0.41/;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>

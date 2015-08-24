@@ -24,6 +24,683 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "fhe.h"
 
+/*================================== ALAN ADDED BEGIN ==================================*/
+
+int mp_init(mp_int * a)
+{
+    int i;
+
+    /* allocate memory required and clear it */
+    a->dp = OPT_CAST(mp_digit) XMALLOC(sizeof(mp_digit) * MP_PREC);
+    if (a->dp == NULL) {
+        return MP_MEM;
+    }
+
+    /* set the digits to zero */
+    for (i = 0; i < MP_PREC; i++) {
+        a->dp[i] = 0;
+    }
+
+    /* set the used to zero, allocated digits to the default precision
+    * and sign to positive */
+    a->used = 0;
+    a->alloc = MP_PREC;
+    a->sign = MP_ZPOS;
+
+    return MP_OKAY;
+}
+
+void
+mp_clear(mp_int * a)
+{
+    int i;
+
+    /* only do anything if a hasn't been freed previously */
+    if (a->dp != NULL) {
+        /* first zero the digits */
+        for (i = 0; i < a->used; i++) {
+            a->dp[i] = 0;
+        }
+
+        /* free ram */
+        XFREE(a->dp);
+
+        /* reset members to make debugging easier */
+        a->dp = NULL;
+        a->alloc = a->used = 0;
+        a->sign = MP_ZPOS;
+    }
+}
+void mp_set(mp_int * a, mp_digit b)
+{
+    mp_zero(a);
+    a->dp[0] = b & MP_MASK;
+    a->used = (a->dp[0] != 0) ? 1 : 0;
+}
+void mp_zero(mp_int * a)
+{
+    int       n;
+    mp_digit *tmp;
+
+    a->sign = MP_ZPOS;
+    a->used = 0;
+
+    tmp = a->dp;
+    for (n = 0; n < a->alloc; n++) {
+        *tmp++ = 0;
+    }
+}
+int mp_set_int(mp_int * a, unsigned long b)
+{
+    int     x, res;
+
+    mp_zero(a);
+
+    /* set four bits at a time */
+    for (x = 0; x < 8; x++) {
+        /* shift the number up four bits */
+        if ((res = mp_mul_2d(a, 4, a)) != MP_OKAY) {
+            return res;
+        }
+
+        /* OR in the top four bits of the source */
+        a->dp[0] |= (b >> 28) & 15;
+
+        /* shift the source up to the next four bits */
+        b <<= 4;
+
+        /* ensure that digits are not clamped off */
+        a->used += 1;
+    }
+    mp_clamp(a);
+    return MP_OKAY;
+}
+unsigned long mp_get_int(mp_int * a)
+{
+    int i;
+    unsigned long res;
+
+    if (a->used == 0) {
+        return 0;
+    }
+
+    /* get number of digits of the lsb we have to read */
+    i = MIN(a->used, (int)((sizeof(unsigned long)*CHAR_BIT + DIGIT_BIT - 1) / DIGIT_BIT)) - 1;
+
+    /* get most significant digit of result */
+    res = DIGIT(a, i);
+
+    while (--i >= 0) {
+        res = (res << DIGIT_BIT) | DIGIT(a, i);
+    }
+
+    /* force result to 32-bits always so it is consistent on non 32-bit platforms */
+    return res & 0xFFFFFFFFUL;
+}
+int mp_init_copy(mp_int * a, mp_int * b)
+{
+    int     res;
+
+    if ((res = mp_init(a)) != MP_OKAY) {
+        return res;
+    }
+    return mp_copy(b, a);
+}
+void
+mp_clamp(mp_int * a)
+{
+    /* decrease used while the most significant digit is
+    * zero.
+    */
+    while (a->used > 0 && a->dp[a->used - 1] == 0) {
+        --(a->used);
+    }
+
+    /* reset the sign flag if used == 0 */
+    if (a->used == 0) {
+        a->sign = MP_ZPOS;
+    }
+}
+int
+mp_xor(mp_int * a, mp_int * b, mp_int * c)
+{
+    int     res, ix, px;
+    mp_int  t, *x;
+
+    if (a->used > b->used) {
+        if ((res = mp_init_copy(&t, a)) != MP_OKAY) {
+            return res;
+        }
+        px = b->used;
+        x = b;
+    }
+    else {
+        if ((res = mp_init_copy(&t, b)) != MP_OKAY) {
+            return res;
+        }
+        px = a->used;
+        x = a;
+    }
+
+    for (ix = 0; ix < px; ix++) {
+        t.dp[ix] ^= x->dp[ix];
+    }
+    mp_clamp(&t);
+    mp_exch(c, &t);
+    mp_clear(&t);
+    return MP_OKAY;
+}
+void
+mp_exch(mp_int * a, mp_int * b)
+{
+    mp_int  t;
+
+    t = *a;
+    *a = *b;
+    *b = t;
+}
+int
+mp_copy(mp_int * a, mp_int * b)
+{
+    int     res, n;
+
+    /* if dst == src do nothing */
+    if (a == b) {
+        return MP_OKAY;
+    }
+
+    /* grow dest */
+    if (b->alloc < a->used) {
+        if ((res = mp_grow(b, a->used)) != MP_OKAY) {
+            return res;
+        }
+    }
+
+    /* zero b and copy the parameters over */
+  {
+      register mp_digit *tmpa, *tmpb;
+
+      /* pointer aliases */
+
+      /* source */
+      tmpa = a->dp;
+
+      /* destination */
+      tmpb = b->dp;
+
+      /* copy all the digits */
+      for (n = 0; n < a->used; n++) {
+          *tmpb++ = *tmpa++;
+      }
+
+      /* clear high digits */
+      for (; n < b->used; n++) {
+          *tmpb++ = 0;
+      }
+  }
+
+  /* copy used count and sign */
+  b->used = a->used;
+  b->sign = a->sign;
+  return MP_OKAY;
+}
+int mp_div_2(mp_int * a, mp_int * b)
+{
+    int     x, res, oldused;
+
+    /* copy */
+    if (b->alloc < a->used) {
+        if ((res = mp_grow(b, a->used)) != MP_OKAY) {
+            return res;
+        }
+    }
+
+    oldused = b->used;
+    b->used = a->used;
+    {
+        register mp_digit r, rr, *tmpa, *tmpb;
+
+        /* source alias */
+        tmpa = a->dp + b->used - 1;
+
+        /* dest alias */
+        tmpb = b->dp + b->used - 1;
+
+        /* carry */
+        r = 0;
+        for (x = b->used - 1; x >= 0; x--) {
+            /* get the carry for the next iteration */
+            rr = *tmpa & 1;
+
+            /* shift the current digit, add in carry and store */
+            *tmpb-- = (*tmpa-- >> 1) | (r << (DIGIT_BIT - 1));
+
+            /* forward carry to next iteration */
+            r = rr;
+        }
+
+        /* zero excess digits */
+        tmpb = b->dp + b->used;
+        for (x = b->used; x < oldused; x++) {
+            *tmpb++ = 0;
+        }
+    }
+    b->sign = a->sign;
+    mp_clamp(b);
+    return MP_OKAY;
+}
+int mp_grow(mp_int * a, int size)
+{
+    int     i;
+    mp_digit *tmp;
+
+    /* if the alloc size is smaller alloc more ram */
+    if (a->alloc < size) {
+        /* ensure there are always at least MP_PREC digits extra on top */
+        size += (MP_PREC * 2) - (size % MP_PREC);
+
+        /* reallocate the array a->dp
+        *
+        * We store the return in a temporary variable
+        * in case the operation failed we don't want
+        * to overwrite the dp member of a.
+        */
+        tmp = OPT_CAST(mp_digit) XREALLOC(a->dp, sizeof(mp_digit) * size);
+        if (tmp == NULL) {
+            /* reallocation failed but "a" is still valid [can be freed] */
+            return MP_MEM;
+        }
+
+        /* reallocation succeeded so set a->dp */
+        a->dp = tmp;
+
+        /* zero excess digits */
+        i = a->alloc;
+        a->alloc = size;
+        for (; i < a->alloc; i++) {
+            a->dp[i] = 0;
+        }
+    }
+    return MP_OKAY;
+}
+int mp_mul(mp_int * a, mp_int * b, mp_int * c)
+{
+    int     res, neg;
+    neg = (a->sign == b->sign) ? MP_ZPOS : MP_NEG;
+
+    /* use Toom-Cook? */
+#ifdef BN_MP_TOOM_MUL_C
+    if (MIN(a->used, b->used) >= TOOM_MUL_CUTOFF) {
+        res = mp_toom_mul(a, b, c);
+    }
+    else
+#endif
+#ifdef BN_MP_KARATSUBA_MUL_C
+        /* use Karatsuba? */
+        if (MIN(a->used, b->used) >= KARATSUBA_MUL_CUTOFF) {
+            res = mp_karatsuba_mul(a, b, c);
+        }
+        else
+#endif
+        {
+            /* can we use the fast multiplier?
+            *
+            * The fast multiplier can be used if the output will
+            * have less than MP_WARRAY digits and the number of
+            * digits won't affect carry propagation
+            */
+            int     digs = a->used + b->used + 1;
+
+#ifdef BN_FAST_S_MP_MUL_DIGS_C
+            if ((digs < MP_WARRAY) &&
+                MIN(a->used, b->used) <=
+                (1 << ((CHAR_BIT * sizeof(mp_word)) - (2 * DIGIT_BIT)))) {
+                res = fast_s_mp_mul_digs(a, b, c, digs);
+            }
+            else
+#endif
+#ifdef BN_S_MP_MUL_DIGS_C
+                res = s_mp_mul(a, b, c); /* uses s_mp_mul_digs */
+#else
+                res = MP_VAL;
+#endif
+
+        }
+    c->sign = (c->used > 0) ? neg : MP_ZPOS;
+    return res;
+}
+int mp_mul_2(mp_int * a, mp_int * b)
+{
+  int     x, res, oldused;
+
+  /* grow to accomodate result */
+  if (b->alloc < a->used + 1) {
+    if ((res = mp_grow (b, a->used + 1)) != MP_OKAY) {
+      return res;
+    }
+  }
+
+  oldused = b->used;
+  b->used = a->used;
+
+  {
+    register mp_digit r, rr, *tmpa, *tmpb;
+
+    /* alias for source */
+    tmpa = a->dp;
+    
+    /* alias for dest */
+    tmpb = b->dp;
+
+    /* carry */
+    r = 0;
+    for (x = 0; x < a->used; x++) {
+    
+      /* get what will be the *next* carry bit from the 
+       * MSB of the current digit 
+       */
+      rr = *tmpa >> ((mp_digit)(DIGIT_BIT - 1));
+      
+      /* now shift up this digit, add in the carry [from the previous] */
+      *tmpb++ = ((*tmpa++ << ((mp_digit)1)) | r) & MP_MASK;
+      
+      /* copy the carry that would be from the source 
+       * digit into the next iteration 
+       */
+      r = rr;
+    }
+
+    /* new leading digit? */
+    if (r != 0) {
+      /* add a MSB which is always 1 at this point */
+      *tmpb = 1;
+      ++(b->used);
+    }
+
+    /* now zero any excess digits on the destination 
+     * that we didn't write to 
+     */
+    tmpb = b->dp + b->used;
+    for (x = b->used; x < oldused; x++) {
+      *tmpb++ = 0;
+    }
+  }
+  b->sign = a->sign;
+  return MP_OKAY;
+}
+int mp_mul_2d (mp_int * a, int b, mp_int * c)
+{
+  mp_digit d;
+  int      res;
+
+  /* copy */
+  if (a != c) {
+     if ((res = mp_copy (a, c)) != MP_OKAY) {
+       return res;
+     }
+  }
+
+  if (c->alloc < (int)(c->used + b/DIGIT_BIT + 1)) {
+     if ((res = mp_grow (c, c->used + b / DIGIT_BIT + 1)) != MP_OKAY) {
+       return res;
+     }
+  }
+
+  /* shift by as many digits in the bit count */
+  if (b >= (int)DIGIT_BIT) {
+    if ((res = mp_lshd (c, b / DIGIT_BIT)) != MP_OKAY) {
+      return res;
+    }
+  }
+
+  /* shift any bit count < DIGIT_BIT */
+  d = (mp_digit) (b % DIGIT_BIT);
+  if (d != 0) {
+    register mp_digit *tmpc, shift, mask, r, rr;
+    register int x;
+
+    /* bitmask for carries */
+    mask = (((mp_digit)1) << d) - 1;
+
+    /* shift for msbs */
+    shift = DIGIT_BIT - d;
+
+    /* alias */
+    tmpc = c->dp;
+
+    /* carry */
+    r    = 0;
+    for (x = 0; x < c->used; x++) {
+      /* get the higher bits of the current word */
+      rr = (*tmpc >> shift) & mask;
+
+      /* shift the current word and OR in the carry */
+      *tmpc = ((*tmpc << d) | r) & MP_MASK;
+      ++tmpc;
+
+      /* set the carry to the carry bits of the current word */
+      r = rr;
+    }
+    
+    /* set final carry */
+    if (r != 0) {
+       c->dp[(c->used)++] = r;
+    }
+  }
+  mp_clamp (c);
+  return MP_OKAY;
+}
+int
+mp_abs(mp_int * a, mp_int * b)
+{
+    int     res;
+
+    /* copy a to b */
+    if (a != b) {
+        if ((res = mp_copy(a, b)) != MP_OKAY) {
+            return res;
+        }
+    }
+
+    /* force the sign of b to positive */
+    b->sign = MP_ZPOS;
+
+    return MP_OKAY;
+}
+int
+mp_cmp(mp_int * a, mp_int * b)
+{
+    /* compare based on sign */
+    if (a->sign != b->sign) {
+        if (a->sign == MP_NEG) {
+            return MP_LT;
+        }
+        else {
+            return MP_GT;
+        }
+    }
+
+    /* compare digits */
+    if (a->sign == MP_NEG) {
+        /* if negative compare opposite direction */
+        return mp_cmp_mag(b, a);
+    }
+    else {
+        return mp_cmp_mag(a, b);
+    }
+}
+int mp_lshd(mp_int * a, int b)
+{
+    int     x, res;
+
+    /* if its less than zero return */
+    if (b <= 0) {
+        return MP_OKAY;
+    }
+
+    /* grow to fit the new digits */
+    if (a->alloc < a->used + b) {
+        if ((res = mp_grow(a, a->used + b)) != MP_OKAY) {
+            return res;
+        }
+    }
+
+  {
+      register mp_digit *top, *bottom;
+
+      /* increment the used by the shift amount then copy upwards */
+      a->used += b;
+
+      /* top */
+      top = a->dp + a->used - 1;
+
+      /* base */
+      bottom = a->dp + a->used - 1 - b;
+
+      /* much like mp_rshd this is implemented using a sliding window
+      * except the window goes the otherway around.  Copying from
+      * the bottom to the top.  see bn_mp_rshd.c for more info.
+      */
+      for (x = a->used - 1; x >= b; x--) {
+          *top-- = *bottom--;
+      }
+
+      /* zero the lower digits */
+      top = a->dp;
+      for (x = 0; x < b; x++) {
+          *top++ = 0;
+      }
+  }
+  return MP_OKAY;
+}
+int mp_cmp_mag(mp_int * a, mp_int * b)
+{
+    int     n;
+    mp_digit *tmpa, *tmpb;
+
+    /* compare based on # of non-zero digits */
+    if (a->used > b->used) {
+        return MP_GT;
+    }
+
+    if (a->used < b->used) {
+        return MP_LT;
+    }
+
+    /* alias for a */
+    tmpa = a->dp + (a->used - 1);
+
+    /* alias for b */
+    tmpb = b->dp + (a->used - 1);
+
+    /* compare based on digits  */
+    for (n = 0; n < a->used; ++n, --tmpa, --tmpb) {
+        if (*tmpa > *tmpb) {
+            return MP_GT;
+        }
+
+        if (*tmpa < *tmpb) {
+            return MP_LT;
+        }
+    }
+    return MP_EQ;
+}
+int mp_add(mp_int * a, mp_int * b, mp_int * c)
+{
+    int     sa, sb, res;
+
+    /* get sign of both inputs */
+    sa = a->sign;
+    sb = b->sign;
+
+    /* handle two cases, not four */
+    if (sa == sb) {
+        /* both positive or both negative */
+        /* add their magnitudes, copy the sign */
+        c->sign = sa;
+        res = s_mp_add(a, b, c);
+    }
+    else {
+        /* one positive, the other negative */
+        /* subtract the one with the greater magnitude from */
+        /* the one of the lesser magnitude.  The result gets */
+        /* the sign of the one with the greater magnitude. */
+        if (mp_cmp_mag(a, b) == MP_LT) {
+            c->sign = sb;
+            res = s_mp_sub(b, a, c);
+        }
+        else {
+            c->sign = sa;
+            res = s_mp_sub(a, b, c);
+        }
+    }
+    return res;
+}
+int
+mp_sub(mp_int * a, mp_int * b, mp_int * c)
+{
+    int     sa, sb, res;
+
+    sa = a->sign;
+    sb = b->sign;
+
+    if (sa != sb) {
+        /* subtract a negative from a positive, OR */
+        /* subtract a positive from a negative. */
+        /* In either case, ADD their magnitudes, */
+        /* and use the sign of the first number. */
+        c->sign = sa;
+        res = s_mp_add(a, b, c);
+    }
+    else {
+        /* subtract a positive from a positive, OR */
+        /* subtract a negative from a negative. */
+        /* First, take the difference between their */
+        /* magnitudes, then... */
+        if (mp_cmp_mag(a, b) != MP_LT) {
+            /* Copy the sign from the first */
+            c->sign = sa;
+            /* The first has a larger or equal magnitude */
+            res = s_mp_sub(a, b, c);
+        }
+        else {
+            /* The result has the *opposite* sign from */
+            /* the first number. */
+            c->sign = (sa == MP_ZPOS) ? MP_NEG : MP_ZPOS;
+            /* The second has a larger magnitude */
+            res = s_mp_sub(b, a, c);
+        }
+    }
+    return res;
+}
+int
+mp_mod(mp_int * a, mp_int * b, mp_int * c)
+{
+    mp_int  t;
+    int     res;
+
+    if ((res = mp_init(&t)) != MP_OKAY) {
+        return res;
+    }
+
+    if ((res = mp_div(a, b, NULL, &t)) != MP_OKAY) {
+        mp_clear(&t);
+        return res;
+    }
+
+    if (t.sign != b->sign) {
+        res = mp_add(b, &t, c);
+    }
+    else {
+        res = MP_OKAY;
+        mp_exch(&t, c);
+    }
+
+    mp_clear(&t);
+    return res;
+}
+/*================================== ALAN ADDED END ==================================*/
+
 /*
 * From <http://en.wikipedia.org/w/index.php?title=Adder_(electronics)&oldid=381607326#Full_adder>
 * retrieved on 2010-09-01

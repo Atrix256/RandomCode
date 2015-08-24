@@ -27,7 +27,7 @@
 # define LTC_NO_PROTOTYPES
 #endif /* __native_client__ */
 #include <tommath.h>
-#include <tomcrypt.h>
+//#include <tomcrypt.h>
 #include <stdbool.h>
 #include <stdint.h>
 

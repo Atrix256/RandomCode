@@ -1,7 +1,7 @@
 // Added by me!
 #define LTC_NO_FAST
 #define LTC_NO_PROTOTYPES
-
+//#define LTM_ALL
 
 /* This is the build config file.
  *
