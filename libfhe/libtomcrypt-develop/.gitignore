@@ -1,0 +1,62 @@
+# suppress compiler/linker output
+*.[oa]
+*.obj
+*.l[oa]
+[Dd]ebug/
+[Rr]elease/
+.libs/
+
+# suppress output of build process
+gcc_[12].txt
+testok.txt
+test_*.txt
+tv.txt
+*_tv.txt
+
+# *nix/windows test executables
+constants
+constants.exe
+encrypt
+encrypt.exe
+hashsum
+hashsum.exe
+sizes
+sizes.exe
+small
+small.exe
+test
+test.exe
+tv_gen
+tv_gen.exe
+timing
+timing.exe
+
+# Visual Studio special files
+# ignore user specific settings
+*.user
+*.suo
+# ignore non-compressed browse file (holds information for ClassView, IntelliSense and WizardBar)
+*.ncb
+# ignore VS intermediate and program database files
+*.idb
+*.pdb
+
+# oops ;) but we don't want them to appear in the repository...
+*.stackdump
+*.core
+
+# misc
+*.rej
+*.patch
+*.diff
+*.orig
+*.out
+*.ll
+*.gcda
+*.gcno
+*.gcov
+
+# coverity intermediate directory etc.
+cov-int/
+.coverity_*
+libtomcrypt.lzma

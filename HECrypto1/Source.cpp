@@ -149,8 +149,11 @@ public:
         }
         while (!hasAnySet);
 
+        // TOOD: temp!
+        m_key.back() |= 1;
+
         // TODO: remove!
-        m_key[0] = 15;
+        //m_key[0] = 15;
     }
 
     CFHEEncryptedBit<KEYBYTES> EncryptBit (bool value)
@@ -189,9 +192,7 @@ int main (int argc, char **argv)
 
         falseBit.XOR(trueBit);
         Assert(privateKey.DecryptBit(falseBit) == true);
-        falseBit.XOR(trueBit2);
-        Assert(privateKey.DecryptBit(falseBit) == false);
-        falseBit.NOT();
+        falseBit.AND(trueBit2);
         Assert(privateKey.DecryptBit(falseBit) == true);
     }
 
@@ -211,6 +212,9 @@ TODO:
 * make it do useful work!
 * do some profiling to show how fast it is?
 * make something that uses all features
+
+! they keep saying the key is a p-bit odd integer. maybe it needs an odd number of bits set to true?
+ * http://crypto.stanford.edu/craig/easy-fhe.pdf
 
 
 BLOG:

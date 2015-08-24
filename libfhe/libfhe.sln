@@ -1,0 +1,48 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2013
+VisualStudioVersion = 12.0.31101.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libfhe", "libfhe.vcxproj", "{6EF360EC-5649-472E-B59A-EE779EBF2BC1}"
+	ProjectSection(ProjectDependencies) = postProject
+		{83C6ED1A-9437-4F85-8852-0A9645E10CF0} = {83C6ED1A-9437-4F85-8852-0A9645E10CF0}
+		{A1964156-1AED-4F1B-9ED1-13F509C11133} = {A1964156-1AED-4F1B-9ED1-13F509C11133}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libtommath", "libtommath-0.41\libtommath.vcxproj", "{83C6ED1A-9437-4F85-8852-0A9645E10CF0}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libtomcrypt", "libtomcrypt-develop\libtomcrypt.vcxproj", "{A1964156-1AED-4F1B-9ED1-13F509C11133}"
+	ProjectSection(ProjectDependencies) = postProject
+		{83C6ED1A-9437-4F85-8852-0A9645E10CF0} = {83C6ED1A-9437-4F85-8852-0A9645E10CF0}
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+		Template|Win32 = Template|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{6EF360EC-5649-472E-B59A-EE779EBF2BC1}.Debug|Win32.ActiveCfg = Debug|Win32
+		{6EF360EC-5649-472E-B59A-EE779EBF2BC1}.Debug|Win32.Build.0 = Debug|Win32
+		{6EF360EC-5649-472E-B59A-EE779EBF2BC1}.Release|Win32.ActiveCfg = Release|Win32
+		{6EF360EC-5649-472E-B59A-EE779EBF2BC1}.Release|Win32.Build.0 = Release|Win32
+		{6EF360EC-5649-472E-B59A-EE779EBF2BC1}.Template|Win32.ActiveCfg = Release|Win32
+		{6EF360EC-5649-472E-B59A-EE779EBF2BC1}.Template|Win32.Build.0 = Release|Win32
+		{83C6ED1A-9437-4F85-8852-0A9645E10CF0}.Debug|Win32.ActiveCfg = Debug|Win32
+		{83C6ED1A-9437-4F85-8852-0A9645E10CF0}.Debug|Win32.Build.0 = Debug|Win32
+		{83C6ED1A-9437-4F85-8852-0A9645E10CF0}.Release|Win32.ActiveCfg = Release|Win32
+		{83C6ED1A-9437-4F85-8852-0A9645E10CF0}.Release|Win32.Build.0 = Release|Win32
+		{83C6ED1A-9437-4F85-8852-0A9645E10CF0}.Template|Win32.ActiveCfg = Release|Win32
+		{83C6ED1A-9437-4F85-8852-0A9645E10CF0}.Template|Win32.Build.0 = Release|Win32
+		{A1964156-1AED-4F1B-9ED1-13F509C11133}.Debug|Win32.ActiveCfg = Debug|Win32
+		{A1964156-1AED-4F1B-9ED1-13F509C11133}.Debug|Win32.Build.0 = Debug|Win32
+		{A1964156-1AED-4F1B-9ED1-13F509C11133}.Release|Win32.ActiveCfg = Release|Win32
+		{A1964156-1AED-4F1B-9ED1-13F509C11133}.Release|Win32.Build.0 = Release|Win32
+		{A1964156-1AED-4F1B-9ED1-13F509C11133}.Template|Win32.ActiveCfg = Template|Win32
+		{A1964156-1AED-4F1B-9ED1-13F509C11133}.Template|Win32.Build.0 = Template|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
