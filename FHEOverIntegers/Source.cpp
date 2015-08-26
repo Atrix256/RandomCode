@@ -120,6 +120,16 @@ int main(int argc, char **argv)
         Assert(Decrypt(key, falseAndTrue) == false);
     }
 
+    int a = 3;
+    int b = 4;
+    int c = 5;
+    int d = 6;
+
+    int e = 4 % 3;
+    int f = 5 % 3;
+    int g = 5 % 4;
+    int h = 6 % 4;
+
     WaitForEnter();
     return 0;
 }
@@ -146,8 +156,13 @@ TODO:
 * how should we randomly select Q and R?  there are some recomendations, why are they secure?
 
 ? why is the key a: random odd number between 2^(N-1) and 2^N
+ * why odd number:  http://crypto.stackexchange.com/questions/18454/public-key-in-fully-homomorphic-encryption-over-the-integers
+  * i think that answers it, but think about it / reason it out.
+ ? why 2^(N-1) to 2^N. aka, why always have high bit set?
 
 * do symetric key, then public / private after
+
+! make a "tiny somewhat homomorphic" implementation using just uint32s and one operation first! then more complex stuff.
 
 Blog:
 ! WOW.  Addition litteraly adds the error, and multiplication multiplies it.  show this. by showing number % key for false and true bits and after anding and xoring.
