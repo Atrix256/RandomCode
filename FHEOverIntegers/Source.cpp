@@ -5,6 +5,8 @@
 typedef uint64_t uint64;
 
 const size_t c_numKeyBits = 4;
+const size_t c_numResidueBits = c_numKeyBits*c_numKeyBits;
+const size_t c_numQBits = c_numKeyBits*c_numKeyBits*c_numKeyBits*c_numKeyBits*c_numKeyBits;
 
 #define Assert(x) if (!(x)) ((int*)nullptr)[0] = 0;
 
@@ -45,7 +47,7 @@ void WaitForEnter()
 //=================================================================================
 uint64 GenerateKey()
 {
-    // Generate an odd random number between 2^(N-1) and 2^N 
+    // Generate an odd random number in [2^(N-1), 2^N)
     // Where N is the number of bits in our key
     uint64 key = 0;
     for (size_t i = 0; i < c_numKeyBits; ++i)
@@ -66,13 +68,22 @@ uint64 GenerateKey()
 uint64 Encrypt(uint64 key, bool value)
 {
     // TODO: generate q and r randomly. based on what exactly?
-    uint64 q = 3;
-    uint64 r = RandomInt(0, 1 << (c_numKeyBits - 2));  // r must be smaller than p / 4
+    uint64 q = 1;
+
+    // r is the "noise"
+    uint64 r = 0;// RandomInt(0, key / 4 - 1);  // r must be smaller than p / 4
 
     uint64 m = value ? 1 : 0;
 
     uint64 c = key * q + 2 * r + m;
     return c;
+}
+
+//=================================================================================
+bool Decrypt(uint64 key, uint64 value)
+{
+    uint64 blah = value % key;
+    return blah & 1 ? true : false;
 }
 
 //=================================================================================
@@ -85,13 +96,6 @@ uint64 XOR(uint64 A, uint64 B)
 uint64 AND(uint64 A, uint64 B)
 {
     return A * B;
-}
-
-//=================================================================================
-bool Decrypt(uint64 key, uint64 value)
-{
-    uint64 blah = value % key;
-    return blah & 1 ? true : false;
 }
 
 //=================================================================================
@@ -123,18 +127,30 @@ int main(int argc, char **argv)
 /*
 
 TODO:
+* this looks promising: https://github.com/coron/fhe
+ * compressed public key and modulus switching!
 * paper: https://eprint.iacr.org/2009/616.pdf
 * make it work
 * understand it's insecurities
+ * what if you don't add error (remove the residue r term)? how does that change security
 * generalize this stuff (AND and XOR)
 * figure out bootstrapping?
 * could generate the key better.  generate bytes at a time, mask away the parts we don't need, or on the front and back bits
-* what happens when numbers roll over
+* what happens when numbers roll over?
+ * can we mask it (let it roll over), or do we need to do multi precision math stuff?
+* do we need to do it first without bootstrapping? then an updated blog post wqith bootstrapping
 
+? what is the appropriate number of bits for each thing?
+
+? why does this work?
 * how should we randomly select Q and R?  there are some recomendations, why are they secure?
 
-? is there a way to introduce error to this?
-
 ? why is the key a: random odd number between 2^(N-1) and 2^N
+
+* do symetric key, then public / private after
+
+Blog:
+! WOW.  Addition litteraly adds the error, and multiplication multiplies it.  show this. by showing number % key for false and true bits and after anding and xoring.
+! AND and OR didn't work when noise got too large and caused the wrong answers to come out
 
 */
