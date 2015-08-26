@@ -130,6 +130,32 @@ int main(int argc, char **argv)
     int g = 5 % 4;
     int h = 6 % 4;
 
+    uint64 noise = 2; // must be even
+
+    // odd key
+    {
+        uint64 key = 9; //1001
+        uint64 trueBitEncrypted = key * 3 + noise + 1;
+        uint64 falseBitEncrypted = key * 3 + noise + 0;
+
+        uint64 trueXorFalseEncrypted = trueBitEncrypted + falseBitEncrypted;
+        uint64 trueAndFalseEncrypted = trueBitEncrypted * falseBitEncrypted;
+
+        int ijkl = 0;
+    }
+
+    // even key
+    {
+        uint64 key = 8; //1000
+        uint64 trueBitEncrypted = key * 3 + noise + 1;
+        uint64 falseBitEncrypted = key * 3 + noise + 0;
+
+        uint64 trueXorFalseEncrypted = trueBitEncrypted + falseBitEncrypted;
+        uint64 trueAndFalseEncrypted = trueBitEncrypted * falseBitEncrypted;
+
+        int ijkl = 0;
+    }
+
     WaitForEnter();
     return 0;
 }
