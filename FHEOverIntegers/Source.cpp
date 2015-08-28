@@ -1,15 +1,9 @@
-/*
-TODO:
-* do some runs with larger key bits?
-*/
-
 // Note that this encryption scheme is insecure so please don't actually use it
 // in production!  A false bit with a given key is the same value every time, and
 // so is a true bit.  Also, the encrypted true bit value will always be the
-// encrypted false bit plus 1.  That means if an attacker sees both an encrypted true
-// bit and an encrypted false bit before any operations are done on them, they will
-// be able to break the encryption!
-// This is just for demonstration purposes.
+// encrypted false bit plus 1.  Even worse, an encrypted false bit is the key itself!
+// This is just for demonstration purposes to see how the basics of homomorphic
+// encryption work.  The next blog post will increase security.
 
 #include <stdio.h>
 #include <stdint.h>
@@ -19,15 +13,17 @@ TODO:
 
 typedef uint64_t uint64;
 
-// Increase this value to increase the size of the key.
+// Increase this value to increase the size of the key, and also the maximum
+// size of the error allowed.
 // If you set it too high, operations will fail when they run out of storage space
-// in the 64 bit ints.
-const size_t c_numKeyBits = 4;
+// in the 64 bit ints.  If you set it too low, you will not be able to do very many
+// operations in a row.
+const size_t c_numKeyBits = 6;
 
 #define Assert(x) if (!(x)) ((int*)nullptr)[0] = 0;
 
 //=================================================================================
-// Replace with something crypto secure if desired!
+// TODO: Replace with something crypto secure if desired!
 uint64 RandomUint64 (uint64 min, uint64 max)
 {
     static std::random_device rd;
@@ -49,6 +45,8 @@ uint64 GenerateKey ()
 {
     // Generate an odd random number in [2^(N-1), 2^N)
     // N is the number of bits in our key
+    // The key also defines the maximum amount of error allowed, and thus the number
+    // of operations allowed in a row.
     return RandomUint64(0, (1 << c_numKeyBits) - 1) | 1 | (1 << (c_numKeyBits - 1));
 }
 
@@ -79,13 +77,16 @@ uint64 AND (uint64 A, uint64 B)
 }
 
 //=================================================================================
+int GetErrorPercent (uint64 key, uint64 value)
+{
+    // Returns what % of maximum error this value has in it.  When error >= 100%
+    // then we have hit our limit and start getting wrong answers.
+    return int(100.0f * float(value % key) / float(key));
+}
+
+//=================================================================================
 uint64 FullAdder (uint64 A, uint64 B, uint64 &carryBit)
 {
-    // TODO: temp!  when key is 9, the sumbit operation comes up with a zero result!
-    A = 10;
-    B = 10;
-    carryBit = 114100;
-
     // homomorphically add the encrypted bits A and B
     // return the single bit sum, and put the carry bit into carryBit
     // From http://en.wikipedia.org/w/index.php?title=Adder_(electronics)&oldid=381607326#Full_adder
@@ -100,7 +101,7 @@ int main (int argc, char **argv)
     // run this test a bunch to show that it works.  If you get a divide by zero
     // in an Assert, that means that it failed, and hopefully it's because you
     // increased c_numKeyBits to be too large!
-    printf("Verifying 10000 truth tables:\n");
+    printf("Verifying 10000 truth tables.  Details of first one:\n");
     for (int index = 0; index < 10000; ++index)
     {
         // make our key and a true and false bit
@@ -123,21 +124,21 @@ int main (int argc, char **argv)
         if (index == 0)
         {
             printf("Key 0x%" PRIx64 ", false 0x%" PRIx64 ", true 0x%" PRIx64 "\n", key, falseBit, trueBit);
-            printf("  [0 xor 0] = 0   0x%" PRIx64 " xor 0x%" PRIx64 " = 0x%" PRIx64 " (%i)\n", falseBit, falseBit, XOR(falseBit, falseBit), Decrypt(key, XOR(falseBit, falseBit)) ? 1 : 0);
-            printf("  [0 xor 1] = 1   0x%" PRIx64 " xor 0x%" PRIx64 " = 0x%" PRIx64 " (%i)\n", falseBit, trueBit , XOR(falseBit, trueBit ), Decrypt(key, XOR(falseBit, trueBit )) ? 1 : 0);
-            printf("  [1 xor 0] = 1   0x%" PRIx64 " xor 0x%" PRIx64 " = 0x%" PRIx64 " (%i)\n", trueBit , falseBit, XOR(trueBit , falseBit), Decrypt(key, XOR(trueBit , falseBit)) ? 1 : 0);
-            printf("  [1 xor 1] = 0   0x%" PRIx64 " xor 0x%" PRIx64 " = 0x%" PRIx64 " (%i)\n", trueBit , trueBit , XOR(trueBit , trueBit ), Decrypt(key, XOR(trueBit , trueBit )) ? 1 : 0);
-            printf("  [0 and 0] = 0   0x%" PRIx64 " and 0x%" PRIx64 " = 0x%" PRIx64 " (%i)\n", falseBit, falseBit, AND(falseBit, falseBit), Decrypt(key, AND(falseBit, falseBit)) ? 1 : 0);
-            printf("  [0 and 1] = 0   0x%" PRIx64 " and 0x%" PRIx64 " = 0x%" PRIx64 " (%i)\n", falseBit, trueBit , AND(falseBit, trueBit ), Decrypt(key, AND(falseBit, trueBit )) ? 1 : 0);
-            printf("  [1 and 0] = 0   0x%" PRIx64 " and 0x%" PRIx64 " = 0x%" PRIx64 " (%i)\n", trueBit , falseBit, AND(trueBit , falseBit), Decrypt(key, AND(trueBit , falseBit)) ? 1 : 0);
-            printf("  [1 and 1] = 1   0x%" PRIx64 " and 0x%" PRIx64 " = 0x%" PRIx64 " (%i)\n", trueBit , trueBit , AND(trueBit , trueBit ), Decrypt(key, AND(trueBit , trueBit )) ? 1 : 0);
+            printf("  [0 xor 0] = 0   0x%" PRIx64 " xor(+) 0x%" PRIx64 " = 0x%" PRIx64 " (%i err=%i%%)\n", falseBit, falseBit, XOR(falseBit, falseBit), Decrypt(key, XOR(falseBit, falseBit)) ? 1 : 0, GetErrorPercent(key, XOR(falseBit, falseBit)));
+            printf("  [0 xor 1] = 1   0x%" PRIx64 " xor(+) 0x%" PRIx64 " = 0x%" PRIx64 " (%i err=%i%%)\n", falseBit, trueBit , XOR(falseBit, trueBit ), Decrypt(key, XOR(falseBit, trueBit )) ? 1 : 0, GetErrorPercent(key, XOR(falseBit, trueBit )));
+            printf("  [1 xor 0] = 1   0x%" PRIx64 " xor(+) 0x%" PRIx64 " = 0x%" PRIx64 " (%i err=%i%%)\n", trueBit , falseBit, XOR(trueBit , falseBit), Decrypt(key, XOR(trueBit , falseBit)) ? 1 : 0, GetErrorPercent(key, XOR(trueBit , falseBit)));
+            printf("  [1 xor 1] = 0   0x%" PRIx64 " xor(+) 0x%" PRIx64 " = 0x%" PRIx64 " (%i err=%i%%)\n", trueBit , trueBit , XOR(trueBit , trueBit ), Decrypt(key, XOR(trueBit , trueBit )) ? 1 : 0, GetErrorPercent(key, XOR(trueBit , trueBit )));
+            printf("  [0 and 0] = 0   0x%" PRIx64 " and(*) 0x%" PRIx64 " = 0x%" PRIx64 " (%i err=%i%%)\n", falseBit, falseBit, AND(falseBit, falseBit), Decrypt(key, AND(falseBit, falseBit)) ? 1 : 0, GetErrorPercent(key, XOR(falseBit, falseBit)));
+            printf("  [0 and 1] = 0   0x%" PRIx64 " and(*) 0x%" PRIx64 " = 0x%" PRIx64 " (%i err=%i%%)\n", falseBit, trueBit , AND(falseBit, trueBit ), Decrypt(key, AND(falseBit, trueBit )) ? 1 : 0, GetErrorPercent(key, XOR(falseBit, trueBit )));
+            printf("  [1 and 0] = 0   0x%" PRIx64 " and(*) 0x%" PRIx64 " = 0x%" PRIx64 " (%i err=%i%%)\n", trueBit , falseBit, AND(trueBit , falseBit), Decrypt(key, AND(trueBit , falseBit)) ? 1 : 0, GetErrorPercent(key, XOR(trueBit , falseBit)));
+            printf("  [1 and 1] = 1   0x%" PRIx64 " and(*) 0x%" PRIx64 " = 0x%" PRIx64 " (%i err=%i%%)\n", trueBit , trueBit , AND(trueBit , trueBit ), Decrypt(key, AND(trueBit , trueBit )) ? 1 : 0, GetErrorPercent(key, XOR(trueBit , trueBit )));
         }
     }
 
     // Do multi bit addition as an example of using compound circuits to
     // do meaningful work.
-    const size_t c_numBitsAdded = 4;
-    printf("\nDoing 10000 Multibit Additions:\n");
+    const size_t c_numBitsAdded = 5;
+    printf("\nDoing 10000 Multibit Additions.  Details of first one:\n");
     std::array<uint64, c_numBitsAdded> numberAEncrypted;
     std::array<uint64, c_numBitsAdded> numberBEncrypted;
     std::array<uint64, c_numBitsAdded> resultEncrypted;
@@ -150,12 +151,6 @@ int main (int argc, char **argv)
         // generate our key
         uint64 key = GenerateKey();
 
-        // TODO: temp!
-        // TODO: when the numbers are both 15 and the key is 9, there is a problem!
-        // The encrypted result has a high bit of 0!
-        numberA = numberB = 15;
-        key = 9;
-
         // encrypt our bits
         for (int bitIndex = 0; bitIndex < c_numBitsAdded; ++bitIndex)
         {
@@ -164,7 +159,9 @@ int main (int argc, char **argv)
         }
 
         // do our multi bit addition!
-        uint64 carryBit = Encrypt(key, false); // IMPORTANT: initialize carry bit to ENCRYPTED 0, not just 0!
+        // we could initialize the carry bit to 0 or the encrypted value of 0. either one works since 0 and 1
+        // are also poor encryptions of 0 and 1 in this scheme!
+        uint64 carryBit = Encrypt(key, false);
         for (int bitIndex = 0; bitIndex < c_numBitsAdded; ++bitIndex)
             resultEncrypted[bitIndex] = FullAdder(numberAEncrypted[bitIndex], numberBEncrypted[bitIndex], carryBit);
 
@@ -182,14 +179,16 @@ int main (int argc, char **argv)
         // report the results for the first iteration of the loop
         if (index == 0)
         {
-            printf("Key 0x%" PRIx64 ", A + B, %" PRId64 " + %" PRId64 " with %i bits = %" PRId64 "\n", key, numberA, numberB, c_numBitsAdded, (numberA + numberB) % (1 << c_numBitsAdded));
+            printf("Key 0x%" PRIx64 ", %" PRId64 " + %" PRId64 " in %i bits = %" PRId64 "\n", key, numberA, numberB, c_numBitsAdded, (numberA + numberB) % (1 << c_numBitsAdded));
             for (int bitIndex = 0; bitIndex < c_numBitsAdded; ++bitIndex)
-                printf("  A[%i] = 0x%" PRIx64 "\n", bitIndex, numberAEncrypted[bitIndex]);
+                printf("  A[%i] = 0x%" PRIx64 " (%i err=%i%%)\n", bitIndex, numberAEncrypted[bitIndex], Decrypt(key, numberAEncrypted[bitIndex]), GetErrorPercent(key, numberAEncrypted[bitIndex]));
+            printf("+\n");
             for (int bitIndex = 0; bitIndex < c_numBitsAdded; ++bitIndex)
-                printf("  B[%i] = 0x%" PRIx64 "\n", bitIndex, numberBEncrypted[bitIndex]);
+                printf("  B[%i] = 0x%" PRIx64 " (%i err=%i%%)\n", bitIndex, numberBEncrypted[bitIndex], Decrypt(key, numberBEncrypted[bitIndex]), GetErrorPercent(key, numberBEncrypted[bitIndex]));
+            printf("=\n");
             for (int bitIndex = 0; bitIndex < c_numBitsAdded; ++bitIndex)
-                printf("  Result[%i] = 0x%" PRIx64 "\n", bitIndex, resultEncrypted[bitIndex]);
-            printf("result decrypted = %" PRId64 " \n", resultDecrypted);
+                printf("  Result[%i] = 0x%" PRIx64 " (%i err=%i%%)\n", bitIndex, resultEncrypted[bitIndex], Decrypt(key, resultEncrypted[bitIndex]), GetErrorPercent(key, resultEncrypted[bitIndex]));
+            printf("result decrypted = %" PRId64 "\n", resultDecrypted);
         }
     }
 
