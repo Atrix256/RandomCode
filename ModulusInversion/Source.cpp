@@ -36,7 +36,7 @@ unsigned int ExtendedEuclidianAlgorithm (int smaller, int larger, int &s, int &t
             t = ts[indexNeg1];
             if (swapped)
                 std::swap(s, t);
-            return newQuotient;
+            return remainders[indexNeg1];
         }
 
         // calculate this round's s and t
@@ -56,40 +56,60 @@ unsigned int ExtendedEuclidianAlgorithm (int smaller, int larger, int &s, int &t
 //=================================================================================
 void WaitForEnter ()
 {
-    printf("Press Enter to quit");
+    printf("\nPress Enter to quit");
     fflush(stdin);
     getchar();
 }
 
 //=================================================================================
-int main (int argc, char **argv)
+int main(int argc, char **argv)
 {
     // get user input
-    int a, m;
-    printf("Modulus Inverse Calculator:  a*x % m = 1\n");
-    printf("a = ?\n");
+    int a, m, n;
+    printf("Given a, m and n, solves for X.\n(a * X) %% m = n\n\n");
+    printf("a = ");
     scanf("%i", &a);
-    printf("m = ?\n");
+    printf("m = ");
     scanf("%i", &m);
+    printf("n = ");
+    scanf("%i", &n);
 
-    // Attempt inverse
+    // show details of what they entered
+    printf("\n(%i * X) mod %i = %i\n", a, m, n);
+
+    // Attempt brute force
+    printf("\nBrute Force Testing X from 0 to %i:\n", (m-1));
+    for (int i = 0; i < m; ++i) {
+        if ((a*i) % m == n)
+        {
+            printf("  X = %i\n", i);
+            printf("  %i mod %i = %i\n", a*i, m, (a*i) % m);
+            break;
+        }
+        else if (i == (m - 1))
+        {
+            printf("  No solution!\n");
+        }
+    }
+
+    // Attempt inverse via Extended Euclidean Algorithm
+    printf("\nExtended Euclidean Algorithm:\n");
     int s, t;
     int GCD = ExtendedEuclidianAlgorithm(a, m, s, t);
-
-    // TODO: 5 and 7 = GCD of 2??! look int it!
 
     // report failure if we couldn't do inverse
     if (GCD != 1)
     {
-        printf("Values are not co-prime, cannot inverse!\n");
-        WaitForEnter();
-        return 0;
+        printf("  Values are not co-prime, cannot invert! GCD = %i\n", GCD);
+    }
+    // Else report details of inverse and show that it worked
+    else
+    {
+        printf("  Inverse = %i\n", t);
+        printf("  X = Inverse * n = %i\n", t*n);
+        printf("  %i mod %i = %i\n", a*t*n, m, (a*t*n) % m);
     }
 
-    // Report details of inverse and show that it worked
-    printf("%i mod %i = %i\n", a, m, a % m);
-    printf("GCD = %i, Inverse = %i\n", GCD, t);
-    printf("(%i * %i) mod %i = %i\n", a, t, m, (a*t)%m);
     WaitForEnter();
     return 0;
 }
@@ -100,6 +120,15 @@ TODO:
 * make it work
 * blog post
 * then chinese remainder theorem, which uses this!
+* a,m,n = 5,7,3.  It doesn't show the smalles number possible under the extended euclidian algorithm. simplify.
+
+Blog:
+* talk about brute force and extended euclidian algorithm both
+* Note that this post is a prerequisite for a future post
+* As an example run, show something that works via brute force but isn't invertible.  Like they aren't coprime but you want the mod to equal two anyways so doesnt matter.
+ * a,m,n = 8, 6, 4
+* show a simple working run
+* show a large number run
 
 LINKS:
 * http://blog.demofox.org/2015/01/24/programmatically-calculating-gcd-and-lcm/
