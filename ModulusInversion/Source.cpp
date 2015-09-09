@@ -54,7 +54,7 @@ unsigned int ExtendedEuclidianAlgorithm (int smaller, int larger, int &s, int &t
 }
 
 //=================================================================================
-void WaitForEnter()
+void WaitForEnter ()
 {
     printf("Press Enter to quit");
     fflush(stdin);
@@ -64,25 +64,33 @@ void WaitForEnter()
 //=================================================================================
 int main (int argc, char **argv)
 {
-    /*
-    // Wikipedia example!
+    // get user input
+    int a, m;
+    printf("Modulus Inverse Calculator:  a*x % m = 1\n");
+    printf("a = ?\n");
+    scanf("%i", &a);
+    printf("m = ?\n");
+    scanf("%i", &m);
+
+    // Attempt inverse
     int s, t;
-    int ret = ExtendedEuclidianAlgorithm(46, 240, s, t);
+    int GCD = ExtendedEuclidianAlgorithm(a, m, s, t);
 
-    int s2, t2;
-    int ret2 = ExtendedEuclidianAlgorithm(240, 46, s2, t2);
-    */
-    
-    // TODO: if EEA return != 1, they are not coprime!
-    // TODO: user input to get values to work on?
-    // TODO: print out step by step in loop?
+    // TODO: 5 and 7 = GCD of 2??! look int it!
 
-    int a = 5;
-    int m = 7;
+    // report failure if we couldn't do inverse
+    if (GCD != 1)
+    {
+        printf("Values are not co-prime, cannot inverse!\n");
+        WaitForEnter();
+        return 0;
+    }
 
-    int s, t;
-    int ret = ExtendedEuclidianAlgorithm(5, 7, s, t);
-
+    // Report details of inverse and show that it worked
+    printf("%i mod %i = %i\n", a, m, a % m);
+    printf("GCD = %i, Inverse = %i\n", GCD, t);
+    printf("(%i * %i) mod %i = %i\n", a, t, m, (a*t)%m);
+    WaitForEnter();
     return 0;
 }
 
