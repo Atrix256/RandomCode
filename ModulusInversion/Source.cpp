@@ -117,18 +117,20 @@ int main(int argc, char **argv)
 /*
 
 TODO:
-* make it work
 * blog post
 * then chinese remainder theorem, which uses this!
-* a,m,n = 5,7,3.  It doesn't show the smalles number possible under the extended euclidian algorithm. simplify.
 
 Blog:
-* talk about brute force and extended euclidian algorithm both
 * Note that this post is a prerequisite for a future post
-* As an example run, show something that works via brute force but isn't invertible.  Like they aren't coprime but you want the mod to equal two anyways so doesnt matter.
- * a,m,n = 8, 6, 4
+* talk about brute force and extended euclidian algorithm both5
 * show a simple working run
+ * 7,9,2
 * show a large number run
+ * 7, 1000001, 538
+* show a run where inverse and then multiply is not the smallest value
+ * 5,7,3
+* show something that works via brute force but isn't invertible.  Like they aren't coprime but you want the mod to equal two anyways so doesnt matter.
+ * a,m,n = 8, 6, 4
 
 LINKS:
 * http://blog.demofox.org/2015/01/24/programmatically-calculating-gcd-and-lcm/
