@@ -151,15 +151,16 @@ int main(int argc, char **argv)
 /*
 
 Blog:
-* mention it was invented by Sun Tzu, but not the same Sun Tzu who wrote the art of war
-* show usage case of CRT with an example solution?
-* link to video on chinese remainder theorem
-* link to modulus inversion post
+! Solving simultaneous congruencies
+! mention it was invented by Sun Tzu, but not the same Sun Tzu who wrote the art of war
+! show usage case of CRT with an example solution?
+! link to video on chinese remainder theorem: https://www.youtube.com/watch?v=ru7mWZJlRQg
+! link to modulus inversion post: http://blog.demofox.org/2015/09/10/modular-multiplicative-inverse/
 * do they have to be coprime?
+ *  The thing where they don't strictly have to be coprime to be solvable. You could see that you could multiply everything by 5 and the result will be correct but they won't be coprime anymore as an example.
 * show some example runs w/ a few different equation sets (two working, one not working?)
 
 Links:
-https://www.youtube.com/watch?v=ru7mWZJlRQg
 https://en.wikipedia.org/wiki/Chinese_remainder_theorem
 
 */
