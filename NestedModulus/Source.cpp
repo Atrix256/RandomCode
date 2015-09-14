@@ -44,7 +44,8 @@ int main(int argc, char **argv)
     // a,b,c,d...
     // ((x % a) % b) % c = d
     // etc.
-    const int c_values[] = {7, 5, 2, 1};
+    //const int c_values[] = {7, 5, 2, 1};
+    const int c_values[] = { 12, 9, 7, 5, 3, 2 };
     const size_t c_numValues = sizeof(c_values) / sizeof(c_values[0]);
     
     // print the equation
@@ -146,6 +147,7 @@ TODO:
  ? see if this is needed, when doing more complex ones?
 
 Blog:
+* get examples from ones you did on paper perhaps?
 * mention it's a "save point" ? :p
 * show it with 1 modulus level
 * show it with 2 levels
