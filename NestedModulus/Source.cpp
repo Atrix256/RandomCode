@@ -153,8 +153,12 @@ Blog:
 * show it with 2 levels
 * show it with more levels
 * show it when there is no solution
+* note that you are unsure if there are other ways to solve these equations?
 
 Links:
 http://math.stackexchange.com/questions/1434181/how-to-solve-nested-congruences
+
+quotient remainder theorem:
+https://www.khanacademy.org/computing/computer-science/cryptography/modarithmetic/a/the-quotient-remainder-theorem
 
 */
