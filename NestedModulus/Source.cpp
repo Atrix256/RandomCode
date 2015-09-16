@@ -103,7 +103,7 @@ int main(int argc, char **argv)
     printf("\n");
     for (size_t i = 0, c = solutions[0].size(); i < c; ++i)
     {
-        printf("%c = {", 'a' + i);
+        printf("%c = {..., ", 'a' + i);
         for (int z = 0; z < 3; ++z)
         {
             printf("%i, ", solutions[0][i] + z * c_values[0]);
@@ -114,7 +114,7 @@ int main(int argc, char **argv)
 
     // Show the list of specific values of X
     std::sort(xValues.begin(), xValues.end());
-    printf("\nx = {");
+    printf("\nx = {..., ");
     std::for_each(xValues.begin(), xValues.end(), [](int v) {printf("%i, ", v); });
     printf("...}\n");
 
