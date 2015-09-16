@@ -42,6 +42,7 @@ int main (int argc, char **argv)
                                 )
                             {
                                 printf("%i, %i, %i, %i, %i, %i\n", x0, x1, k0, k1, k2, k3);
+                                WaitForEnter();
                             }
                         }
     }
@@ -54,13 +55,41 @@ int main (int argc, char **argv)
 TODO:
 ? are there any where the keys are all even
  * probably not. I let it run up to 40, for max number = 100 and it didnt find any
-* test this in homomorphic setting (adder?)
+* test this in homomorphic setting (n bit adder?)
 * generalize program for N bits and whatever highest number search
 * multithread it
 * try and figure it out mathematically
-* dump it to a text file and look for smaller values just to see if there are any?
+* after proving that this stuff works homomorphically, gather up what needs to be done, and possible avenues to explore, and present to ben to see if he wants to collaborate.
+* make a private github and share w/ him if he wants in
 
-AN ANSWER:
+
+Paper Research TODO's
+* find math to solve the constraints.  brute force is slow as f00k
+ * look into successive substitution to solve these equations? https://en.wikipedia.org/wiki/Method_of_successive_substitution
+* is there a way to have even keys? i don't think so but...
+* how about the other way(s) to implement homomorphic encryption.  Does this apply there? are any more interesting / easily done or have better properties?
+
+
+FIRST ANSWER:
+3,7,1,5,3,2
+
+x0 = 3
+x1 = 7
+k0 = 1
+k1 = 5
+k2 = 3
+k3 = 2
+
+((3 % 1) % 2) == 0
+((3 % 5) % 2) == 1
+((3 % 3) % 2) == 0
+((3 % 2) % 2) == 1
+((7 % 1) % 2) == 0
+((7 % 5) % 2) == 0
+((7 % 3) % 2) == 1
+((7 % 2) % 2) == 1
+
+OTHER ANSWER:
 ((x0 % k0) % 2) == 0
 ((x0 % k1) % 2) == 1
 ((x0 % k2) % 2) == 0
