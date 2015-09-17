@@ -1,7 +1,15 @@
 #include <stdio.h>
+#include <array>
+
+typedef int TInteger;
+
+const size_t c_numInputs = 2;
+const size_t c_numKeys = 1 << c_numInputs;
+
+const TInteger c_maxSearchValue = 2;
 
 //=================================================================================
-void WaitForEnter()
+void WaitForEnter ()
 {
     printf("\nPress Enter to quit");
     fflush(stdin);
@@ -9,8 +17,114 @@ void WaitForEnter()
 }
 
 //=================================================================================
+bool IncrementInputs (std::array<TInteger, c_numInputs>& inputs)
+{
+    for (size_t i = 0; i < c_numInputs; ++i)
+    {
+        if (inputs[i] < c_maxSearchValue)
+        {
+            ++inputs[i];
+            return true;
+        }
+
+        inputs[i] = 1;
+    }
+
+    return false;
+}
+
+//=================================================================================
+bool IncrementKeySpace (std::array<TInteger, c_numKeys>& keys)
+{
+    // we don't increment the highest key, since that defines our key space
+    for (size_t i = 0; i < c_numKeys - 1; ++i)
+    {
+        if (keys[i] < c_maxSearchValue)
+        {
+            ++keys[i];
+            return true;
+        }
+
+        keys[i] = 1;
+    }
+
+    return false;
+}
+
+//=================================================================================
+bool InputSatisfiesConstraints (
+    const std::array<TInteger, c_numInputs>& inputs,
+    const std::array<TInteger, c_numKeys>& keys
+)
+{
+    // TODO: make this work!
+    return true;
+}
+
+//=================================================================================
+void PrintValues (
+    const std::array<TInteger, c_numInputs>& inputs,
+    const std::array<TInteger, c_numKeys>& keys
+)
+{
+    printf("I=[");
+    std::for_each(inputs.begin(), inputs.end(), [](const TInteger& input) {printf(" %i", input); });
+
+    printf("]  K=[");
+    std::for_each(keys.begin(), keys.end(), [](const TInteger& key) {printf(" %i", key); });
+    printf("]\n");
+}
+
+//=================================================================================
+void ProcessKeySet (const std::array<TInteger, c_numKeys>& keys)
+{
+    // get the maximum key
+    TInteger maxKey = 0;
+    std::for_each(
+        keys.begin(),
+        keys.end(),
+        [&maxKey](const TInteger& key) {maxKey = std::max(maxKey, key); }
+    );
+
+    // cycle through our possible input values
+    std::array<TInteger, c_numInputs> inputs;
+    inputs.fill(0);
+
+    do 
+    {
+        if (InputSatisfiesConstraints(inputs, keys))
+            PrintValues(inputs, keys);
+    }
+    while (IncrementInputs(inputs));
+}
+
+//=================================================================================
+void ProcessKeySpace (TInteger keySpace)
+{
+    // initialize the starting keys
+    std::array<TInteger, c_numKeys> keys;
+    keys.fill(1);
+    keys[c_numKeys - 1] = keySpace;
+
+    // Process each set of keys in the key space
+    do
+    {
+        ProcessKeySet(keys);
+    }
+    while (IncrementKeySpace(keys));
+}
+
+//=================================================================================
 int main (int argc, char **argv)
 {
+
+    for (TInteger keySpace = 1; keySpace < c_maxSearchValue; ++keySpace)
+    {
+        printf("%i / %i\n", keySpace, c_maxSearchValue);
+        ProcessKeySpace(keySpace);
+    }
+
+#if 0
     int x0, x1, k0, k1, k2, k3;
 
     const int c_maxAmount = 100;
@@ -46,6 +160,7 @@ int main (int argc, char **argv)
                             }
                         }
     }
+#endif
 
     WaitForEnter();
     return 0;
@@ -61,7 +176,7 @@ TODO:
 * try and figure it out mathematically
 * after proving that this stuff works homomorphically, gather up what needs to be done, and possible avenues to explore, and present to ben to see if he wants to collaborate.
 * make a private github and share w/ him if he wants in
-
+* make it threaded?
 
 Paper Research TODO's
 * find math to solve the constraints.  brute force is slow as f00k
