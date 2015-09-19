@@ -1,12 +1,15 @@
 #include <stdio.h>
 #include <array>
+#include <thread>
+#include <vector>
+#include <atomic>
 
 typedef int TInteger;
 
-const size_t c_numInputs = 2;
+const size_t c_numInputs = 3;
 const size_t c_numKeys = 1 << c_numInputs;
 
-const TInteger c_maxSearchValue = 10;
+const TInteger c_maxSearchValue = 7;
 
 //=================================================================================
 void WaitForEnter ()
@@ -137,14 +140,32 @@ void PrintEquations ()
 }
 
 //=================================================================================
-int main (int argc, char **argv)
+void ThreadFunction (std::atomic<TInteger>& nextKeySpace)
 {
-    PrintEquations();
-    for (TInteger keySpace = 1; keySpace <= c_maxSearchValue; ++keySpace)
+    TInteger keySpace;
+    while ((keySpace = ++nextKeySpace) <= c_maxSearchValue)
     {
         printf("%i / %i\n", keySpace, c_maxSearchValue);
         ProcessKeySpace(keySpace);
     }
+}
+
+//=================================================================================
+int main (int argc, char **argv)
+{
+    // show the equations we want to solve
+    PrintEquations();
+
+    // report how many threads are used
+    auto numThreads = std::thread::hardware_concurrency();
+    printf("%i threads\n\n", numThreads);
+
+    // spin up the threads and then wait for it to be done
+    std::atomic<TInteger> nextKeySpace = 0;
+    std::vector<std::thread> threads;
+    for (size_t i = 0, c = numThreads; i < c; ++i)
+        threads.push_back(std::thread([&nextKeySpace]() { ThreadFunction(nextKeySpace); }));
+    for_each(threads.begin(), threads.end(), [](std::thread& t) { t.join(); });
 
     WaitForEnter();
     return 0;
@@ -152,11 +173,10 @@ int main (int argc, char **argv)
 
 /*
 TODO:
-* multithread it
+* put solutions into a per thread list and report at end? it's stomping on eachother right now.
 ? are there any where the keys are all even
  * probably not. I let it run up to 40, for max number = 100 and it didnt find any
 * test this in homomorphic setting (n bit adder?)
-* generalize program for N bits and whatever highest number search
 * try and figure it out mathematically
 * after proving that this stuff works homomorphically, gather up what needs to be done, and possible avenues to explore, and present to ben to see if he wants to collaborate.
 * make a private github and share w/ him if he wants in
