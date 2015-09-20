@@ -5,6 +5,8 @@ VisualStudioVersion = 12.0.31101.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BruteForce", "BruteForce.vcxproj", "{B4ABAFAD-8F2C-4CDA-B8A2-B3CBD4E5FCCC}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BruteForce2", "BruteForce2\BruteForce2.vcxproj", "{EA904B15-0704-40BC-A0F2-863656457425}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -15,6 +17,10 @@ Global
 		{B4ABAFAD-8F2C-4CDA-B8A2-B3CBD4E5FCCC}.Debug|Win32.Build.0 = Debug|Win32
 		{B4ABAFAD-8F2C-4CDA-B8A2-B3CBD4E5FCCC}.Release|Win32.ActiveCfg = Release|Win32
 		{B4ABAFAD-8F2C-4CDA-B8A2-B3CBD4E5FCCC}.Release|Win32.Build.0 = Release|Win32
+		{EA904B15-0704-40BC-A0F2-863656457425}.Debug|Win32.ActiveCfg = Debug|Win32
+		{EA904B15-0704-40BC-A0F2-863656457425}.Debug|Win32.Build.0 = Debug|Win32
+		{EA904B15-0704-40BC-A0F2-863656457425}.Release|Win32.ActiveCfg = Release|Win32
+		{EA904B15-0704-40BC-A0F2-863656457425}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -5,14 +5,16 @@
 #include <atomic>
 
 #define MULTITHREADED() 1
-#define MODULUSTWO() 0
+#define MODULUSTWO() 1
 
 typedef int TInteger;
 
 const size_t c_numInputs = 2;
 const size_t c_numKeys = 1 << c_numInputs;
 
-const TInteger c_maxSearchValue = 20;
+const TInteger c_maxSearchValue = 50;
+
+std::vector<TInteger> g_primeNumbers;
 
 //=================================================================================
 void WaitForEnter ()
@@ -51,7 +53,7 @@ bool IncrementKeySpace (std::array<TInteger, c_numKeys>& keys)
             return true;
         }
 
-        keys[i] = 1;
+        keys[i] = 0;
     }
 
     return false;
@@ -69,9 +71,9 @@ bool InputSatisfiesConstraints (
         {
             int output = (key & (1 << input)) != 0;
             #if MODULUSTWO()
-            if (((inputs[input] % keys[key]) % 2) != output)
+            if (((inputs[input] % g_primeNumbers[keys[key]]) % 2) != output)
             #else
-            if ((inputs[input] % keys[key]) != output)
+            if ((inputs[input] % g_primeNumbers[keys[key]]) != output)
             #endif
                 return false;
         }
@@ -89,7 +91,7 @@ void PrintValues (
     std::for_each(inputs.begin(), inputs.end(), [](const TInteger& input) {printf(" %i", input); });
 
     printf("]  k=[");
-    std::for_each(keys.begin(), keys.end(), [](const TInteger& key) {printf(" %i", key); });
+    std::for_each(keys.begin(), keys.end(), [](const TInteger& key) {printf(" %i", g_primeNumbers[key]); });
     printf("]\n");
 }
 
@@ -108,6 +110,9 @@ void ProcessKeySet (const std::array<TInteger, c_numKeys>& keys)
     std::array<TInteger, c_numInputs> inputs;
     inputs.fill(0);
 
+    static const std::array<TInteger, c_numInputs> inputs2 = { 15, 7 };
+    static const std::array<TInteger, c_numKeys> keys2 = { 0, 4, 2, 1 };
+
     do 
     {
         if (InputSatisfiesConstraints(inputs, keys))
@@ -121,7 +126,7 @@ void ProcessKeySpace (TInteger keySpace)
 {
     // initialize the starting keys
     std::array<TInteger, c_numKeys> keys;
-    keys.fill(1);
+    keys.fill(0);
     keys[c_numKeys - 1] = keySpace;
 
     // Process each set of keys in the key space
@@ -154,7 +159,7 @@ void PrintEquations ()
 void ThreadFunction (std::atomic<TInteger>& nextKeySpace)
 {
     TInteger keySpace;
-    while ((keySpace = ++nextKeySpace) <= c_maxSearchValue)
+    while ((keySpace = nextKeySpace++) <= c_maxSearchValue)
     {
         printf("%i / %i\n", keySpace, c_maxSearchValue);
         ProcessKeySpace(keySpace);
@@ -162,8 +167,24 @@ void ThreadFunction (std::atomic<TInteger>& nextKeySpace)
 }
 
 //=================================================================================
+void LoadPrimeNumbers ()
+{
+    FILE *file = fopen("primes-to-100k.txt","rt");
+    if (file)
+    {
+        TInteger value;
+        while (fscanf(file, "%i", &value) == 1)
+            g_primeNumbers.push_back(value);
+        fclose(file);
+    }
+}
+
+//=================================================================================
 int main (int argc, char **argv)
 {
+    // Load the prime numbers
+    LoadPrimeNumbers();
+
     // show the equations we want to solve
     PrintEquations();
 
