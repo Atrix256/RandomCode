@@ -4,10 +4,13 @@
 
 typedef std::array<std::complex<float>, 2> TQubit;
 typedef std::array<std::complex<float>, 4> TComplexMatrix;
+const float c_pi = 3.14159265359f;
 
 //=================================================================================
-static const TQubit c_qubit0 = { 1.0f, 0.0f };  // a qubit storing false aka |0>
-static const TQubit c_qubit1 = { 0.0f, 1.0f };  // a qubit storing true aka |1>
+static const TQubit c_qubit0 = { 1.0f, 0.0f };  // false aka |0>
+static const TQubit c_qubit1 = { 0.0f, 1.0f };  // true aka |1>
+static const TQubit c_qubit01_0deg = { 1.0f / std::sqrt(2.0f), 1.0f / std::sqrt(2.0f) }; // 50% true. 0 degree phase
+static const TQubit c_qubit01_180deg = { 1.0f / std::sqrt(2.0f), -1.0f / std::sqrt(2.0f) }; // 50% true. 180 degree phase
 
 // A not gate AKA Pauli-X gate
 // Flips false and true probabilities (amplitudes)
@@ -77,9 +80,10 @@ TQubit ApplyGate (const TQubit& qubit, const TComplexMatrix& gate)
 }
 
 //=================================================================================
-float ProbabilityOfBeingTrue (const TQubit& qubit)
+int ProbabilityOfBeingTrue (const TQubit& qubit)
 {
-    return (qubit[1] * qubit[1]).real();
+    float prob = std::round((qubit[1] * qubit[1]).real() * 100.0f);
+    return int(prob);
 }
 
 //=================================================================================
@@ -103,17 +107,221 @@ TComplexMatrix MakePhaseAdjustmentGate (float radians)
 }
 
 //=================================================================================
+void Print (const TQubit& qubit)
+{
+    printf("[(%0.2f, %0.2fi), (%0.2f, %0.2fi)] %i%% true",
+        qubit[0].real(), qubit[0].imag(),
+        qubit[1].real(), qubit[1].imag(),
+        ProbabilityOfBeingTrue(qubit));
+}
+
+//=================================================================================
 int main (int argc, char **argv)
 {
-    TQubit b = c_qubit1;
+    // Not Gate
+    {
+        printf("Not gate:\n  ");
 
-    float prob1 = ProbabilityOfBeingTrue(b);
+        // Qubit: false
+        TQubit v = c_qubit0;
+        Print(v);
+        printf("\n  ! = ");
+        v = ApplyGate(v, c_notGate);
+        Print(v);
+        printf("\n\n  ");
 
-    b = ApplyGate(b, c_hadamardGate);
+        // Qubit: true
+        v = c_qubit1;
+        Print(v);
+        printf("\n  ! = ");
+        v = ApplyGate(v, c_notGate);
+        Print(v);
+        printf("\n\n  ");
 
-    float prob2 = ProbabilityOfBeingTrue(b);
+        // Qubit: 50% chance, reverse phase
+        v = c_qubit01_180deg;
+        Print(v);
+        printf("\n  ! = ");
+        v = ApplyGate(v, c_notGate);
+        Print(v);
+        printf("\n\n");
+    }
 
-    TComplexMatrix m = MakePhaseAdjustmentGate(3.14159265359f);
+    // Pauli-y gate
+    {
+        printf("Pauli-y gate:\n  ");
+
+        // Qubit: false
+        TQubit v = c_qubit0;
+        Print(v);
+        printf("\n  Y = ");
+        v = ApplyGate(v, c_pauliYGate);
+        Print(v);
+        printf("\n\n  ");
+
+        // Qubit: true
+        v = c_qubit1;
+        Print(v);
+        printf("\n  Y = ");
+        v = ApplyGate(v, c_pauliYGate);
+        Print(v);
+        printf("\n\n  ");
+
+        // Qubit: 50% chance, reverse phase
+        v = c_qubit01_180deg;
+        Print(v);
+        printf("\n  Y = ");
+        v = ApplyGate(v, c_pauliYGate);
+        Print(v);
+        printf("\n\n");
+    }
+
+    // Pauli-z gate
+    {
+        printf("Pauli-z gate:\n  ");
+
+        // Qubit: false
+        TQubit v = c_qubit0;
+        Print(v);
+        printf("\n  Z = ");
+        v = ApplyGate(v, c_pauliZGate);
+        Print(v);
+        printf("\n\n  ");
+
+        // Qubit: true
+        v = c_qubit1;
+        Print(v);
+        printf("\n  Z = ");
+        v = ApplyGate(v, c_pauliZGate);
+        Print(v);
+        printf("\n\n  ");
+
+        // Qubit: 50% chance, reverse phase
+        v = c_qubit01_180deg;
+        Print(v);
+        printf("\n  Z = ");
+        v = ApplyGate(v, c_pauliZGate);
+        Print(v);
+        printf("\n\n");
+    }
+
+    // 45 degree phase adjustment gate
+    {
+        printf("45 degree phase gate:\n  ");
+        TComplexMatrix gate = MakePhaseAdjustmentGate(c_pi / 4.0f);
+
+        // Qubit: false
+        TQubit v = c_qubit0;
+        Print(v);
+        printf("\n  M = ");
+        v = ApplyGate(v, gate);
+        Print(v);
+        printf("\n\n  ");
+
+        // Qubit: true
+        v = c_qubit1;
+        Print(v);
+        printf("\n  M = ");
+        v = ApplyGate(v, gate);
+        Print(v);
+        printf("\n\n  ");
+
+        // Qubit: 50% chance, reverse phase
+        v = c_qubit01_180deg;
+        Print(v);
+        printf("\n  M = ");
+        v = ApplyGate(v, gate);
+        Print(v);
+        printf("\n\n");
+    }
+
+    // Hadamard gate
+    {
+        printf("Hadamard gate round trip:\n  ");
+
+        // Qubit: false
+        TQubit v = c_qubit0;
+        Print(v);
+        printf("\n  H = ");
+        v = ApplyGate(v, c_hadamardGate);
+        Print(v);
+        printf("\n  H = ");
+        v = ApplyGate(v, c_hadamardGate);
+        Print(v);
+        printf("\n\n  ");
+
+        // Qubit: true
+        v = c_qubit1;
+        Print(v);
+        printf("\n  H = ");
+        v = ApplyGate(v, c_hadamardGate);
+        Print(v);
+        printf("\n  H = ");
+        v = ApplyGate(v, c_hadamardGate);
+        Print(v);
+        printf("\n\n  ");
+
+        // Qubit: 50% chance, reverse phase
+        v = c_qubit01_180deg;
+        Print(v);
+        printf("\n  H = ");
+        v = ApplyGate(v, c_hadamardGate);
+        Print(v);
+        printf("\n  H = ");
+        v = ApplyGate(v, c_hadamardGate);
+        Print(v);
+        printf("\n\n");
+    }
+
+    // 1 bit circuit
+    // Hadamard -> Pauli-Z -> Hadamard
+    {
+        printf("Circuit Hadamard->Pauli-Z->Hadamard:\n  ");
+
+        // Qubit: false
+        TQubit v = c_qubit0;
+        Print(v);
+        printf("\n  H = ");
+        v = ApplyGate(v, c_hadamardGate);
+        Print(v);
+        printf("\n  Z = ");
+        v = ApplyGate(v, c_pauliZGate);
+        Print(v);
+        printf("\n  H = ");
+        v = ApplyGate(v, c_hadamardGate);
+        Print(v);
+        printf("\n\n  ");
+
+        // Qubit: true
+        v = c_qubit1;
+        Print(v);
+        printf("\n  H = ");
+        v = ApplyGate(v, c_hadamardGate);
+        Print(v);
+        printf("\n  Z = ");
+        v = ApplyGate(v, c_pauliZGate);
+        Print(v);
+        printf("\n  H = ");
+        v = ApplyGate(v, c_hadamardGate);
+        Print(v);
+        printf("\n\n  ");
+
+        // Qubit: 50% chance, reverse phase
+        v = c_qubit01_180deg;
+        Print(v);
+        printf("\n  H = ");
+        v = ApplyGate(v, c_hadamardGate);
+        Print(v);
+        printf("\n  Z = ");
+        v = ApplyGate(v, c_pauliZGate);
+        Print(v);
+        printf("\n  H = ");
+        v = ApplyGate(v, c_hadamardGate);
+        Print(v);
+        printf("\n");
+    }
+
+    WaitForEnter();
 
     return 0;
 }
@@ -121,8 +329,8 @@ int main (int argc, char **argv)
 /*
 
 TODO:
-* do all the gates
-* show the input and outputs
-* do a multi step gate -> like H->Not->H maybe
+* what is the correct way to get probability? squaring (0,i) comes up with -100% so isn't correct
+* also, the phase adjustment gate seems to be adjusting probabilities, maybe related!
+ * maybe it isn't normalized anymore after the gate or something?
 
 */
