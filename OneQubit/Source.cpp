@@ -82,7 +82,7 @@ TQubit ApplyGate (const TQubit& qubit, const TComplexMatrix& gate)
 //=================================================================================
 int ProbabilityOfBeingTrue (const TQubit& qubit)
 {
-    float prob = std::round((qubit[1] * qubit[1]).real() * 100.0f);
+    float prob = std::round((qubit[1] * std::conj(qubit[1])).real() * 100.0f);
     return int(prob);
 }
 
@@ -325,12 +325,3 @@ int main (int argc, char **argv)
 
     return 0;
 }
-
-/*
-
-TODO:
-* what is the correct way to get probability? squaring (0,i) comes up with -100% so isn't correct
-* also, the phase adjustment gate seems to be adjusting probabilities, maybe related!
- * maybe it isn't normalized anymore after the gate or something?
-
-*/
