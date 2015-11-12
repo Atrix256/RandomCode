@@ -7,6 +7,8 @@
 typedef boost::multiprecision::cpp_int TINT;
 typedef std::vector<TINT> TINTVec;
 
+const float c_pi = 3.14159265359f;
+
 //=================================================================================
 void WaitForEnter ()
 {
@@ -136,7 +138,7 @@ void MakeModulus (TINTVec &programs, TINTVec &keys, LAMBDA &lambda)
     // to keep things simple, input sizes are being constrained.
     // Do this in x64 instead of win32 to make size_t 8 bytes instead of 4
     static_assert(sizeof(TINPUT) < sizeof(size_t), "Input too large");
-    static_assert(sizeof(TOUTPUT) < sizeof(uint64_t), "Input too large");
+    static_assert(sizeof(TOUTPUT) < sizeof(uint64_t), "Output too large");
 
     // calculate some constants
     const size_t c_numInputBits = sizeof(TINPUT) * 8;
@@ -202,21 +204,27 @@ void MakeModulus (TINTVec &programs, TINTVec &keys, LAMBDA &lambda)
 //=================================================================================
 int main (int argc, char **argv)
 {
+    // programs encodes each bit, keys is used to decode each bit for specific
+    // input values.
     TINTVec programs;
     TINTVec keys;
 
     // this is the function that it turns into modulus work
     typedef uint8_t TINPUT;
     typedef float TOUTPUT;
-    auto lambda = [](TINPUT input) -> TOUTPUT
+    auto lambda = [] (TINPUT input) -> TOUTPUT
     {
-        return ((TOUTPUT)input)/255.0f;
+        return sin(((TOUTPUT)input) / 255.0f * 2.0f * c_pi);
     };
 
     MakeModulus<TINPUT, TOUTPUT>(programs, keys, lambda);
 
-    // TODO: test that program is correct, print out values, etc!
-    std::cout << sizeof(TINPUT) << " bytes input, " << sizeof(TOUTPUT) << " bytes output\n";
+    // show program 0 and key 0 to show what kind of numbers they are
+    std::cout << "Program 0: " << programs[0] << "\n";
+    std::cout << "Key 0: " << keys[0] << "\n";
+
+    // Decode all input values
+    std::cout << "\n" << sizeof(TINPUT) << " bytes input, " << sizeof(TOUTPUT) << " bytes output\n";
     for (size_t keyIndex = 0, keyCount = keys.size(); keyIndex < keyCount; ++keyIndex)
     {
         union
@@ -245,14 +253,10 @@ int main (int argc, char **argv)
 /*
 
 TODO:
-* make as general a thing as possible to modularize stuff.
-* do something compelling, line sin maybe.
-* print out all permutations and verify they are correct.
-* can we auto-detect more types, so we don't need to keep repeating input and output types? could use a typedef perhaps but that kinda sucks.
-* Note in post that increasing output bits isn't very expensive.
-* test with strings? maybe do multiple tests
-* time how long it takes to do each thing?
 
+* think about terminology. "program" correct?
 ? is union thing safe?
 
+* mention in post that it requires boost, and say how to get boost.
+* Note in post that increasing output bits isn't very expensive.
 */
