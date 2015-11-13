@@ -106,8 +106,8 @@ void MakeKey (TINTVec &keys, TINT &keysLCM, size_t index)
 }
 
 //=================================================================================
-void CalculateProgram (
-    TINT &program,
+void CalculateLookupTable (
+    TINT &lut,
     const std::vector<uint64_t> &output,
     const TINTVec &keys,
     const TINT &keysLCM,
@@ -116,7 +116,7 @@ void CalculateProgram (
 )
 {
     // figure out how much to multiply each coefficient by to make it have the specified modulus residue (remainder)
-    program = 0;
+    lut = 0;
     for (size_t i = 0, c = keys.size(); i < c; ++i)
     {
         // we either want this term to be 0 or 1 mod the key.  if zero, we can multiply by zero, and
@@ -127,13 +127,13 @@ void CalculateProgram (
         // if 1, use chinese remainder theorem
         TINT s, t;
         ExtendedEuclidianAlgorithm(coefficients[i], keys[i], s, t);
-        program = (program + ((coefficients[i] * t) % keysLCM)) % keysLCM;
+        lut = (lut + ((coefficients[i] * t) % keysLCM)) % keysLCM;
     }
 }
 
 //=================================================================================
 template <typename TINPUT, typename TOUTPUT, typename LAMBDA>
-void MakeModulus (TINTVec &programs, TINTVec &keys, LAMBDA &lambda)
+void MakeModulus (TINTVec &luts, TINTVec &keys, LAMBDA &lambda)
 {
     // to keep things simple, input sizes are being constrained.
     // Do this in x64 instead of win32 to make size_t 8 bytes instead of 4
@@ -185,13 +185,13 @@ void MakeModulus (TINTVec &programs, TINTVec &keys, LAMBDA &lambda)
         output[input.index] = outputConverter.index;
     }
 
-    // iterate through each possible output bit, since each bit is it's own program
-    programs.resize(c_numOutputBits);
+    // iterate through each possible output bit, since each bit is it's own lut
+    luts.resize(c_numOutputBits);
     for (size_t i = 0; i < c_numOutputBits; ++i)
     {
         const size_t bitMask = 1 << i;
-        CalculateProgram(
-            programs[i],
+        CalculateLookupTable(
+            luts[i],
             output,
             keys,
             keysLCM,
@@ -204,9 +204,9 @@ void MakeModulus (TINTVec &programs, TINTVec &keys, LAMBDA &lambda)
 //=================================================================================
 int main (int argc, char **argv)
 {
-    // programs encodes each bit, keys is used to decode each bit for specific
+    // Look up tables encodes each bit, keys is used to decode each bit for specific
     // input values.
-    TINTVec programs;
+    TINTVec luts;
     TINTVec keys;
 
     // this is the function that it turns into modulus work
@@ -217,11 +217,11 @@ int main (int argc, char **argv)
         return sin(((TOUTPUT)input) / 255.0f * 2.0f * c_pi);
     };
 
-    MakeModulus<TINPUT, TOUTPUT>(programs, keys, lambda);
+    MakeModulus<TINPUT, TOUTPUT>(luts, keys, lambda);
 
-    // show program 0 and key 0 to show what kind of numbers they are
-    std::cout << "Program 0: " << programs[0] << "\n";
-    std::cout << "Key 0: " << keys[0] << "\n";
+    // show last lut and key to show what kind of numbers they are
+    std::cout << "Last Lut: " << *luts.rbegin() << "\n";
+    std::cout << "Last Key: " << *keys.rbegin() << "\n";
 
     // Decode all input values
     std::cout << "\n" << sizeof(TINPUT) << " bytes input, " << sizeof(TOUTPUT) << " bytes output\n";
@@ -235,14 +235,14 @@ int main (int argc, char **argv)
 
         result.index = 0;
 
-        for (size_t programIndex = 0, programCount = programs.size(); programIndex < programCount; ++programIndex)
+        for (size_t lutIndex = 0, lutCount = luts.size(); lutIndex < lutCount; ++lutIndex)
         {
-            TINT remainder = programs[programIndex] % keys[keyIndex];
+            TINT remainder = luts[lutIndex] % keys[keyIndex];
             size_t remainderSizeT = size_t(remainder);
-            result.index += (remainderSizeT << programIndex);
+            result.index += (remainderSizeT << lutIndex);
         }
 
-        TINT remainder = programs[0] % keys[keyIndex];
+        TINT remainder = luts[0] % keys[keyIndex];
         std::cout << "i:" << keyIndex << " o:" << result.value << "\n";
     }
 
@@ -254,9 +254,8 @@ int main (int argc, char **argv)
 
 TODO:
 
-* think about terminology. "program" correct?
 ? is union thing safe?
 
-* mention in post that it requires boost, and say how to get boost.
-* Note in post that increasing output bits isn't very expensive.
+* talk about needing a large number of co-primes.  That this is what it's for (in FB post).
+
 */
