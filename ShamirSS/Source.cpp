@@ -2,20 +2,69 @@
 #include <array>
 #include <vector>
 #include <math.h>
+#include <random>
 
 // Basically ported from https://en.wikipedia.org/wiki/Shamir%27s_Secret_Sharing
 
 typedef std::array<int, 2> TShare;
-typedef std::vector<TShare> TShares;
+
+template <size_t N>
+using TShares = std::array <TShare, N>;
+
+template <int SHARES_NEEDED, int PRIME>
+class CShamirSecretSharing
+{
+public:
+    CShamirSecretSharing (int secretNumber) {
+        static_assert(SHARES_NEEDED > 0, "There must be at least 1 share needed to unlock the secret");
+
+        // store the secret number as the first coefficient
+        m_coefficients[0] = secretNumber;
+
+        // randomize the rest of the coefficients with numbers from 1 to 100
+        std::array<int, std::mt19937::state_size> seed_data;
+        std::random_device r;
+        std::generate_n(seed_data.data(), seed_data.size(), std::ref(r));
+        std::seed_seq seq(std::begin(seed_data), std::end(seed_data));
+        std::mt19937 gen(seq);
+        std::uniform_int_distribution<int> dis(1, 100);
+        for (size_t i = 1; i < SHARES_NEEDED; ++i)
+            m_coefficients[i] = dis(gen);
+    }
+
+    // Generate N shares
+    std::vector<TShare> GenerateShares (size_t numShares) const {
+        std::vector<TShare> shares;
+        shares.resize(numShares);
+        for (size_t i = 0; i < numShares; ++i)
+            shares[i] = GenerateShare(i+1);
+        return shares;
+    }
+
+    // Generate a single share in the form of (x, f(x))
+    TShare GenerateShare (int x) const {
+        int y = m_coefficients[0];
+        for (size_t i = 1; i < SHARES_NEEDED; ++i) {
+            y += m_coefficients[i] * x;
+            x *= x;
+        }
+        return { x, y };
+    }
+
+private:
+
+    std::array<int, SHARES_NEEDED> m_coefficients;
+};
 
 // Split number into the shares
-TShares split(int number, int available, int needed, int prime) {
+template <int c_prime, int c_available, int c_needed>
+TShares<c_available> split(int number) {
     std::vector<int> coef = { number, 166, 94 };
     int x = 0;
     int exp = 0;
     int c = 0;
     int accum = 0;
-    TShares shares;
+    TShares<c_available> shares;
     // TODO: make this generalized!
 
     /* Normally, we use the line:
@@ -27,11 +76,10 @@ TShares split(int number, int available, int needed, int prime) {
     * For each share that is requested to be available, run through the formula plugging the corresponding coefficient
     * The result is f(x), where x is the byte we are sharing (in the example, 1234)
     */
-    shares.resize(available);
-    for (x = 1; x <= available; x++) {
+    for (x = 1; x <= c_available; x++) {
         // coef = [1234, 166, 94] which is 1234x^0 + 166x^1 + 94x^2
-        for (exp = 1, accum = coef[0]; exp < needed; exp++)
-            accum = (accum + (coef[exp] * (int(pow(x, exp)) % prime) % prime)) % prime;
+        for (exp = 1, accum = coef[0]; exp < c_needed; exp++)
+            accum = (accum + (coef[exp] * (int(pow(x, exp)) % c_prime) % c_prime)) % c_prime;
         // Store values as (1, 132), (2, 66), (3, 188), (4, 241), (5, 225) (6, 140)
         shares[x - 1] = { x, accum };
     }
@@ -58,7 +106,7 @@ size_t modInverse(int k, int prime) {
 }
 
 // Join the shares into a number 
-int join(const TShares& shares, int prime) {
+int join(const TShares<3>& shares, int prime) {
 
     int accum, count, formula, startposition, nextposition, value, numerator, denominator;
     for(formula = accum = 0; formula < int(shares.size()); formula++) {
@@ -90,12 +138,18 @@ int main (int argc, char **argv)
 {
     const int c_prime = 257;
 
-    TShares sh = split(129, 6, 3, c_prime); // split the secret value 129 into 6 components - at least 3 of which will be needed to figure out the secret value 
-    TShares newshares = { sh[1], sh[3], sh[4] }; // pick any selection of 3 shared keys from sh 
+    CShamirSecretSharing<3, 257> secretSharer(129);
+    std::vector<TShare> shares = secretSharer.GenerateShares(6);
+    // TODO: make class able to join
+    // TODO: spit out shares and equation, and all the rest.
+
+    auto sh = split<c_prime, 6, 3>(129); // split the secret value 129 into 6 components - at least 3 of which will be needed to figure out the secret value 
+    TShares<3> newshares = { sh[1], sh[3], sh[4] }; // pick any selection of 3 shared keys from sh 
 
     int answer = join(newshares, c_prime);
-    printf("%i", answer);
+    printf("%i\r\n\r\n", answer);
 
+    WaitForEnter();
     return 0;
 }
 
@@ -108,6 +162,9 @@ TODO:
 * make constants for sizes of things, and make them be template params or something, for optimal speed?
 * make it pick random numbers using good c++ random number generation
 * should the prime be chosen randomly?
+? maybe make a templated class to interface with this stuff?
+* should we put horizontal separations to make code easier to read?
+* do a couple diff sized runs on the blog
 
 https://en.wikipedia.org/wiki/Shamir%27s_Secret_Sharing
 */
