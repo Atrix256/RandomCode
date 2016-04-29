@@ -3,22 +3,24 @@
 #include <vector>
 #include <math.h>
 #include <random>
+#include <assert.h>
 
-// Basically ported from https://en.wikipedia.org/wiki/Shamir%27s_Secret_Sharing
+// This code is basically ported from https://en.wikipedia.org/wiki/Shamir%27s_Secret_Sharing
 
 typedef std::array<int, 2> TShare;
+typedef std::vector<TShare> TShares;
 
-template <size_t N>
-using TShares = std::array <TShare, N>;
-
-template <int SHARES_NEEDED, int PRIME>
 class CShamirSecretSharing
 {
 public:
-    CShamirSecretSharing (int secretNumber) {
-        static_assert(SHARES_NEEDED > 0, "There must be at least 1 share needed to unlock the secret");
+    CShamirSecretSharing (int secretNumber, size_t sharesNeeded, int prime)
+        : c_sharesNeeded(sharesNeeded), c_prime(prime)
+    {
+        // There needs to be at least 1 share needed
+        assert(sharesNeeded > 0);
 
         // store the secret number as the first coefficient
+        m_coefficients.resize(c_sharesNeeded);
         m_coefficients[0] = secretNumber;
 
         // randomize the rest of the coefficients with numbers from 1 to 100
@@ -27,105 +29,85 @@ public:
         std::generate_n(seed_data.data(), seed_data.size(), std::ref(r));
         std::seed_seq seq(std::begin(seed_data), std::end(seed_data));
         std::mt19937 gen(seq);
-        std::uniform_int_distribution<int> dis(1, 100);
-        for (size_t i = 1; i < SHARES_NEEDED; ++i)
+        std::uniform_int_distribution<int> dis(1, c_prime);  // TODO: mauybe should be between 1 and prime? or prime-1? see which it should be
+        for (size_t i = 1; i < c_sharesNeeded; ++i)
             m_coefficients[i] = dis(gen);
     }
 
     // Generate N shares
-    std::vector<TShare> GenerateShares (size_t numShares) const {
-        std::vector<TShare> shares;
+    TShares GenerateShares (size_t numShares) const
+    {
+        TShares shares;
         shares.resize(numShares);
         for (size_t i = 0; i < numShares; ++i)
             shares[i] = GenerateShare(i+1);
         return shares;
     }
 
-    // Generate a single share in the form of (x, f(x))
-    TShare GenerateShare (int x) const {
-        int y = m_coefficients[0];
-        for (size_t i = 1; i < SHARES_NEEDED; ++i) {
-            y += m_coefficients[i] * x;
-            x *= x;
+    int JoinShares (const TShares& shares)
+    {
+        // make sure there is at elast the minimum number of shares
+        assert(shares.size() >= c_sharesNeeded);
+
+        int accum, count, formula, startposition, nextposition, value, numerator, denominator;
+        for (formula = accum = 0; formula < int(c_sharesNeeded); formula++) {
+            /* Multiply the numerator across the top and denominators across the bottom to do Lagrange's interpolation
+            * Result is x0(2), x1(4), x2(5) -> -4*-5 and (2-4=-2)(2-5=-3), etc for l0, l1, l2...
+            */
+            for (count = 0, numerator = denominator = 1; count < int(c_sharesNeeded); count++) {
+                if (formula == count) continue; // If not the same value
+                startposition = shares[formula][0];
+                nextposition = shares[count][0];
+                numerator = (numerator * -nextposition) % c_prime;
+                denominator = (denominator * (startposition - nextposition)) % c_prime;
+            }
+            value = shares[formula][1];
+            accum = (c_prime + accum + (value * numerator * modInverse(denominator, c_prime))) % c_prime;
         }
-        return { x, y };
+        
+        return accum;
     }
 
 private:
 
-    std::array<int, SHARES_NEEDED> m_coefficients;
-};
-
-// Split number into the shares
-template <int c_prime, int c_available, int c_needed>
-TShares<c_available> split(int number) {
-    std::vector<int> coef = { number, 166, 94 };
-    int x = 0;
-    int exp = 0;
-    int c = 0;
-    int accum = 0;
-    TShares<c_available> shares;
-    // TODO: make this generalized!
-
-    /* Normally, we use the line:
-    * for(c = 1, coef[0] = number; c < needed; c++) coef[c] = Math.floor(Math.random() * (prime  - 1));
-    * where (prime - 1) is the maximum allowable value.
-    * However, to follow this example, we hardcode the values:
-    * coef = [number, 166, 94];
-    * For production, replace the hardcoded value with the random loop
-    * For each share that is requested to be available, run through the formula plugging the corresponding coefficient
-    * The result is f(x), where x is the byte we are sharing (in the example, 1234)
-    */
-    for (x = 1; x <= c_available; x++) {
-        // coef = [1234, 166, 94] which is 1234x^0 + 166x^1 + 94x^2
-        for (exp = 1, accum = coef[0]; exp < c_needed; exp++)
-            accum = (accum + (coef[exp] * (int(pow(x, exp)) % c_prime) % c_prime)) % c_prime;
-        // Store values as (1, 132), (2, 66), (3, 188), (4, 241), (5, 225) (6, 140)
-        shares[x - 1] = { x, accum };
-    }
-    return shares;
-}
-
-// Gives the decomposition of the gcd of a and b.  Returns [x,y,z] such that x = gcd(a,b) and y*a + z*b = x
-const std::array<int, 3> gcdD(int a, int b) {
-    if (b == 0)
-        return { a, 1, 0 };
-
-    const size_t n = a / b;
-    const size_t c = a % b;
-    const std::array<int, 3> r = gcdD(b, c);
-
-    return {r[0], r[2], r[1] - r[2] * n};
-}
-
-// Gives the multiplicative inverse of k mod prime.  In other words (k * modInverse(k)) % prime = 1 for all prime > k >= 1 
-size_t modInverse(int k, int prime) {
-    k = k % prime;
-    int r = (k < 0) ? -gcdD(prime, -k)[2] : gcdD(prime, k)[2];
-    return (prime + r) % prime;
-}
-
-// Join the shares into a number 
-int join(const TShares<3>& shares, int prime) {
-
-    int accum, count, formula, startposition, nextposition, value, numerator, denominator;
-    for(formula = accum = 0; formula < int(shares.size()); formula++) {
-        /* Multiply the numerator across the top and denominators across the bottom to do Lagrange's interpolation
-         * Result is x0(2), x1(4), x2(5) -> -4*-5 and (2-4=-2)(2-5=-3), etc for l0, l1, l2...
-         */
-        for(count = 0, numerator = denominator = 1; count < int(shares.size()); count++) {
-            if(formula == count) continue; // If not the same value
-            startposition = shares[formula][0];
-            nextposition = shares[count][0];
-            numerator = (numerator * -nextposition) % prime;
-            denominator = (denominator * (startposition - nextposition)) % prime;
+    // Generate a single share in the form of (x, f(x))
+    TShare GenerateShare (int x) const
+    {
+        int xpow = x;
+        int y = m_coefficients[0];
+        for (size_t i = 1; i < c_sharesNeeded; ++i) {
+            y += m_coefficients[i] * xpow;
+            xpow *= xpow;
         }
-        value = shares[formula][1];
-        accum = (prime + accum + (value * numerator * modInverse(denominator, prime))) % prime;
+        return{ x, y % c_prime };
     }
-    return accum;
-}
 
+    // Gives the decomposition of the gcd of a and b.  Returns [x,y,z] such that x = gcd(a,b) and y*a + z*b = x
+    const std::array<int, 3> gcdD (int a, int b) {
+        if (b == 0)
+            return{ a, 1, 0 };
+
+        const size_t n = a / b;
+        const size_t c = a % b;
+        const std::array<int, 3> r = gcdD(b, c);
+
+        return{ r[0], r[2], r[1] - r[2] * n };
+    }
+
+    // Gives the multiplicative inverse of k mod prime.  In other words (k * modInverse(k)) % prime = 1 for all prime > k >= 1 
+    size_t modInverse (int k, int prime) {
+        k = k % prime;
+        int r = (k < 0) ? -gcdD(prime, -k)[2] : gcdD(prime, k)[2];
+        return (prime + r) % prime;
+    }
+
+private:
+
+    const int           c_prime;
+    const size_t        c_sharesNeeded;
+
+    std::vector<int>    m_coefficients;
+};
 
 void WaitForEnter()
 {
@@ -136,18 +118,19 @@ void WaitForEnter()
 
 int main (int argc, char **argv)
 {
-    const int c_prime = 257;
 
-    CShamirSecretSharing<3, 257> secretSharer(129);
-    std::vector<TShare> shares = secretSharer.GenerateShares(6);
-    // TODO: make class able to join
-    // TODO: spit out shares and equation, and all the rest.
+    CShamirSecretSharing secretSharer(129, 3, 257);
+    TShares shares = secretSharer.GenerateShares(6);
+    TShares newShares = { shares[1], shares[3], shares[4] }; // pick any selection of 3 shared keys from sh 
+    int an = secretSharer.JoinShares(newShares);
+    printf("%i\r\n\r\n", an);
 
-    auto sh = split<c_prime, 6, 3>(129); // split the secret value 129 into 6 components - at least 3 of which will be needed to figure out the secret value 
-    TShares<3> newshares = { sh[1], sh[3], sh[4] }; // pick any selection of 3 shared keys from sh 
-
-    int answer = join(newshares, c_prime);
-    printf("%i\r\n\r\n", answer);
+    // TODO: print public info? shares needed and prime
+    // TODO: maybe have constructor make shares so that they aren't stored anywhere? probably still useful to have a class i guess though.
+    // TODO: shuffle shares and join them
+    // TODO: why doesnt the above work with 4 shares required?  I think the join function is wrong
+    // TOOD: doesn't work with linear (2 shares / points) either!
+    // TODO: test a lot
 
     WaitForEnter();
     return 0;
@@ -156,6 +139,7 @@ int main (int argc, char **argv)
 /*
 
 TODO:
+* make std::vector<TShare> into tshares?
 * finish porting this
 * make the code good and flexible
 * use a typedef instead of int, so it can be changed out easily?
