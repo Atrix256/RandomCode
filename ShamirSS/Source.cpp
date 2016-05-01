@@ -4,109 +4,123 @@
 #include <math.h>
 #include <random>
 #include <assert.h>
+#include <stdint.h>
+#include <inttypes.h>
 
-// This code is basically ported from https://en.wikipedia.org/wiki/Shamir%27s_Secret_Sharing
-
-typedef std::array<int, 2> TShare;
+typedef int64_t TINT;
+typedef std::array<TINT, 2> TShare;
 typedef std::vector<TShare> TShares;
 
 class CShamirSecretSharing
 {
 public:
-    CShamirSecretSharing (int secretNumber, size_t sharesNeeded, int prime)
+    CShamirSecretSharing(size_t sharesNeeded, TINT prime)
         : c_sharesNeeded(sharesNeeded), c_prime(prime)
     {
         // There needs to be at least 1 share needed
         assert(sharesNeeded > 0);
-
-        // store the secret number as the first coefficient
-        m_coefficients.resize(c_sharesNeeded);
-        m_coefficients[0] = secretNumber;
-
-        // randomize the rest of the coefficients with numbers from 1 to 100
-        std::array<int, std::mt19937::state_size> seed_data;
-        std::random_device r;
-        std::generate_n(seed_data.data(), seed_data.size(), std::ref(r));
-        std::seed_seq seq(std::begin(seed_data), std::end(seed_data));
-        std::mt19937 gen(seq);
-        std::uniform_int_distribution<int> dis(1, c_prime);  // TODO: mauybe should be between 1 and prime? or prime-1? see which it should be
-        for (size_t i = 1; i < c_sharesNeeded; ++i)
-            m_coefficients[i] = dis(gen);
     }
 
-    // Generate N shares
-    TShares GenerateShares (size_t numShares) const
+    // Generate N shares for a secretNumber
+    TShares GenerateShares(TINT secretNumber, TINT numShares) const
     {
+        // calculate our curve coefficients
+        std::vector<TINT> coefficients;
+        {
+            // store the secret number as the first coefficient;
+            coefficients.resize((size_t)c_sharesNeeded);
+            coefficients[0] = secretNumber;
+
+            // randomize the rest of the coefficients
+            std::array<int, std::mt19937::state_size> seed_data;
+            std::random_device r;
+            std::generate_n(seed_data.data(), seed_data.size(), std::ref(r));
+            std::seed_seq seq(std::begin(seed_data), std::end(seed_data));
+            std::mt19937 gen(seq);
+            std::uniform_int_distribution<TINT> dis(1, c_prime - 1);
+            for (TINT i = 1; i < c_sharesNeeded; ++i)
+                coefficients[(size_t)i] = dis(gen);
+        }
+
+        // generate the shares
         TShares shares;
-        shares.resize(numShares);
+        shares.resize((size_t)numShares);
         for (size_t i = 0; i < numShares; ++i)
-            shares[i] = GenerateShare(i+1);
+            shares[i] = GenerateShare(i + 1, coefficients);
         return shares;
     }
 
-    int JoinShares (const TShares& shares)
+    // use lagrange polynomials to find f(0) of the curve, which is the secret number
+    TINT JoinShares(const TShares& shares) const
     {
         // make sure there is at elast the minimum number of shares
-        assert(shares.size() >= c_sharesNeeded);
+        assert(shares.size() >= size_t(c_sharesNeeded));
 
-        int accum, count, formula, startposition, nextposition, value, numerator, denominator;
-        for (formula = accum = 0; formula < int(c_sharesNeeded); formula++) {
-            /* Multiply the numerator across the top and denominators across the bottom to do Lagrange's interpolation
-            * Result is x0(2), x1(4), x2(5) -> -4*-5 and (2-4=-2)(2-5=-3), etc for l0, l1, l2...
-            */
-            for (count = 0, numerator = denominator = 1; count < int(c_sharesNeeded); count++) {
-                if (formula == count) continue; // If not the same value
-                startposition = shares[formula][0];
-                nextposition = shares[count][0];
-                numerator = (numerator * -nextposition) % c_prime;
-                denominator = (denominator * (startposition - nextposition)) % c_prime;
+        // Sigma summation loop
+        TINT sum = 0;
+        for (TINT j = 0; j < c_sharesNeeded; ++j)
+        {
+            TINT y_j = shares[(size_t)j][1];
+
+            TINT numerator = 1;
+            TINT denominator = 1;
+
+            // Pi product loop
+            for (TINT m = 0; m < c_sharesNeeded; ++m)
+            {
+                if (m == j)
+                    continue;
+
+                numerator = (numerator * shares[(size_t)m][0]) % c_prime;
+                denominator = (denominator * (shares[(size_t)m][0] - shares[(size_t)j][0])) % c_prime;
             }
-            value = shares[formula][1];
-            accum = (c_prime + accum + (value * numerator * modInverse(denominator, c_prime))) % c_prime;
+
+            sum = (c_prime + sum + y_j * numerator * modInverse(denominator, c_prime)) % c_prime;
         }
-        
-        return accum;
+        return sum;
     }
+
+    const TINT GetPrime() const { return c_prime; }
+    const TINT GetSharesNeeded() const { return c_sharesNeeded; }
 
 private:
 
     // Generate a single share in the form of (x, f(x))
-    TShare GenerateShare (int x) const
+    TShare GenerateShare(TINT x, const std::vector<TINT>& coefficients) const
     {
-        int xpow = x;
-        int y = m_coefficients[0];
-        for (size_t i = 1; i < c_sharesNeeded; ++i) {
-            y += m_coefficients[i] * xpow;
-            xpow *= xpow;
+        TINT xpow = x;
+        TINT y = coefficients[0];
+        for (TINT i = 1; i < c_sharesNeeded; ++i) {
+            y += coefficients[(size_t)i] * xpow;
+            xpow *= x;
         }
         return{ x, y % c_prime };
     }
 
     // Gives the decomposition of the gcd of a and b.  Returns [x,y,z] such that x = gcd(a,b) and y*a + z*b = x
-    const std::array<int, 3> gcdD (int a, int b) {
+    static const std::array<TINT, 3> gcdD(TINT a, TINT b) {
         if (b == 0)
             return{ a, 1, 0 };
 
-        const size_t n = a / b;
-        const size_t c = a % b;
-        const std::array<int, 3> r = gcdD(b, c);
+        const TINT n = a / b;
+        const TINT c = a % b;
+        const std::array<TINT, 3> r = gcdD(b, c);
 
         return{ r[0], r[2], r[1] - r[2] * n };
     }
 
     // Gives the multiplicative inverse of k mod prime.  In other words (k * modInverse(k)) % prime = 1 for all prime > k >= 1 
-    size_t modInverse (int k, int prime) {
+    static TINT modInverse(TINT k, TINT prime) {
         k = k % prime;
-        int r = (k < 0) ? -gcdD(prime, -k)[2] : gcdD(prime, k)[2];
+        TINT r = (k < 0) ? -gcdD(prime, -k)[2] : gcdD(prime, k)[2];
         return (prime + r) % prime;
     }
 
 private:
 
-    const int           c_prime;
-    const size_t        c_sharesNeeded;
-
-    std::vector<int>    m_coefficients;
+    // Publically known information
+    const TINT          c_prime;
+    const TINT          c_sharesNeeded;
 };
 
 void WaitForEnter()
@@ -116,22 +130,40 @@ void WaitForEnter()
     getchar();
 }
 
-int main (int argc, char **argv)
+int main(int argc, char **argv)
 {
+    // Parameters
+    const TINT c_secretNumber = 435;
+    const TINT c_sharesNeeded = 7;
+    const TINT c_sharesMade = 50;
+    const TINT c_prime = 439;   // must be a prime number larger than the other three numbers above
 
-    CShamirSecretSharing secretSharer(129, 3, 257);
-    TShares shares = secretSharer.GenerateShares(6);
-    TShares newShares = { shares[1], shares[3], shares[4] }; // pick any selection of 3 shared keys from sh 
-    int an = secretSharer.JoinShares(newShares);
-    printf("%i\r\n\r\n", an);
+    // set up a secret sharing object with the public information
+    CShamirSecretSharing secretSharer(c_sharesNeeded, c_prime);
 
-    // TODO: print public info? shares needed and prime
-    // TODO: maybe have constructor make shares so that they aren't stored anywhere? probably still useful to have a class i guess though.
-    // TODO: shuffle shares and join them
-    // TODO: why doesnt the above work with 4 shares required?  I think the join function is wrong
-    // TOOD: doesn't work with linear (2 shares / points) either!
-    // TODO: test a lot
+    // split a secret value into multiple shares
+    TShares shares = secretSharer.GenerateShares(c_secretNumber, c_sharesMade);
 
+    // shuffle the shares, so it's random which ones are used to join
+    std::array<int, std::mt19937::state_size> seed_data;
+    std::random_device r;
+    std::generate_n(seed_data.data(), seed_data.size(), std::ref(r));
+    std::seed_seq seq(std::begin(seed_data), std::end(seed_data));
+    std::mt19937 gen(seq);
+    std::shuffle(shares.begin(), shares.end(), gen);
+
+    // join the shares
+    TINT joinedSecret = secretSharer.JoinShares(shares);
+
+    // show the public information and the secrets being joined
+    printf("%" PRId64 " shares needed, %i shares made\n", secretSharer.GetSharesNeeded(), shares.size());
+    printf("Prime = %" PRId64 "\n\n", secretSharer.GetPrime());
+    for (TINT i = 0, c = secretSharer.GetSharesNeeded(); i < c; ++i)
+        printf("Share %" PRId64 " = (%" PRId64 ", %" PRId64 ")\n", i + 1, shares[i][0], shares[i][1]);
+
+    // show the result
+    printf("\nJoined Secret = %" PRId64 "\nActual Secret = %" PRId64 "\n\n", joinedSecret, c_secretNumber);
+    assert(joinedSecret == c_secretNumber);
     WaitForEnter();
     return 0;
 }
@@ -139,16 +171,10 @@ int main (int argc, char **argv)
 /*
 
 TODO:
-* make std::vector<TShare> into tshares?
-* finish porting this
-* make the code good and flexible
-* use a typedef instead of int, so it can be changed out easily?
-* make constants for sizes of things, and make them be template params or something, for optimal speed?
-* make it pick random numbers using good c++ random number generation
-* should the prime be chosen randomly?
-? maybe make a templated class to interface with this stuff?
-* should we put horizontal separations to make code easier to read?
-* do a couple diff sized runs on the blog
+* do a couple diff sized runs on the blog post
+* Note on blog that its breaks down if there is integer overflow, so large integer advised (at what levels does it break down?)
+ * using a modulus of 257, 10 shares is about the limit of what i'm able to do with an int64, with 50 shares total generated.
 
 https://en.wikipedia.org/wiki/Shamir%27s_Secret_Sharing
+http://stackoverflow.com/questions/19327651/java-implementation-of-shamirs-secret-sharing
 */
