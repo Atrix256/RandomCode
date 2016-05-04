@@ -161,7 +161,7 @@ void ProcessNumbers (const FILTER& filter, const TEST& test)
 //=================================================================
 int main (int argc, char **argv)
 {
-    ProcessNumbers<0, 100>(IsPrime, HasHyperbolic<8>);
+    ProcessNumbers<0, 10000>(IsAnyNumber, HasImaginary<2>);
 
     WaitForEnter();
     return 0;
@@ -197,6 +197,7 @@ Questions:
    * 6 of them had 2 solutions
    * 1 of them had 1 solution (p = 2)
    * code: ProcessNumbers<0, 100>(IsPrime, HasImaginary<6>);
+* something weird... the solutions for HasImaginary<2> seem to add up to p!
 
 ----- DUAL NUMBERS -----
 * No prime numbers from 0 to 10,000 seem to have any solutions for dual numbers
@@ -211,6 +212,8 @@ Questions:
  * ProcessNumbers<0, 100>(IsPrime, HasHyperbolic<6>) = 96%
  * ProcessNumbers<0, 100>(IsPrime, HasHyperbolic<8>) = 96%
  * ProcessNumbers<0, 10000>(IsPrime, HasHyperbolic<8>) = 49% 
+* When there is an answer, it is prime-1.
+ * there are also sometimes more answers, but they add up in pairs to prime.
 
 -----------------------------------------------------------------------------
                                  SOLUTIONS
