@@ -7,7 +7,154 @@
 
 typedef int64_t TINT;
 
-typedef std::array<TINT, 2> TComplex;
+//=================================================================
+struct SPrimeInfo
+{
+    TINT                m_prime;
+    std::array<TINT, 2> m_imaginaries;
+};
+
+//=================================================================
+struct SIntermediate
+{
+    SIntermediate (TINT v0 = 0, TINT v1 = 0)
+    {
+        m_values[0] = v0;
+        m_values[1] = v1;
+    }
+
+    void Reduce (TINT prime)
+    {
+        m_values[0] = m_values[0] % prime;
+        m_values[1] = m_values[1] % prime;
+    }
+
+    std::array<TINT, 2> m_values;
+};
+
+//=================================================================
+struct SComplex
+{
+    SComplex (TINT real = 0, TINT imaginary = 0)
+    {
+        m_real = real;
+        m_imaginary = imaginary;
+    }
+
+    TINT m_real;
+    TINT m_imaginary;
+};
+
+//=================================================================
+SIntermediate operator + (const SIntermediate &A, const SIntermediate &B)
+{
+    return SIntermediate(A.m_values[0] + B.m_values[0], A.m_values[1] + B.m_values[1]);
+}
+
+//=================================================================
+SIntermediate operator * (const SIntermediate &A, const SIntermediate &B)
+{
+    return SIntermediate(A.m_values[0] * B.m_values[0], A.m_values[1] * B.m_values[1]);
+}
+
+//=================================================================================
+TINT ExtendedEuclidianAlgorithm (TINT smaller, TINT larger, TINT &s, TINT &t)
+{
+    // make sure A <= B before starting
+    bool swapped = false;
+    if (larger < smaller)
+    {
+        swapped = true;
+        std::swap(smaller, larger);
+    }
+ 
+    // set up our storage for the loop.  We only need the last two values so will
+    // just use a 2 entry circular buffer for each data item
+    std::array<TINT, 2> remainders = { larger, smaller };
+    std::array<TINT, 2> ss = { 1, 0 };
+    std::array<TINT, 2> ts = { 0, 1 };
+    size_t indexNeg2 = 0;
+    size_t indexNeg1 = 1;
+ 
+    // loop
+    while (1)
+    {
+        // calculate our new quotient and remainder
+        TINT newQuotient = remainders[indexNeg2] / remainders[indexNeg1];
+        TINT newRemainder = remainders[indexNeg2] - newQuotient * remainders[indexNeg1];
+ 
+        // if our remainder is zero we are done.
+        if (newRemainder == 0)
+        {
+            // return our s and t values as well as the quotient as the GCD
+            s = ss[indexNeg1];
+            t = ts[indexNeg1];
+            if (swapped)
+                std::swap(s, t);
+            return remainders[indexNeg1];
+        }
+ 
+        // calculate this round's s and t
+        TINT newS = ss[indexNeg2] - newQuotient * ss[indexNeg1];
+        TINT newT = ts[indexNeg2] - newQuotient * ts[indexNeg1];
+ 
+        // store our values for the next iteration
+        remainders[indexNeg2] = newRemainder;
+        ss[indexNeg2] = newS;
+        ts[indexNeg2] = newT;
+ 
+        // move to the next iteration
+        std::swap(indexNeg1, indexNeg2);
+    }
+}
+
+//=================================================================
+TINT MultiplicativeInverse (TINT number, TINT prime)
+{
+    TINT s, t;
+    TINT GCD = ExtendedEuclidianAlgorithm(number, prime, s, t);
+    assert(GCD == 1);
+    return t;
+}
+
+//=================================================================
+SIntermediate ComplexToIntermediate (const SComplex& complex, const SPrimeInfo& primeInfo)
+{
+    SIntermediate ret;
+    ret.m_values[0] = complex.m_real + complex.m_imaginary * primeInfo.m_imaginaries[0];
+    ret.m_values[1] = complex.m_real + complex.m_imaginary * primeInfo.m_imaginaries[1];
+    return ret;
+}
+
+//=================================================================
+SComplex IntermediateToComplex (const SIntermediate& intermediate, const SPrimeInfo& primeInfo)
+{
+    // start with two equations for our intermediate values:
+    // eqn 1   a + primeInfo.m_imaginaries[0] * b = intermediate[0]
+    // eqn 2   a + primeInfo.m_imaginaries[1] * b = intermediate[1]
+
+    // eqn 1 becomes:
+    // eqn 3   a = intermediate[0] - primeInfo.m_imaginaries[0] * b
+
+    // plug eqn 3 into eqn 2:
+    // eqn 4   intermediate[0] - primeInfo.m_imaginaries[0] * b + primeInfo.m_imaginaries[1] * b = intermediate[1]
+    // eqn 5   intermediate[0] + b * (primeInfo.m_imaginaries[1] - primeInfo.m_imaginaries[0]) = intermediate[1]
+    // eqn 6   b * (primeInfo.m_imaginaries[1] - primeInfo.m_imaginaries[0]) = intermediate[1] - intermediate[0]
+    // eqn 7   b = (intermediate[1] - intermediate[0]) * (primeInfo.m_imaginaries[1] - primeInfo.m_imaginaries[0]) ^ 1
+
+    // now that we have a value for b from eqn 7, solve eqn 1 for a and plug the b value in:
+    // eqn 8   a = intermediate[0] - primeInfo.m_imaginaries[0] * b
+
+    // a + bi
+    TINT b = (intermediate.m_values[1] - intermediate.m_values[0]) * MultiplicativeInverse(primeInfo.m_imaginaries[1] - primeInfo.m_imaginaries[0], primeInfo.m_prime);
+    b = b % primeInfo.m_prime;
+    TINT a = intermediate.m_values[0] - primeInfo.m_imaginaries[0] * b;
+
+    // TODO: this
+    SComplex ret(a, b);
+    
+    return SComplex(a, b);
+}
 
 //=================================================================
 void WaitForEnter ()
@@ -50,58 +197,64 @@ bool HasImaginary (TINT n, std::array<TINT, 2> &imaginaries)
 }
 
 //=================================================================
-TINT FindPrimeWithImaginary (TINT minimum, std::array<TINT, 2> &imaginaries)
+void FindPrimeWithImaginary (TINT minimum, SPrimeInfo& primeInfo)
 {
     while (minimum >= 0)
     {
-        if (IsPrime(minimum) && HasImaginary(minimum, imaginaries))
-            return minimum;
+        if (IsPrime(minimum) && HasImaginary(minimum, primeInfo.m_imaginaries))
+        {
+            primeInfo.m_prime = minimum;
+            return;
+        }
         ++minimum;
     }
     assert(false);
-    return 0;
 }
 
 //=================================================================
 int main (int argc, char **argv)
 {
-    // define the complex numbers to multiply
-    TComplex A = { 1, 1 };
-    TComplex B = { 0, 1 };
-
     // find a prime with values for i, and store the prime and those values
-    std::array<TINT, 2> imaginaries;
-    TINT prime = FindPrimeWithImaginary(100, imaginaries);
+    SPrimeInfo primeInfo;
+    FindPrimeWithImaginary(100, primeInfo);
 
-    // convert A and B to parallelized values
-    TINT valueA0 = (A[0] + A[1] * imaginaries[0]) % prime;
-    TINT valueA1 = (A[0] + A[1] * imaginaries[1]) % prime;
-    TINT valueB0 = (B[0] + B[1] * imaginaries[0]) % prime;
-    TINT valueB1 = (B[0] + B[1] * imaginaries[1]) % prime;
+    // TOOD: temp
+    primeInfo.m_prime = 8837;
+    primeInfo.m_imaginaries[0] = 94;
+    primeInfo.m_imaginaries[1] = 8743;
+
+    // define the complex numbers to multiply and make them into intermediate values
+    //SIntermediate A = ComplexToIntermediate(SComplex(1, 1), primeInfo);
+    //SIntermediate B = ComplexToIntermediate(SComplex(0, 1), primeInfo);
+ 
+    // TODO: temp
+    SIntermediate A = ComplexToIntermediate(SComplex(33, 81), primeInfo);
+    SIntermediate B = ComplexToIntermediate(SComplex(15, 4), primeInfo);
+
+    // reduce the values
+    A.Reduce(primeInfo.m_prime);
+    B.Reduce(primeInfo.m_prime);
 
     // do the operation
-    TINT value0 = (valueA0 * valueB0) % prime;
-    TINT value1 = (valueA1 * valueB1) % prime;
+    SIntermediate C = A * B;
 
-    // decode results
-    //TINT a = 
+    // reduce the results
+    C.Reduce(primeInfo.m_prime);
 
-    int ijkl = 0;
+    // decode the results
+    SComplex results = IntermediateToComplex(C, primeInfo);
 
-    //ProcessNumbers<0, 50000>(IsAnyNumber, HasImaginary<2>);
-
+    // show the results
+    printf("%i + %ii\n\n", results.m_real, results.m_imaginary);
     WaitForEnter();
     return 0;
 }
 
 /*
 TODO:
-* make this work
-* generalize to hypercomplex?
+* Get this working with the example data
+* test other computations
+* make it so we can use this to time this method compared to standard methods.
 
-THOUGHTS:
-* maybe we can put both values into one value?
-* what size does a prime have to be to support a given operation?
-? which parts of the paper are novel?
-
+? is there a way to quickly do complex conjugate?
 */
