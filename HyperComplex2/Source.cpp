@@ -8,7 +8,7 @@
 
 typedef int64_t TINT;
 
-#define TEST_ACCURACY() 1
+#define TEST_ACCURACY() 0
 #define ACCURACYTEST_TESTCOUNT() 1000
 #define ACCURACYTEST_PRIMEMIN()  1000
 
@@ -162,6 +162,44 @@ SIntermediate ComplexToIntermediate (const SComplex& complex, const SPrimeInfo& 
 //=================================================================
 SComplex IntermediateToComplex (const SIntermediate& intermediate, const SPrimeInfo& primeInfo)
 {
+    // solve for a and b in a + bi.  AKA get the real and imaginary components back out
+    // 
+    // our intermediate values represent:
+    // 1) a+bi
+    // 2) a+b(-i)
+    // where i and -i are the imaginary numbers, which are in fact always negative versions of each other.
+    //
+    // To get real component, we add the intermediary values and then multiply by 2^(-1) mod p
+    //   a + bi
+    // + a + b(-i)
+    // ___________
+    //  2a
+    //
+    // To get imaginary component, we subtract the intermediary values and then multiply by 2^(-1) mod p
+    //   a + bi
+    // - a + b(-i)
+    // ___________
+    //      2bi
+
+
+    TINT multInverse2 = MultiplicativeInverse(2, primeInfo.m_prime);
+    TINT multInverse2i = MultiplicativeInverse(2 * primeInfo.m_imaginaries[0], primeInfo.m_prime);
+
+    if (multInverse2 < 0)
+        multInverse2 += primeInfo.m_prime;
+
+    if (multInverse2i < 0)
+        multInverse2i += primeInfo.m_prime;
+
+    TINT real = (intermediate.m_values[0] + intermediate.m_values[1]) % primeInfo.m_prime;
+    real = (real * multInverse2) % primeInfo.m_prime;
+
+    TINT imaginary = (intermediate.m_values[0] - intermediate.m_values[1]) % primeInfo.m_prime;
+    imaginary = (imaginary * multInverse2i) % primeInfo.m_prime;
+
+    return SComplex(real, imaginary);
+
+    /*
     // solve for a and b in a + bi
 
     // start with two equations for our intermediate values:
@@ -188,6 +226,7 @@ SComplex IntermediateToComplex (const SIntermediate& intermediate, const SPrimeI
     a = a % primeInfo.m_prime;
 
     return SComplex(a, b);
+    */
 }
 
 //=================================================================
@@ -291,17 +330,16 @@ int main (int argc, char **argv)
     FindPrimeWithImaginary(1000, primeInfo);
 
     // TOOD: temp
-    /*
     primeInfo.m_prime = 8837;
     primeInfo.m_imaginaries[0] = 94;
     primeInfo.m_imaginaries[1] = 8743;
     SIntermediate A = ComplexToIntermediate(SComplex(33, 81), primeInfo);
     SIntermediate B = ComplexToIntermediate(SComplex(15, 4), primeInfo);
-    */
+    // (33+81i) * (15+4i) = 171 + 1347i
 
     // define the complex numbers to multiply and make them into intermediate values
-    SIntermediate A = ComplexToIntermediate(SComplex(-1, 1), primeInfo);
-    SIntermediate B = ComplexToIntermediate(SComplex(0, 1), primeInfo);
+    //SIntermediate A = ComplexToIntermediate(SComplex(-1, 1), primeInfo);
+    //SIntermediate B = ComplexToIntermediate(SComplex(0, 1), primeInfo);
 
     // reduce the values
     A.Reduce(primeInfo.m_prime);
