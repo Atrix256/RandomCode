@@ -4,8 +4,13 @@
 #include <cmath>
 #include <array>
 #include <assert.h>
+#include <inttypes.h>
 
 typedef int64_t TINT;
+
+#define TEST_ACCURACY() 1
+#define ACCURACYTEST_TESTCOUNT() 1000
+#define ACCURACYTEST_PRIMEMIN()  1000
 
 //=================================================================
 struct SPrimeInfo
@@ -55,6 +60,34 @@ SIntermediate operator + (const SIntermediate &A, const SIntermediate &B)
 SIntermediate operator * (const SIntermediate &A, const SIntermediate &B)
 {
     return SIntermediate(A.m_values[0] * B.m_values[0], A.m_values[1] * B.m_values[1]);
+}
+
+//=================================================================
+SComplex operator + (const SComplex &A, const SComplex &B)
+{
+    return SComplex(A.m_real + B.m_real, A.m_imaginary + B.m_imaginary);
+}
+
+//=================================================================
+SComplex operator * (const SComplex &A, const SComplex &B)
+{
+    //(a + bi) * (c + di) = ac - bd + (bc + ad)i
+    return SComplex(
+        A.m_real * B.m_real - A.m_imaginary * B.m_imaginary,
+        A.m_imaginary * B.m_real + A.m_real * B.m_imaginary
+    );
+}
+
+//=================================================================================
+bool operator == (const SComplex &A, const SComplex &B)
+{
+    return A.m_real == B.m_real && A.m_imaginary == B.m_imaginary;
+}
+
+//=================================================================================
+bool operator != (const SComplex &A, const SComplex &B)
+{
+    return A.m_real != B.m_real || A.m_imaginary != B.m_imaginary;
 }
 
 //=================================================================================
@@ -129,6 +162,8 @@ SIntermediate ComplexToIntermediate (const SComplex& complex, const SPrimeInfo& 
 //=================================================================
 SComplex IntermediateToComplex (const SIntermediate& intermediate, const SPrimeInfo& primeInfo)
 {
+    // solve for a and b in a + bi
+
     // start with two equations for our intermediate values:
     // eqn 1   a + primeInfo.m_imaginaries[0] * b = intermediate[0]
     // eqn 2   a + primeInfo.m_imaginaries[1] * b = intermediate[1]
@@ -145,14 +180,13 @@ SComplex IntermediateToComplex (const SIntermediate& intermediate, const SPrimeI
     // now that we have a value for b from eqn 7, solve eqn 1 for a and plug the b value in:
     // eqn 8   a = intermediate[0] - primeInfo.m_imaginaries[0] * b
 
-    // a + bi
-    TINT b = (intermediate.m_values[1] - intermediate.m_values[0]) * MultiplicativeInverse(primeInfo.m_imaginaries[1] - primeInfo.m_imaginaries[0], primeInfo.m_prime);
+    // solve
+    TINT multInverse = MultiplicativeInverse(primeInfo.m_imaginaries[1] - primeInfo.m_imaginaries[0], primeInfo.m_prime);
+    TINT b = ((intermediate.m_values[1] - intermediate.m_values[0]) % primeInfo.m_prime) * multInverse;
     b = b % primeInfo.m_prime;
-    TINT a = intermediate.m_values[0] - primeInfo.m_imaginaries[0] * b;
+    TINT a = intermediate.m_values[0] - (primeInfo.m_imaginaries[0] * b) % primeInfo.m_prime;
+    a = a % primeInfo.m_prime;
 
-    // TODO: this
-    SComplex ret(a, b);
-    
     return SComplex(a, b);
 }
 
@@ -212,24 +246,62 @@ void FindPrimeWithImaginary (TINT minimum, SPrimeInfo& primeInfo)
 }
 
 //=================================================================
+void TestAccuracy()
+{
+    // find a prime with values for i, and store / report those values
+    SPrimeInfo primeInfo;
+    FindPrimeWithImaginary(ACCURACYTEST_PRIMEMIN(), primeInfo);
+    printf("prime = %" PRId64 ", imaginaries = %" PRId64 " and %" PRId64 "\n\n", primeInfo.m_prime, primeInfo.m_imaginaries[0], primeInfo.m_imaginaries[1]);
+
+    for (size_t i = 0; i < ACCURACYTEST_TESTCOUNT(); ++i)
+    {
+        // TODO: randomize inputs to be [0, prime) ? or maybe prime / 2 or something
+
+        // do regular complex arithmetic
+        SComplex a(-1, 1);
+        SComplex b( 0, 1);
+        SComplex c = a * b;
+
+        // do the technique
+        SIntermediate A = ComplexToIntermediate(a, primeInfo);
+        SIntermediate B = ComplexToIntermediate(b, primeInfo);
+        SIntermediate C = A * B;
+        C.Reduce(primeInfo.m_prime);
+        SComplex result = IntermediateToComplex(C, primeInfo);
+
+        // report mismatches
+        if (c != result)
+        {
+            printf("(%" PRId64 " + %" PRId64 "i) * (%" PRId64 " + %" PRId64 "i) =\n", a.m_real, a.m_imaginary, b.m_real, b.m_imaginary);
+            printf("WRONG: %" PRId64 " + %" PRId64 "i\n", result.m_real, result.m_imaginary);
+            printf("RIGHT: %" PRId64 " + %" PRId64 "i\n\n", c.m_real, c.m_imaginary);
+        }
+    }
+}
+
+//=================================================================
 int main (int argc, char **argv)
 {
+    #if TEST_ACCURACY()
+        TestAccuracy();
+    #endif
+
     // find a prime with values for i, and store the prime and those values
     SPrimeInfo primeInfo;
-    FindPrimeWithImaginary(100, primeInfo);
+    FindPrimeWithImaginary(1000, primeInfo);
 
     // TOOD: temp
+    /*
     primeInfo.m_prime = 8837;
     primeInfo.m_imaginaries[0] = 94;
     primeInfo.m_imaginaries[1] = 8743;
-
-    // define the complex numbers to multiply and make them into intermediate values
-    //SIntermediate A = ComplexToIntermediate(SComplex(1, 1), primeInfo);
-    //SIntermediate B = ComplexToIntermediate(SComplex(0, 1), primeInfo);
- 
-    // TODO: temp
     SIntermediate A = ComplexToIntermediate(SComplex(33, 81), primeInfo);
     SIntermediate B = ComplexToIntermediate(SComplex(15, 4), primeInfo);
+    */
+
+    // define the complex numbers to multiply and make them into intermediate values
+    SIntermediate A = ComplexToIntermediate(SComplex(-1, 1), primeInfo);
+    SIntermediate B = ComplexToIntermediate(SComplex(0, 1), primeInfo);
 
     // reduce the values
     A.Reduce(primeInfo.m_prime);
@@ -242,19 +314,26 @@ int main (int argc, char **argv)
     C.Reduce(primeInfo.m_prime);
 
     // decode the results
-    SComplex results = IntermediateToComplex(C, primeInfo);
+    SComplex result = IntermediateToComplex(C, primeInfo);
 
-    // show the results
-    printf("%i + %ii\n\n", results.m_real, results.m_imaginary);
+    // show the prime, imaginaries and result
+    printf("prime = %" PRId64 ", imaginaries = %" PRId64 " and %" PRId64 "\n\n", primeInfo.m_prime, primeInfo.m_imaginaries[0], primeInfo.m_imaginaries[1]);
+    printf("%" PRId64 " + %" PRId64 "i\n\n", result.m_real, result.m_imaginary);
     WaitForEnter();
     return 0;
 }
 
 /*
 TODO:
-* Get this working with the example data
-* test other computations
 * make it so we can use this to time this method compared to standard methods.
+* make a mode (with #define) that does operations with random numbers and compares results with reality
 
-? is there a way to quickly do complex conjugate?
+* understand limits of sizes of inputs and outputs due to size of prime
+* see if this works with negative values
+ * in the decoding i add prime if the results are negative
+ * that might be wrong for negative values though.  I think it might be negative if the result is over half of the prime?
+ * i stopped doing that, but the modulus inverse now has it. is that wrong?
+ * stopped doing that too... need to investigate.  c++ modulus may not be the right behavior mathematically
+
+? is there a way to quickly do complex conjugate while it's in the encoded form? could be a useful operation
 */
