@@ -5,12 +5,19 @@
 #include <array>
 #include <assert.h>
 #include <inttypes.h>
+#include <random>
+#include <Windows.h> // for QueryPerformanceCounter
 
 typedef int64_t TINT;
 
 #define TEST_ACCURACY() 0
 #define ACCURACYTEST_TESTCOUNT() 1000
 #define ACCURACYTEST_PRIMEMIN()  1000
+
+#define TEST_SPEED() 1
+#define SPEEDTEST_TESTCOUNT() 10000000
+#define SPEEDTEST_PRIMEMIN() 1000
+#define SPEEDTEST_TESTROUNDS() 100   // it's best to do a lot of rounds so the CPU is running at full speed, giving good results
 
 //=================================================================
 struct SPrimeInfo
@@ -24,17 +31,21 @@ struct SIntermediate
 {
     SIntermediate (TINT v0 = 0, TINT v1 = 0)
     {
-        m_values[0] = v0;
-        m_values[1] = v1;
+        m_value0 = v0;
+        m_value1 = v1;
     }
 
     void Reduce (TINT prime)
     {
-        m_values[0] = m_values[0] % prime;
-        m_values[1] = m_values[1] % prime;
+        m_value0 = m_value0 % prime;
+        m_value1 = m_value1 % prime;
     }
 
-    std::array<TINT, 2> m_values;
+    TINT m_value0;
+    TINT m_value1;
+
+    // NOTE: the perf tests took 4x the time when using a std::array instead of members!
+    //std::array<TINT, 2> m_values;
 };
 
 //=================================================================
@@ -51,25 +62,25 @@ struct SComplex
 };
 
 //=================================================================
-SIntermediate operator + (const SIntermediate &A, const SIntermediate &B)
+inline SIntermediate operator + (const SIntermediate &A, const SIntermediate &B)
 {
-    return SIntermediate(A.m_values[0] + B.m_values[0], A.m_values[1] + B.m_values[1]);
+    return SIntermediate(A.m_value0 + B.m_value0, A.m_value1 + B.m_value1);
 }
 
 //=================================================================
-SIntermediate operator * (const SIntermediate &A, const SIntermediate &B)
+inline SIntermediate operator * (const SIntermediate &A, const SIntermediate &B)
 {
-    return SIntermediate(A.m_values[0] * B.m_values[0], A.m_values[1] * B.m_values[1]);
+    return SIntermediate(A.m_value0 * B.m_value0, A.m_value1 * B.m_value1);
 }
 
 //=================================================================
-SComplex operator + (const SComplex &A, const SComplex &B)
+inline SComplex operator + (const SComplex &A, const SComplex &B)
 {
     return SComplex(A.m_real + B.m_real, A.m_imaginary + B.m_imaginary);
 }
 
 //=================================================================
-SComplex operator * (const SComplex &A, const SComplex &B)
+inline SComplex operator * (const SComplex &A, const SComplex &B)
 {
     //(a + bi) * (c + di) = ac - bd + (bc + ad)i
     return SComplex(
@@ -154,8 +165,8 @@ TINT MultiplicativeInverse (TINT number, TINT prime)
 SIntermediate ComplexToIntermediate (const SComplex& complex, const SPrimeInfo& primeInfo)
 {
     SIntermediate ret;
-    ret.m_values[0] = complex.m_real + complex.m_imaginary * primeInfo.m_imaginaries[0];
-    ret.m_values[1] = complex.m_real + complex.m_imaginary * primeInfo.m_imaginaries[1];
+    ret.m_value0 = complex.m_real + complex.m_imaginary * primeInfo.m_imaginaries[0];
+    ret.m_value1 = complex.m_real + complex.m_imaginary * primeInfo.m_imaginaries[1];
     return ret;
 }
 
@@ -191,10 +202,10 @@ SComplex IntermediateToComplex (const SIntermediate& intermediate, const SPrimeI
     if (multInverse2i < 0)
         multInverse2i += primeInfo.m_prime;
 
-    TINT real = (intermediate.m_values[0] + intermediate.m_values[1]) % primeInfo.m_prime;
+    TINT real = (intermediate.m_value0 + intermediate.m_value1) % primeInfo.m_prime;
     real = (real * multInverse2) % primeInfo.m_prime;
 
-    TINT imaginary = (intermediate.m_values[0] - intermediate.m_values[1]) % primeInfo.m_prime;
+    TINT imaginary = (intermediate.m_value0 - intermediate.m_value1) % primeInfo.m_prime;
     imaginary = (imaginary * multInverse2i) % primeInfo.m_prime;
 
     return SComplex(real, imaginary);
@@ -294,8 +305,6 @@ void TestAccuracy()
 
     for (size_t i = 0; i < ACCURACYTEST_TESTCOUNT(); ++i)
     {
-        // TODO: randomize inputs to be [0, prime) ? or maybe prime / 2 or something
-
         // do regular complex arithmetic
         SComplex a(-1, 1);
         SComplex b( 0, 1);
@@ -319,12 +328,88 @@ void TestAccuracy()
 }
 
 //=================================================================
+size_t TestSpeed ()
+{
+    // make csv file and csv file headers
+    FILE *file = fopen("speed.csv", "w+t");
+    if (!file)
+        return 0;
+    fprintf(file, "\"Standard\",\"Technique\"\n");
+
+    // find a prime with values for i, and store those values
+    SPrimeInfo primeInfo;
+    FindPrimeWithImaginary(SPEEDTEST_PRIMEMIN(), primeInfo);
+
+    // calculate random complex numbers for the operation
+    std::array<int, std::mt19937::state_size> seed_data;
+    std::random_device r;
+    std::generate_n(seed_data.data(), seed_data.size(), std::ref(r));
+    std::seed_seq seq(std::begin(seed_data), std::end(seed_data));
+    std::mt19937 gen(seq);
+    std::uniform_int_distribution<TINT> dis(1, SPEEDTEST_PRIMEMIN() - 1);
+    SComplex c_complexValues[1024 * 2];
+    SIntermediate c_intermediateValues[1024 * 2];
+    const size_t c_valueMask = 2048 - 1;
+    for (size_t i = 0; i < 2048; ++i)
+    {
+        c_complexValues[i].m_imaginary = dis(gen);
+        c_complexValues[i].m_real = dis(gen);
+
+        c_intermediateValues[i] = ComplexToIntermediate(c_complexValues[i], primeInfo);
+    }
+
+    // NOTE: only profiling multiplies because adds are the number of ops in both techniques
+
+    LARGE_INTEGER freq, start, end;
+    QueryPerformanceFrequency(&freq);
+    size_t ret = 0; // this is to keep it from optimizing away the operations
+    for (size_t roundIndex = 0; roundIndex < SPEEDTEST_TESTROUNDS(); ++roundIndex)
+    {
+        printf("\nRound %i\n", roundIndex);
+        
+        QueryPerformanceCounter(&start);
+        for (size_t i = 0; i < SPEEDTEST_TESTCOUNT(); ++i)
+        {
+            size_t baseIndex = (i * 2) & c_valueMask;
+            SComplex result = c_complexValues[baseIndex] * c_complexValues[baseIndex + 1];
+            ret += (size_t)result.m_imaginary;
+        }
+        QueryPerformanceCounter(&end);
+        double standard = ((double)(end.QuadPart - start.QuadPart)) * 1000.0 / freq.QuadPart;
+        printf("    Standard : %f ms\r\n", standard);
+        
+
+        QueryPerformanceCounter(&start);
+        for (size_t i = 0; i < SPEEDTEST_TESTCOUNT(); ++i)
+        {
+            size_t baseIndex = (i * 2) & c_valueMask;
+            SIntermediate result = c_intermediateValues[baseIndex] * c_intermediateValues[baseIndex + 1];
+            ret += (size_t)result.m_value0;
+        }
+        QueryPerformanceCounter(&end);
+        double technique = ((double)(end.QuadPart - start.QuadPart)) * 1000.0 / freq.QuadPart;
+        printf("    Technique : %f ms\r\n", technique);
+
+        // write to csv
+        fprintf(file, "\"%f\",\"%f\"\n", standard, technique);
+    }
+
+    fclose(file);
+    return ret;
+}
+
+//=================================================================
 int main (int argc, char **argv)
 {
     #if TEST_ACCURACY()
         TestAccuracy();
     #endif
 
+    #if TEST_SPEED()
+        TestSpeed();
+    #endif
+
+        /*
     // find a prime with values for i, and store the prime and those values
     SPrimeInfo primeInfo;
     FindPrimeWithImaginary(1000, primeInfo);
@@ -357,14 +442,18 @@ int main (int argc, char **argv)
     // show the prime, imaginaries and result
     printf("prime = %" PRId64 ", imaginaries = %" PRId64 " and %" PRId64 "\n\n", primeInfo.m_prime, primeInfo.m_imaginaries[0], primeInfo.m_imaginaries[1]);
     printf("%" PRId64 " + %" PRId64 "i\n\n", result.m_real, result.m_imaginary);
+    */
+    
     WaitForEnter();
     return 0;
 }
 
 /*
 TODO:
-* make it so we can use this to time this method compared to standard methods.
-* make a mode (with #define) that does operations with random numbers and compares results with reality
+* make it so you can include encoding and decoding into perf results.  Maybe specify how often you want to do an encode and decode.
+* make the accuracy test work (+ / - has ambiguity right now)
+* make the accuracy test use random numbers for it's work
+* make the perf test create a csv file with results?
 
 * understand limits of sizes of inputs and outputs due to size of prime
 * see if this works with negative values
