@@ -8,7 +8,13 @@
 #include <random>
 #include <Windows.h> // for QueryPerformanceCounter
 
+#if 0
 typedef int64_t TINT;
+#define TINTFORMAT() PRId64
+#else
+typedef int32_t TINT;
+#define TINTFORMAT() "i"
+#endif
 
 #define TEST_ACCURACY() 0
 #define ACCURACYTEST_TESTCOUNT() 1000
@@ -18,6 +24,7 @@ typedef int64_t TINT;
 #define SPEEDTEST_TESTCOUNT() 10000000
 #define SPEEDTEST_PRIMEMIN() 1000
 #define SPEEDTEST_TESTROUNDS() 100   // it's best to do a lot of rounds so the CPU is running at full speed, giving good results
+#define SPEEDTEST_ENCODEDECODECOUNT() 50 // does an encode/decode every this many operations
 
 //=================================================================
 struct SPrimeInfo
@@ -301,7 +308,7 @@ void TestAccuracy()
     // find a prime with values for i, and store / report those values
     SPrimeInfo primeInfo;
     FindPrimeWithImaginary(ACCURACYTEST_PRIMEMIN(), primeInfo);
-    printf("prime = %" PRId64 ", imaginaries = %" PRId64 " and %" PRId64 "\n\n", primeInfo.m_prime, primeInfo.m_imaginaries[0], primeInfo.m_imaginaries[1]);
+    printf("prime = %" TINTFORMAT() ", imaginaries = %" TINTFORMAT() " and %" TINTFORMAT() "\n\n", primeInfo.m_prime, primeInfo.m_imaginaries[0], primeInfo.m_imaginaries[1]);
 
     for (size_t i = 0; i < ACCURACYTEST_TESTCOUNT(); ++i)
     {
@@ -320,9 +327,9 @@ void TestAccuracy()
         // report mismatches
         if (c != result)
         {
-            printf("(%" PRId64 " + %" PRId64 "i) * (%" PRId64 " + %" PRId64 "i) =\n", a.m_real, a.m_imaginary, b.m_real, b.m_imaginary);
-            printf("WRONG: %" PRId64 " + %" PRId64 "i\n", result.m_real, result.m_imaginary);
-            printf("RIGHT: %" PRId64 " + %" PRId64 "i\n\n", c.m_real, c.m_imaginary);
+            printf("(%" TINTFORMAT() " + %" TINTFORMAT() "i) * (%" TINTFORMAT() " + %" TINTFORMAT() "i) =\n", a.m_real, a.m_imaginary, b.m_real, b.m_imaginary);
+            printf("WRONG: %" TINTFORMAT() " + %" TINTFORMAT() "i\n", result.m_real, result.m_imaginary);
+            printf("RIGHT: %" TINTFORMAT() " + %" TINTFORMAT() "i\n\n", c.m_real, c.m_imaginary);
         }
     }
 }
@@ -334,7 +341,7 @@ size_t TestSpeed ()
     FILE *file = fopen("speed.csv", "w+t");
     if (!file)
         return 0;
-    fprintf(file, "\"Standard\",\"Technique\"\n");
+    fprintf(file, "\"Standard\",\"Technique\",\"Technique with encode/decode every %i operations\"\n", SPEEDTEST_ENCODEDECODECOUNT());
 
     // find a prime with values for i, and store those values
     SPrimeInfo primeInfo;
@@ -358,44 +365,82 @@ size_t TestSpeed ()
         c_intermediateValues[i] = ComplexToIntermediate(c_complexValues[i], primeInfo);
     }
 
-    // NOTE: only profiling multiplies because adds are the number of ops in both techniques
+    // NOTE: only profiling multiplies (not adds) because adds are the number of ops in both techniques
 
     LARGE_INTEGER freq, start, end;
     QueryPerformanceFrequency(&freq);
-    size_t ret = 0; // this is to keep it from optimizing away the operations
+
+    // these are to keep it from optimizing away the operations
+    SComplex sumComplex;
+    SIntermediate sumIntermediate;
+
     for (size_t roundIndex = 0; roundIndex < SPEEDTEST_TESTROUNDS(); ++roundIndex)
     {
-        printf("\nRound %i\n", roundIndex);
-        
+        // do standard complex multiplications
         QueryPerformanceCounter(&start);
         for (size_t i = 0; i < SPEEDTEST_TESTCOUNT(); ++i)
         {
             size_t baseIndex = (i * 2) & c_valueMask;
             SComplex result = c_complexValues[baseIndex] * c_complexValues[baseIndex + 1];
-            ret += (size_t)result.m_imaginary;
+            sumComplex = sumComplex + result;
         }
         QueryPerformanceCounter(&end);
         double standard = ((double)(end.QuadPart - start.QuadPart)) * 1000.0 / freq.QuadPart;
-        printf("    Standard : %f ms\r\n", standard);
-        
 
+        // do technique based complex multiplications
         QueryPerformanceCounter(&start);
         for (size_t i = 0; i < SPEEDTEST_TESTCOUNT(); ++i)
         {
             size_t baseIndex = (i * 2) & c_valueMask;
             SIntermediate result = c_intermediateValues[baseIndex] * c_intermediateValues[baseIndex + 1];
-            ret += (size_t)result.m_value0;
+            sumIntermediate = sumIntermediate + result;
         }
         QueryPerformanceCounter(&end);
         double technique = ((double)(end.QuadPart - start.QuadPart)) * 1000.0 / freq.QuadPart;
+
+        // do technique with encodes and decodes
+        static const size_t testCount = SPEEDTEST_TESTCOUNT() / SPEEDTEST_ENCODEDECODECOUNT();
+        static const size_t remainderTestCount = SPEEDTEST_TESTCOUNT() % SPEEDTEST_ENCODEDECODECOUNT();
+        QueryPerformanceCounter(&start);
+        for (size_t j = 0; j < testCount; ++j)
+        {
+            //do an encode
+            sumIntermediate = sumIntermediate + ComplexToIntermediate(c_complexValues[j&c_valueMask], primeInfo);
+
+            //do multiplies
+            for (size_t i = 0; i < SPEEDTEST_ENCODEDECODECOUNT(); ++i)
+            {
+                size_t baseIndex = (i * 2) & c_valueMask;
+                SIntermediate result = c_intermediateValues[baseIndex] * c_intermediateValues[baseIndex + 1];
+                sumIntermediate = sumIntermediate + result;
+            }
+
+            //do a decode
+            sumComplex = sumComplex + IntermediateToComplex(sumIntermediate, primeInfo);
+        }
+
+        // do remainder of multiplies to reach SPEEDTEST_ENCODEDECODECOUNT()
+        for (size_t i = 0; i < remainderTestCount; ++i)
+        {
+            size_t baseIndex = (i * 2) & c_valueMask;
+            SIntermediate result = c_intermediateValues[baseIndex] * c_intermediateValues[baseIndex + 1];
+            sumIntermediate = sumIntermediate + result;
+        }
+        QueryPerformanceCounter(&end);
+        double technique2 = ((double)(end.QuadPart - start.QuadPart)) * 1000.0 / freq.QuadPart;
+
+        // print to screen
+        printf("\nRound %i\n", roundIndex);
+        printf("    Standard : %f ms\r\n", standard);
         printf("    Technique : %f ms\r\n", technique);
+        printf("    Technique with encode/decode every %i operations : %f ms\r\n", SPEEDTEST_ENCODEDECODECOUNT(), technique2);
 
         // write to csv
-        fprintf(file, "\"%f\",\"%f\"\n", standard, technique);
+        fprintf(file, "\"%f\",\"%f\",\"%f\"\n", standard, technique, technique2);
     }
 
     fclose(file);
-    return ret;
+    return (size_t)(sumComplex.m_imaginary + sumComplex.m_real + sumIntermediate.m_value0 + sumIntermediate.m_value1);
 }
 
 //=================================================================
@@ -440,8 +485,8 @@ int main (int argc, char **argv)
     SComplex result = IntermediateToComplex(C, primeInfo);
 
     // show the prime, imaginaries and result
-    printf("prime = %" PRId64 ", imaginaries = %" PRId64 " and %" PRId64 "\n\n", primeInfo.m_prime, primeInfo.m_imaginaries[0], primeInfo.m_imaginaries[1]);
-    printf("%" PRId64 " + %" PRId64 "i\n\n", result.m_real, result.m_imaginary);
+    printf("prime = %" TINTFORMAT() ", imaginaries = %" TINTFORMAT() " and %" TINTFORMAT() "\n\n", primeInfo.m_prime, primeInfo.m_imaginaries[0], primeInfo.m_imaginaries[1]);
+    printf("%" TINTFORMAT() " + %" TINTFORMAT() "i\n\n", result.m_real, result.m_imaginary);
     */
     
     WaitForEnter();
@@ -450,10 +495,12 @@ int main (int argc, char **argv)
 
 /*
 TODO:
-* make it so you can include encoding and decoding into perf results.  Maybe specify how often you want to do an encode and decode.
 * make the accuracy test work (+ / - has ambiguity right now)
 * make the accuracy test use random numbers for it's work
-* make the perf test create a csv file with results?
+
+* compare perf in x64?
+
+* understand Karatsuba multiplication
 
 * understand limits of sizes of inputs and outputs due to size of prime
 * see if this works with negative values
@@ -462,5 +509,47 @@ TODO:
  * i stopped doing that, but the modulus inverse now has it. is that wrong?
  * stopped doing that too... need to investigate.  c++ modulus may not be the right behavior mathematically
 
+? compare the timing with int32 instead of int64.
+
 ? is there a way to quickly do complex conjugate while it's in the encoded form? could be a useful operation
+
+? can we extend to higher order imaginary numbers? like i^4 = -1?
+
+? can we do it with 1 intermediate value, instead of two paralelized values?
+
+? what are other hypercomplex multiplication methods?
+
+? can we speed this up further with SIMD operations?  I'll bet we could!
+
+*/
+
+/*
+
+? are int32's faster than int64? test it! win32 and x64
+ * in win32 yes, int32's are way faster, but the speed comparisons are very similar.
+ * win32 64 bit int, 10 million ops: ~100ms for technique.  ~160ms for standard or 50 ops between encode / decode.  ~63% time.
+ * win32 32 bit int, 10 million ops: ~8ms for technique.  ~24ms for standard or 50 ops between encode / decode   ~33% time.
+
+? what is x64 values like above.  list here, so it is easy to digest.
+
+? compare number of operations between standard / technique.  Does 50 ops seem like the same amount of work? memory access, multiply add operations, and other factors make it not quite apples to apples but check it out.
+ * standard multiply = 4 multiply, 2 adds.
+ * technique multiply = 2 multiply.
+
+? simd help?
+? maybe we just say "a complex multiplication is two multiplies, instead of 4 multiplies and 3 adds".  That is proof enough that it is an improvement imo
+? x64 seems to show no better in this technique vs standard.  can we explain why not?
+
+Email to Matt:
+
+It turns out that the optimizer was eating up a lot of the work i was profiling, despite efforts to fight that.  With that fixed, there's still a clear win of your technique vs the standard way, as we would expect, it just turns out that both the standard way and your technique take a lot longer than my last reported values.
+
+I also found what seems to be the break even point for how many operations you have to do between a decode and an encode and it looks like the answer is 50.  So, if you do an encode, then 50 of your multiplies, then a decode, that is about the same speed as doing 50 standard complex number multiplies.  Anything above 50 multiplies is faster.  Kind of a lot of operations for the break even unfortunately!!  It is still a win though, so does seem to be like good results people would be interested in.  If we can get higher order imaginary numbers working, i'll bet the break even point is lower :P
+
+Each data sample is still 10 million multiplies.
+
+[image of graph for w32 values]
+
+.. talk about x64 and the rest
+
 */
