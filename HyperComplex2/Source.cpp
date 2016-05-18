@@ -500,8 +500,6 @@ TODO:
 
 * compare perf in x64?
 
-* understand Karatsuba multiplication
-
 * understand limits of sizes of inputs and outputs due to size of prime
 * see if this works with negative values
  * in the decoding i add prime if the results are negative
@@ -524,6 +522,17 @@ TODO:
 */
 
 /*
+
+? how did matt intend on using karatsuba for our stuff?  can you figure out from an operations point of view whether it's faster or slower? fewer multiplies or anything?
+ * M1 = a_r * b_r
+ * M2 = a_i * b_i
+ * M3 = (a_r * a_i) + (b_r * b_i)
+ * Real = M1+M2
+ * Imaginary = **Something** - (M1 + M2) (?)
+ ! need to think through this some more
+
+
+* understand this https://en.wikipedia.org/wiki/Cayley%E2%80%93Dickson_construction, and how it might apply
 
 ? are int32's faster than int64? test it! win32 and x64
  * in win32 yes, int32's are way faster, but the speed comparisons are very similar.
@@ -551,5 +560,72 @@ Each data sample is still 10 million multiplies.
 [image of graph for w32 values]
 
 .. talk about x64 and the rest
+
+*/
+
+/*
+----- ? do the techniques work with higher order imaginary numbers? -----
+
+p = 17
+i0 = 2^4 = -1 (16)
+i1 = 8^4 = -1 (4096)
+i2 = 9^4 = -1 (6561)
+i3 = 15^4 = -1 (50625)
+
+p = 41
+i0 = 3^4 = -1 (81)
+i1 = 14^4 = -1 (38416)
+i2 = 27^4 = -1 (531441)
+i3 = 38^4 = -1 (2085136)
+
+p = 73
+i0 = 10^4 = -1 (10000)
+i1 = 22^4 = -1 (234256)
+i2 = 51^4 = -1 (6765201)
+i3 = 63^4 = -1 (15752961)
+
+p = 89
+i0 = 12^4 = -1 (20736)
+i1 = 37^4 = -1 (1874161)
+i2 = 52^4 = -1 (7311616)
+i3 = 77^4 = -1 (35153041)
+
+i0 + i3 = -1
+i1 + i2 = -1
+
+? what is relation between i0 and i1 if any? same question for i2 and i3?
+
+* Wrong relations:
+ * i0*i1 = -1
+ * i2*i3 = -1
+ * this works for p=17 and p=89, but not 41 or 73, for those it's +1!  (a little weird)
+
+----- ? how do we decode an i^4 number? ------
+
+* with i^2, we have two parallelized equations where you add them to get 2a and subtract to get 2bi
+
+* i3 = -i0
+* i2 = -i1
+? is there a relation between i0 and i1, or between i2 and i3? if so might help us solve the equations better
+
+We have 4 parallelized equations:
+1) a + bi_0 + ci_0^2 + di_0^3
+2) a + bi_1 + ci_1^2 + di_1^3
+3) a + bi_2 + ci_2^2 + di_2^3
+4) a + bi_3 + ci_3^2 + di_3^3
+
+also known as:
+1) a + bi_0 + ci_0^2 + di_0^3
+2) a + bi_1 + ci_1^2 + di_1^3
+3) a + b(-i_1) + c(-i_1)^2 + d(-i_1)^3
+4) a + b(-i_0) + c(-i_0)^2 + d(-i_0)^3
+
+! now we must solve for a,b,c,d!
+
+adding eq1 and eq4 we get: (useful)
+(a + bi_0 + ci_0^2 + di_0^3) + (a + b(-i_0) + c(-i_0)^2 + d(-i_0)^3) = 4a
+
+subtracting eq4 from eq1 we get: (not sure if useful)
+(a + bi_0 + ci_0^2 + di_0^3) - (a + b(-i_0) + c(-i_0)^2 + d(-i_0)^3) = 2bi_0 + 2ci_0^2, + 2di_0^3
 
 */
