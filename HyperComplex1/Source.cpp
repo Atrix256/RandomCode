@@ -161,7 +161,7 @@ void ProcessNumbers (const FILTER& filter, const TEST& test)
 //=================================================================
 int main (int argc, char **argv)
 {
-    ProcessNumbers<0, 1000>(IsPrime, HasImaginary<4>);
+    ProcessNumbers<0, 1000>(IsPrime, HasImaginary<3>);
 
     WaitForEnter();
     return 0;

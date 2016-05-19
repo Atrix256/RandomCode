@@ -561,9 +561,19 @@ Each data sample is still 10 million multiplies.
 
 .. talk about x64 and the rest
 
+
 */
 
 /*
+!! it looks like i^8 values do in fact sum up to 0 mod p.  Infact, it looks like they sum up to 4*p always?!
+ ! i^4 seems to sum up to 2p
+ ! i^2 sums up to p
+ ! these things actually make sense, because there are n numbers of answers, when there are answers. the answers come in pairs, where each is the negative of the other, so they sum to p.
+   * so, for i^n mod p, they should sum to (n/2)*p
+? how can we use this to more quickly find i's for prime numbers?
+
+
+
 ----- ? do the techniques work with higher order imaginary numbers? -----
 
 p = 17
