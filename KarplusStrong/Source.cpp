@@ -100,19 +100,6 @@ void ConvertFloatSamples (const std::vector<float>& in, std::vector<T>& out)
         out[i] = T(v);
     }
 }
-
-// returns a value in [0.0f, 1.0f]
-float RandomFloat ()
-{
-    return ((float)rand()) / ((float)RAND_MAX);
-}
-
-// returns a value in [-1.0f, 1.0f]
-float RandomBipolarFloat()
-{
-    return RandomFloat() * 2.0f - 1.0f;
-}
-
 //calculate the frequency of the specified note.
 //fractional notes allowed!
 float CalcFrequency(float octave, float note)
@@ -148,8 +135,10 @@ public:
     CKarplusStrongStringPluck (float frequency, float sampleRate, float feedback)
     {
         m_buffer.resize(uint32(float(sampleRate) / frequency));
-        for (float &sample : m_buffer)
-            sample = RandomBipolarFloat();
+        for (size_t i = 0, c = m_buffer.size(); i < c; ++i) {
+            m_buffer[i] = ((float)rand()) / ((float)RAND_MAX) * 2.0f - 1.0f;  // noise
+            //m_buffer[i] = float(i) / float(c); // saw wave
+        }
         m_index = 0;
         m_feedback = feedback;
     }
@@ -178,20 +167,17 @@ private:
 
 void GenerateSamples (std::vector<float>& samples, int sampleRate)
 {
-    const float frequency = 55.0f;
-    const float frequencyAdd = 55.0f;
+    CKarplusStrongStringPluck note(CalcFrequency(3, 0), float(sampleRate), 0.996f);
+    CKarplusStrongStringPluck note2(CalcFrequency(3, 2), float(sampleRate), 0.996f);
+    CKarplusStrongStringPluck note3(CalcFrequency(3, 3), float(sampleRate), 0.996f);
+    CKarplusStrongStringPluck note4(CalcFrequency(3, 5), float(sampleRate), 0.996f);
 
-    CKarplusStrongStringPluck note(frequency, float(sampleRate), 0.996f);
-    CKarplusStrongStringPluck note2(frequency + frequencyAdd, float(sampleRate), 0.996f);
-    CKarplusStrongStringPluck note3(frequency + frequencyAdd * 2.0f, float(sampleRate), 0.996f);
-    CKarplusStrongStringPluck note4(frequency + frequencyAdd * 3.0f, float(sampleRate), 0.996f);
-
-    const int noteTime = 0;
+    const int noteTime = sampleRate / 2;
 
     for (int index = 0, numSamples = samples.size(); index < numSamples; ++index)
     {
         samples[index] = note.GenerateSample();
-        
+
         if (index > noteTime)
             samples[index] += note2.GenerateSample();
 
@@ -200,6 +186,8 @@ void GenerateSamples (std::vector<float>& samples, int sampleRate)
 
         if (index > noteTime*3)
             samples[index] += note4.GenerateSample();
+
+        samples[index] *= 0.25;
     }
 }
 
@@ -230,16 +218,8 @@ int main(int argc, char **argv)
 /*
 
 TODO: 
-* make algorithm work
-* try different LPF's and feedback so it can be compared
-* get it workin w/ fractional delay lines?
-* make something that plays mutiple notes, like a mini song. end with a chord?
- * maybe some 46 & 2?
-* try using something else as a starting state?
- * like a sound sample
- * or a long saw wave!
 
-? is there some mathematical way to figure out how much feedback should be used to have a specific decay?
+? make a melody?
 
 * Write blog post
 
@@ -247,4 +227,13 @@ http://www.cs.princeton.edu/courses/archive/fall07/cos126/assignments/guitar.htm
 
 https://en.wikipedia.org/wiki/Karplus%E2%80%93Strong_string_synthesis
 
+Blog Notes:
+* fill buffer with noise, play noise, after playing a sample, change it to be the average of itself and the next sample
+ * "magically" makes sound of plucked strings
+ * the size of the buffer defines the frequency!
+* tried to lerp from static to sine wave on shadertoy. didn't work out that great. totally different sound.
+ * https://www.shadertoy.com/view/MdyXRd
+* you can initialize with a saw wave instead of noise.  I found it didn't sound as realistic, especially at lower frequencies
+* the algorithm seems to fall apart at lower frequencies unfortunately.
+* could try other starting states, as well as filters, to try other interesting sounds.
 */
