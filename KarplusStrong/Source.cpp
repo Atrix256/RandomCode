@@ -150,14 +150,24 @@ private:
 void GenerateSamples (std::vector<float>& samples, int sampleRate)
 {
     CKarplusStrongStringPluck note(220.0f, float(sampleRate), 0.996f);
-    CKarplusStrongStringPluck note2(440.0f, float(sampleRate), 0.996f);
+    CKarplusStrongStringPluck note2(330.0f, float(sampleRate), 0.996f);
+    CKarplusStrongStringPluck note3(440.0f, float(sampleRate), 0.996f);
+    CKarplusStrongStringPluck note4(550.0f, float(sampleRate), 0.996f);
+
+    const int noteTime = sampleRate / 32;
 
     for (int index = 0, numSamples = samples.size(); index < numSamples; ++index)
     {
         samples[index] = note.GenerateSample();
         
-        if (index > sampleRate / 4)
+        if (index > noteTime)
             samples[index] += note2.GenerateSample();
+
+        if (index > noteTime*2)
+            samples[index] += note3.GenerateSample();
+
+        if (index > noteTime*3)
+            samples[index] += note4.GenerateSample();
     }
 }
 
