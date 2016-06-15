@@ -113,6 +113,35 @@ float RandomBipolarFloat()
     return RandomFloat() * 2.0f - 1.0f;
 }
 
+//calculate the frequency of the specified note.
+//fractional notes allowed!
+float CalcFrequency(float octave, float note)
+/*
+	Calculate the frequency of any note!
+	frequency = 440×(2^(n/12))
+
+	N=0 is A4
+	N=1 is A#4
+	etc...
+
+	notes go like so...
+	0  = A
+	1  = A#
+	2  = B
+	3  = C
+	4  = C#
+	5  = D
+	6  = D#
+	7  = E
+	8  = F
+	9  = F#
+	10 = G
+	11 = G#
+*/
+{
+    return (float)(440 * pow(2.0, ((double)((octave - 4) * 12 + note)) / 12.0));
+}
+
 class CKarplusStrongStringPluck
 {
 public:
@@ -149,12 +178,15 @@ private:
 
 void GenerateSamples (std::vector<float>& samples, int sampleRate)
 {
-    CKarplusStrongStringPluck note(220.0f, float(sampleRate), 0.996f);
-    CKarplusStrongStringPluck note2(330.0f, float(sampleRate), 0.996f);
-    CKarplusStrongStringPluck note3(440.0f, float(sampleRate), 0.996f);
-    CKarplusStrongStringPluck note4(550.0f, float(sampleRate), 0.996f);
+    const float frequency = 55.0f;
+    const float frequencyAdd = 55.0f;
 
-    const int noteTime = sampleRate / 32;
+    CKarplusStrongStringPluck note(frequency, float(sampleRate), 0.996f);
+    CKarplusStrongStringPluck note2(frequency + frequencyAdd, float(sampleRate), 0.996f);
+    CKarplusStrongStringPluck note3(frequency + frequencyAdd * 2.0f, float(sampleRate), 0.996f);
+    CKarplusStrongStringPluck note4(frequency + frequencyAdd * 3.0f, float(sampleRate), 0.996f);
+
+    const int noteTime = 0;
 
     for (int index = 0, numSamples = samples.size(); index < numSamples; ++index)
     {
@@ -206,6 +238,8 @@ TODO:
 * try using something else as a starting state?
  * like a sound sample
  * or a long saw wave!
+
+? is there some mathematical way to figure out how much feedback should be used to have a specific decay?
 
 * Write blog post
 
