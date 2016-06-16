@@ -167,27 +167,78 @@ private:
 
 void GenerateSamples (std::vector<float>& samples, int sampleRate)
 {
-    CKarplusStrongStringPluck note(CalcFrequency(3, 0), float(sampleRate), 0.996f);
-    CKarplusStrongStringPluck note2(CalcFrequency(3, 2), float(sampleRate), 0.996f);
-    CKarplusStrongStringPluck note3(CalcFrequency(3, 3), float(sampleRate), 0.996f);
-    CKarplusStrongStringPluck note4(CalcFrequency(3, 5), float(sampleRate), 0.996f);
+    std::vector<CKarplusStrongStringPluck> notes;
 
-    const int noteTime = sampleRate / 2;
+    enum ESongMode {
+        e_twinkleTwinkle,
+        e_strum
+    };
 
+    int timeBegin = 0;
+    ESongMode mode = e_twinkleTwinkle;
     for (int index = 0, numSamples = samples.size(); index < numSamples; ++index)
     {
-        samples[index] = note.GenerateSample();
+        switch (mode) {
+            case e_twinkleTwinkle: {
+                const int c_noteTime = sampleRate / 2;
+                int time = index - timeBegin;
+                // if we should start a new note
+                if (time % c_noteTime == 0) {
+                    int note = time / c_noteTime;
+                    switch (note) {
+                        case 0:
+                        case 1: {
+                            notes.push_back(CKarplusStrongStringPluck(CalcFrequency(3, 0), float(sampleRate), 0.996f));
+                            break;
+                        }
+                        case 2:
+                        case 3: {
+                            notes.push_back(CKarplusStrongStringPluck(CalcFrequency(3, 7), float(sampleRate), 0.996f));
+                            break;
+                        }
+                        case 4:
+                        case 5: {
+                            notes.push_back(CKarplusStrongStringPluck(CalcFrequency(3, 9), float(sampleRate), 0.996f));
+                            break;
+                        }
+                        case 6: {
+                            notes.push_back(CKarplusStrongStringPluck(CalcFrequency(3, 7), float(sampleRate), 0.996f));
+                            break;
+                        }
+                        case 7: {
+                            mode = e_strum;
+                            timeBegin = index+1;
+                            break;
+                        }
+                    }
+                }
+                break;
+            }
+            case e_strum: {
+                const int c_noteTime = sampleRate / 32;
+                int time = index - timeBegin - sampleRate;
+                // if we should start a new note
+                if (time % c_noteTime == 0) {
+                    int note = time / c_noteTime;
+                    switch (note) {
+                        case 0: notes.push_back(CKarplusStrongStringPluck(55.0f, float(sampleRate), 0.996f)); break;
+                        case 1: notes.push_back(CKarplusStrongStringPluck(55.0f + 110.0f, float(sampleRate), 0.996f)); break;
+                        case 2: notes.push_back(CKarplusStrongStringPluck(55.0f + 220.0f, float(sampleRate), 0.996f)); break;
+                        case 3: notes.push_back(CKarplusStrongStringPluck(55.0f + 330.0f, float(sampleRate), 0.996f)); break;
+                        case 4: mode = e_strum; timeBegin = index + 1; break;
+                    }
+                }
+                break;
+            }
+        }
 
-        if (index > noteTime)
-            samples[index] += note2.GenerateSample();
+        // generate and mix our samples from our notes
+        samples[index] = 0;
+        for (CKarplusStrongStringPluck& note : notes)
+            samples[index] += note.GenerateSample();
 
-        if (index > noteTime*2)
-            samples[index] += note3.GenerateSample();
-
-        if (index > noteTime*3)
-            samples[index] += note4.GenerateSample();
-
-        samples[index] *= 0.25;
+        // to keep from clipping
+        samples[index] *= 0.5f;
     }
 }
 
@@ -196,7 +247,7 @@ int main(int argc, char **argv)
 {
     // sound format parameters
     const int c_sampleRate = 44100;
-    const int c_numSeconds = 4;
+    const int c_numSeconds = 9;
     const int c_numChannels = 1;
     const int c_numSamples = c_sampleRate * c_numChannels * c_numSeconds;
 
@@ -214,26 +265,3 @@ int main(int argc, char **argv)
     // write our samples to a wave file
     WriteWaveFile("out.wav", samplesInt, c_numChannels, c_sampleRate);
 }
-
-/*
-
-TODO: 
-
-? make a melody?
-
-* Write blog post
-
-http://www.cs.princeton.edu/courses/archive/fall07/cos126/assignments/guitar.html
-
-https://en.wikipedia.org/wiki/Karplus%E2%80%93Strong_string_synthesis
-
-Blog Notes:
-* fill buffer with noise, play noise, after playing a sample, change it to be the average of itself and the next sample
- * "magically" makes sound of plucked strings
- * the size of the buffer defines the frequency!
-* tried to lerp from static to sine wave on shadertoy. didn't work out that great. totally different sound.
- * https://www.shadertoy.com/view/MdyXRd
-* you can initialize with a saw wave instead of noise.  I found it didn't sound as realistic, especially at lower frequencies
-* the algorithm seems to fall apart at lower frequencies unfortunately.
-* could try other starting states, as well as filters, to try other interesting sounds.
-*/
