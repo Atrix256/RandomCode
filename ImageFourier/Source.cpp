@@ -420,9 +420,11 @@ int main (int argc, char **argv)
 
 /*
 
-? maybe don't offset the fft, but do the offset when you get the magnitude!
-
 First:
+* generalize the progress % thing with a scoped object, that also tells you how long it took to run!  Also only erase / redraw percent if the percent has changed!
+* probably should spit out phase of origional image, just for educational purposes
+
+* don't make it spit out the grey scale image.  It's redundant with the basic idft image!
 * make a diagonal striped image?
 ? try to shift the pixels up and right 1/2 of the bounds.
  * if that works, need to explain that on blog post!
