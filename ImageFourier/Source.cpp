@@ -5,9 +5,62 @@
 #include <array>
 #include <vector>
 #include <complex>
-#include <windows.h>  // for bitmap headers.  Sorry non windows people!
- 
+#include <windows.h>  // for bitmap headers and performance counter.  Sorry non windows people!
+
+const float c_pi = 3.14159265359f;
+const float c_rootTwo = 1.41421356237f;
+
 typedef uint8_t uint8;
+
+struct SProgress
+{
+    SProgress (const char* message, int total) : m_message(message), m_total(total)
+    {
+        m_amount = 0;
+        m_lastPercent = 0;
+        printf("%s   0%%", message);
+
+        QueryPerformanceFrequency(&m_freq);
+        QueryPerformanceCounter(&m_start);
+    }
+
+    ~SProgress ()
+    {
+        // make it show 100%
+        m_amount = m_total;
+        Update(0);
+
+        // show how long it took
+        LARGE_INTEGER end;
+        QueryPerformanceCounter(&end);
+        float seconds = ((float)(end.QuadPart - m_start.QuadPart)) / m_freq.QuadPart;
+        printf(" (%0.2f seconds)\n", seconds);
+    }
+
+    void Update (int delta = 1)
+    {
+        m_amount += delta;
+        int percent = int(100.0f * float(m_amount) / float(m_total));
+        if (percent <= m_lastPercent)
+            return;
+
+        m_lastPercent = percent;
+        printf("%c%c%c%c", 8, 8, 8, 8);
+        if (percent < 100)
+            printf(" ");
+        if (percent < 10)
+            printf(" ");
+        printf("%i%%", percent);
+    }
+
+    int m_lastPercent;
+    int m_amount;
+    int m_total;
+    const char* m_message;
+
+    LARGE_INTEGER m_start;
+    LARGE_INTEGER m_freq;
+};
  
 struct SImageData
 {
@@ -81,8 +134,10 @@ bool SaveImage (const char *fileName, const SImageData &image)
     // open the file if we can
     FILE *file;
     file = fopen(fileName, "wb");
-    if (!file)
+    if (!file) {
+        printf("Could not save %s\n", fileName);
         return false;
+    }
  
     // make the header info
     BITMAPFILEHEADER header;
@@ -112,6 +167,8 @@ bool SaveImage (const char *fileName, const SImageData &image)
     fwrite(&infoHeader, sizeof(infoHeader), 1, file);
     fwrite(&image.m_pixels[0], infoHeader.biSizeImage, 1, file);
     fclose(file);
+
+    printf("%s saved\n", fileName);
     return true;
 }
  
@@ -149,7 +206,7 @@ std::complex<float> DFTPixel (const SImageData &srcImage, int K, int L)
             // Add to the sum of the return value
             float v = float(K * x) / float(srcImage.m_width);
             v += float(L * y) / float(srcImage.m_height);
-            ret += std::complex<float>(grey, 0.0f) * std::polar<float>(1.0f, -2.0f * 3.14159265359f * v);
+            ret += std::complex<float>(grey, 0.0f) * std::polar<float>(1.0f, -2.0f * c_pi * v);
         }
     }
 
@@ -166,40 +223,25 @@ void DFTImage (const SImageData &srcImage, SImageDataComplex &destImage)
     destImage.m_height = srcImage.m_height;
     destImage.m_pixels.resize(destImage.m_width*destImage.m_height);
 
-    printf("DFT:   0%%");
+    SProgress progress("DFT:", srcImage.m_width * srcImage.m_height);
  
     // calculate 2d dft (brute force, not using fast fourier transform)
     for (int x = 0; x < srcImage.m_width; ++x)
     {
         for (int y = 0; y < srcImage.m_height; ++y)
         {
-            // offset the sample by half of width / height to make DC (frequency 0) be in the center of the output image
-            //int K = (x + srcImage.m_width / 2) % srcImage.m_width;
-            //int L = (y + srcImage.m_height / 2) % srcImage.m_height;
-
             // calculate DFT for that pixel / frequency
             destImage.m_pixels[y * destImage.m_width + x] = DFTPixel(srcImage, x, y);
 
-            // show progress
-            int percent = int(100.0f * float(x * srcImage.m_height + y) / float(srcImage.m_width * srcImage.m_height));
-            if (percent > 100)
-                percent = 100;
-            printf("%c%c%c%c", 8, 8, 8, 8);
-            if (percent < 100)
-                printf(" ");
-            if (percent < 10)
-                printf(" ");
-            printf("%i%%", percent);
+            // update progress
+            progress.Update();
         }
     }
-
-    printf("\n");
 }
 
-float InverseDFTPixel (const SImageDataComplex &srcImage, int K, int L)
+uint8 InverseDFTPixel (const SImageDataComplex &srcImage, int K, int L)
 {
-    float ret = 0.0f;
-
+    std::complex<float> total(0.0f, 0.0f);
     for (int x = 0; x < srcImage.m_width; ++x)
     {
         for (int y = 0; y < srcImage.m_height; ++y)
@@ -210,18 +252,22 @@ float InverseDFTPixel (const SImageDataComplex &srcImage, int K, int L)
             // Add to the sum of the return value
             float v = float(K * x) / float(srcImage.m_width);
             v += float(L * y) / float(srcImage.m_height);
-            std::complex<float> result = src * std::polar<float>(1.0f, 2.0f * 3.14159265359f * v);
+            std::complex<float> result = src * std::polar<float>(1.0f, 2.0f * c_pi * v);
 
-            // TODO: not sure if adding magnitude is correct.  may only want real part? see how round trip works
-            // NOTES: using real() i got negative values.  using magnitude, i got values out of range (like, 8)
-            float mag = std::abs(result);// sqrt(result.imag()*result.imag() + result.real()*result.real());
-            ret += result.real();
-            //ret += sqrt(result.imag()*result.imag() + result.real()*result.real());
+            // sum up the results
+            total += result;
         }
     }
 
-    // TODO: should this function return uint8? i think so
-    return ret / float(srcImage.m_width*srcImage.m_height);
+    float idft = std::abs(total) / float(srcImage.m_width*srcImage.m_height);
+
+    // make sure the values are in range
+    if (idft < 0.0f)
+        idft = 0.0f;
+    if (idft > 1.0f)
+        idft = 1.0;
+
+    return uint8(idft * 255.0f);
 }
 
 void InverseDFTImage (const SImageDataComplex &srcImage, SImageData &destImage)
@@ -237,46 +283,24 @@ void InverseDFTImage (const SImageDataComplex &srcImage, SImageData &destImage)
     }
     destImage.m_pixels.resize(destImage.m_pitch*destImage.m_height);
 
-    printf("Inverse DFT:   0%%");
+    SProgress progress("Inverse DFT:", srcImage.m_width*srcImage.m_height);
 
     // calculate inverse 2d dft (brute force, not using fast fourier transform)
     for (int x = 0; x < srcImage.m_width; ++x)
     {
         for (int y = 0; y < srcImage.m_height; ++y)
         {
-            // offset the sample by half of width / height because DC (frequency 0) is in the center of the frequency data
-            //int K = (x + srcImage.m_width / 2) % srcImage.m_width;
-            //int L = (y + srcImage.m_height / 2) % srcImage.m_height;
-
             // calculate DFT for that pixel / frequency
-            float idft = InverseDFTPixel(srcImage, x, y);
-
-            // make sure the values are in range
-            if (idft < 0.0f)
-                idft = 0.0f;
-            if (idft > 1.0f)
-                idft = 1.0;
-
-            uint8 grey = uint8(idft * 255.0f);
+            uint8 idft = InverseDFTPixel(srcImage, x, y);
             uint8* dest = &destImage.m_pixels[y*destImage.m_pitch + x * 3];
-            dest[0] = grey;
-            dest[1] = grey;
-            dest[2] = grey;
+            dest[0] = idft;
+            dest[1] = idft;
+            dest[2] = idft;
 
-            // show progress
-            int percent = int(100.0f * float(x * srcImage.m_height + y) / float(srcImage.m_width * srcImage.m_height));
-            if (percent > 100)
-                percent = 100;
-            printf("%c%c%c%c", 8, 8, 8, 8);
-            if (percent < 100)
-                printf(" ");
-            if (percent < 10)
-                printf(" ");
-            printf("%i%%", percent);
+            // update progress
+            progress.Update();
         }
     }
-
-    printf("\n");
 }
 
 void GetMagnitudeData (const SImageDataComplex& srcImage, SImageData& destImage)
@@ -335,6 +359,47 @@ void GetMagnitudeData (const SImageDataComplex& srcImage, SImageData& destImage)
     }
 }
 
+void GetPhaseData (const SImageDataComplex& srcImage, SImageData& destImage)
+{
+    // size the output image
+    destImage.m_width = srcImage.m_width;
+    destImage.m_height = srcImage.m_height;
+    destImage.m_pitch = srcImage.m_width * 3;
+    if (destImage.m_pitch & 3)
+    {
+        destImage.m_pitch &= ~3;
+        destImage.m_pitch += 4;
+    }
+    destImage.m_pixels.resize(destImage.m_pitch*destImage.m_height);
+
+    // get floating point phase data, and encode it in [0,255]
+    for (int x = 0; x < srcImage.m_width; ++x)
+    {
+        for (int y = 0; y < srcImage.m_height; ++y)
+        {
+            // Offset the information by half width & height in the positive direction.
+            // This makes frequency 0 (DC) be at the image origin, like most diagrams show it.
+            int k = (x + srcImage.m_width / 2) % srcImage.m_width;
+            int l = (y + srcImage.m_height / 2) % srcImage.m_height;
+            const std::complex<float> &src = srcImage.m_pixels[l*srcImage.m_width + k];
+
+            // get phase, and change it from [-pi,+pi] to [0,255]
+            float phase = (0.5f + 0.5f * std::atan2(src.real(), src.imag()) / c_pi);
+            if (phase < 0.0f)
+                phase = 0.0f;
+            if (phase > 1.0f)
+                phase = 1.0;
+            uint8 phase255 = uint8(phase * 255);
+
+            // write the phase as grey scale color
+            uint8* dest = &destImage.m_pixels[y*destImage.m_pitch + x * 3];
+            dest[0] = phase255;
+            dest[1] = phase255;
+            dest[2] = phase255;
+        }
+    }
+}
+
 int main (int argc, char **argv)
 {
     float scale = 1.0f;
@@ -348,8 +413,6 @@ int main (int argc, char **argv)
         printf("Usage: <source>\n\n");
         return 1;
     }
- 
-    printf("Calculating fourier transform of %s\n\n", srcFileName);
 
     // trim off file extension from source filename so we can make our other file names
     char baseFileName[1024];
@@ -363,54 +426,184 @@ int main (int argc, char **argv)
         }
     }
 
-    // make our file names
-    char magnitudeFileName[1024];
-    strcpy(magnitudeFileName, baseFileName);
-    strcat(magnitudeFileName, ".dftmag.bmp");
-
-    char greyFileName[1024];
-    strcpy(greyFileName, baseFileName);
-    strcat(greyFileName, ".grey.bmp");
-
-    char idftFileName[1024];
-    strcpy(idftFileName, baseFileName);
-    strcat(idftFileName, ".idft.bmp");
-
     // Load source image if we can
     SImageData srcImage;
     if (LoadImage(srcFileName, srcImage))
     {
         printf("%s loaded (%i x %i)\n", srcFileName, srcImage.m_width, srcImage.m_height);
 
-        // convert to grey and save it out
+        // do DFT on a greyscale version of the image, instead of doing it per color channel
         SImageData greyImage;
         ImageToGrey(srcImage, greyImage);
-        if (SaveImage(greyFileName, greyImage))
-            printf("Saved %s\n", greyFileName);
-        else
-            printf("Could not save %s\n", greyFileName);
-
-        // do DFT and save out magnitude information
         SImageDataComplex frequencyData;
         DFTImage(greyImage, frequencyData);
-        SImageData destImage;
-        GetMagnitudeData(frequencyData, destImage);
-        if (SaveImage(magnitudeFileName, destImage))
-            printf("Saved %s\n", magnitudeFileName);
-        else
-            printf("Could not save %s\n", magnitudeFileName);
 
-        // TODO: modify frequency data and save out the result
+        // save magnitude information
+        {
+            char outFileName[1024];
+            strcpy(outFileName, baseFileName);
+            strcat(outFileName, ".raw.mag.bmp");
+
+            SImageData destImage;
+            GetMagnitudeData(frequencyData, destImage);
+            SaveImage(outFileName, destImage);
+        }
+
+        // save phase information
+        {
+            char outFileName[1024];
+            strcpy(outFileName, baseFileName);
+            strcat(outFileName, ".raw.phase.bmp");
+
+            SImageData destImage;
+            GetPhaseData(frequencyData, destImage);
+            SaveImage(outFileName, destImage);
+        }
 
         // inverse dft the modified frequency and save the result
-        SImageData modifiedImage;
-        InverseDFTImage(frequencyData, modifiedImage);
-        if (SaveImage(idftFileName, modifiedImage))
-            printf("Saved %s\n", idftFileName);
-        else
-            printf("Could not save %s\n", idftFileName);
+        {
+            char outFileName[1024];
+            strcpy(outFileName, baseFileName);
+            strcat(outFileName, ".raw.idft.bmp");
 
-        // TODO: for modificiations maybe do lpf, hpf and frequency shift? maybe a command line option? nah, just do it, so you can drag a file on and get this stuff out
+            SImageData modifiedImage;
+            InverseDFTImage(frequencyData, modifiedImage);
+            SaveImage(outFileName, modifiedImage);
+        }
+
+        // Low Pass Filter: Remove high frequencies, write out frequency magnitudes, write out inverse dft
+        {
+            printf("\n=====LPF=====\n");
+
+            // remove frequencies that are too far from frequency 0.
+            // Note that even though our output frequency images have frequency 0 (DC) in the center, that
+            // isn't actually how it's stored in our SImageDataComplex structure.  Pixel (0,0) is frequency 0.
+            SImageDataComplex dft = frequencyData;
+            float halfWidth = float(dft.m_width / 2);
+            float halfHeight = float(dft.m_height / 2);
+            for (int x = 0; x < dft.m_width; ++x)
+            {
+                for (int y = 0; y < dft.m_height; ++y)
+                {
+                    float relX = 0.0f;
+                    float relY = 0.0f;
+
+                    if (x < halfWidth)
+                        relX = float(x) / halfWidth;
+                    else
+                        relX = (float(x) - float(dft.m_width)) / halfWidth;
+
+                    if (y < halfHeight)
+                        relY = float(y) / halfHeight;
+                    else
+                        relY = (float(y) - float(dft.m_height)) / halfHeight;
+
+                    float dist = sqrt(relX*relX + relY*relY) / c_rootTwo; // divided by root 2 so our distance is from 0 to 1
+                    if (dist > 0.1f)
+                        dft.m_pixels[y*dft.m_width + x] = std::complex<float>(0.0f, 0.0f);
+                }
+            }
+
+            // write dft magnitude data
+            char outFileName[1024];
+            strcpy(outFileName, baseFileName);
+            strcat(outFileName, ".lpf.mag.bmp");
+            SImageData destImage;
+            GetMagnitudeData(dft, destImage);
+            SaveImage(outFileName, destImage);
+
+            // inverse dft and save the image
+            strcpy(outFileName, baseFileName);
+            strcat(outFileName, ".lpf.idft.bmp");
+            SImageData modifiedImage;
+            InverseDFTImage(dft, modifiedImage);
+            SaveImage(outFileName, modifiedImage);
+        }
+
+        // High Pass Filter: Remove low frequencies, write out frequency magnitudes, write out inverse dft
+        {
+            printf("\n=====HPF=====\n");
+
+            // remove frequencies that are too close to frequency 0.
+            // Note that even though our output frequency images have frequency 0 (DC) in the center, that
+            // isn't actually how it's stored in our SImageDataComplex structure.  Pixel (0,0) is frequency 0.
+            SImageDataComplex dft = frequencyData;
+            float halfWidth = float(dft.m_width / 2);
+            float halfHeight = float(dft.m_height / 2);
+            for (int x = 0; x < dft.m_width; ++x)
+            {
+                for (int y = 0; y < dft.m_height; ++y)
+                {
+                    float relX = 0.0f;
+                    float relY = 0.0f;
+
+                    if (x < halfWidth)
+                        relX = float(x) / halfWidth;
+                    else
+                        relX = (float(x) - float(dft.m_width)) / halfWidth;
+
+                    if (y < halfHeight)
+                        relY = float(y) / halfHeight;
+                    else
+                        relY = (float(y) - float(dft.m_height)) / halfHeight;
+
+                    float dist = sqrt(relX*relX + relY*relY) / c_rootTwo; // divided by root 2 so our distance is from 0 to 1
+                    if (dist < 0.1f)
+                        dft.m_pixels[y*dft.m_width + x] = std::complex<float>(0.0f, 0.0f);
+                }
+            }
+
+            // write dft magnitude data
+            char outFileName[1024];
+            strcpy(outFileName, baseFileName);
+            strcat(outFileName, ".hpf.mag.bmp");
+            SImageData destImage;
+            GetMagnitudeData(dft, destImage);
+            SaveImage(outFileName, destImage);
+
+            // inverse dft and save the image
+            strcpy(outFileName, baseFileName);
+            strcat(outFileName, ".hpf.idft.bmp");
+            SImageData modifiedImage;
+            InverseDFTImage(dft, modifiedImage);
+            SaveImage(outFileName, modifiedImage);
+        }
+
+        // ZeroPhase
+        {
+            printf("\n=====Zero Phase=====\n");
+
+            // Set phase to zero for all frequencies.
+            // Note that even though our output frequency images have frequency 0 (DC) in the center, that
+            // isn't actually how it's stored in our SImageDataComplex structure.  Pixel (0,0) is frequency 0.
+            SImageDataComplex dft = frequencyData;
+            float halfWidth = float(dft.m_width / 2);
+            float halfHeight = float(dft.m_height / 2);
+            for (int x = 0; x < dft.m_width; ++x)
+            {
+                for (int y = 0; y < dft.m_height; ++y)
+                {
+                    std::complex<float>& v = dft.m_pixels[y*dft.m_width + x];
+                    float mag = std::abs(v);
+                    v = std::complex<float>(mag, 0.0f);
+                }
+            }
+
+            // write dft magnitude data
+            char outFileName[1024];
+            strcpy(outFileName, baseFileName);
+            strcat(outFileName, ".phase0.mag.bmp");
+            SImageData destImage;
+            GetMagnitudeData(dft, destImage);
+            SaveImage(outFileName, destImage);
+
+            // inverse dft and save the image
+            strcpy(outFileName, baseFileName);
+            strcat(outFileName, ".phase0.idft.bmp");
+            SImageData modifiedImage;
+            InverseDFTImage(dft, modifiedImage);
+            SaveImage(outFileName, modifiedImage);
+        }
     }
     else
         printf("could not read 24 bit bmp file %s\n\n", srcFileName);
@@ -419,26 +612,6 @@ int main (int argc, char **argv)
 }
 
 /*
-
-First:
-* generalize the progress % thing with a scoped object, that also tells you how long it took to run!  Also only erase / redraw percent if the percent has changed!
-* probably should spit out phase of origional image, just for educational purposes
-
-* don't make it spit out the grey scale image.  It's redundant with the basic idft image!
-* make a diagonal striped image?
-? try to shift the pixels up and right 1/2 of the bounds.
- * if that works, need to explain that on blog post!
-* do logaraithmic transform!
-* after it's working, make it separated on each axis so it's faster (check in what you have first!)
-* make FFT work on greyscale converted image
-* fft of images to understand them
- * a couple examples
-* then ifft after frequency modifications?
- * shift frequencies
- * erase frequencies (high and low pass filtering)
- * change phase?
- * make it spit out how long it took, so can use it on blog
-
 
 Blog:
  * note that we convert image to greyscale.  Otherwise we'd have to do it for each color channel.
@@ -449,8 +622,12 @@ Blog:
  * just brute force it for now
  * note how long it takes for various image sizes.
   * mention that it's O(4)
+ * mention that magnitude is just the length of the vector
  * mention log transform of pixels to make things more visible
  * mention that phase is gotten via atan (imaginary / real)
+ * low frequencies are in middle, high frequencies are at the edges
+ * note how the zelda guy gets what looks like compression artifacts.  Some compression schemes work by removing frequencies.
+ * phase matters a bunch for images.  In sound, your ears cant detect changes in phase that well though!
 
 Links:
  * http://homepages.inf.ed.ac.uk/rbf/HIPR2/fourier.htm
