@@ -867,7 +867,7 @@ int main (int argc, char **argv)
         rotatedImage.m_pitch += 4;
     }
     rotatedImage.m_pixels.resize(rotatedImage.m_pitch*rotatedImage.m_height);
-    float unrotation = rotationFixDegrees * c_pi / 180.0f;
+    float unrotation = -rotationFixDegrees * c_pi / 180.0f;
     for (int y = 0, yc = rotatedImage.m_height; y < yc; ++y)
     {
         for (int x = 0, xc = rotatedImage.m_width; x < xc; ++x)
