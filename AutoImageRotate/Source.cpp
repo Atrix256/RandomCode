@@ -11,14 +11,21 @@ const float c_pi = 3.14159265359f;
 
 typedef uint8_t uint8;
 
+#define CLAMP(v, min, max) if (v < min) { v = min; } else if (v > max) { v = max; } 
+
 //-----------------------------------------------------------------------------------------------------------
-void RotatePoint (int x, int y, float& outX, float& outY, float rot)
+void RotatePoint (int x, int y, int aroundX, int aroundY, float& outX, float& outY, float rot)
 {
     //x' = x cos f - y sin f
     //y' = y cos f + x sin f
-    // TODO: switch to a 2d matrix!
+    x -= aroundX;
+    y -= aroundY;
+
     outX = float(x) * cos(rot) - float(y) * sin(rot);
     outY = float(y) * cos(rot) + float(x) * sin(rot);
+
+    outX += (float)aroundX;
+    outY += (float)aroundY;
 }
 
 //-----------------------------------------------------------------------------------------------------------
@@ -518,6 +525,82 @@ void DrawLine(PIXELTYPE* pixels, int pixelStride, int x1, int y1, int x2, int y2
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Bicubic texture interpolation
+// from http://blog.demofox.org/2015/08/15/resizing-images-with-bicubic-interpolation/
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// t is a value that goes from 0 to 1 to interpolate in a C1 continuous way across uniformly sampled data points.
+// when t is 0, this will return B.  When t is 1, this will return C.  Inbetween values will return an interpolation
+// between B and C.  A and B are used to calculate slopes at the edges.
+float CubicHermite(float A, float B, float C, float D, float t)
+{
+    float a = -A / 2.0f + (3.0f*B) / 2.0f - (3.0f*C) / 2.0f + D / 2.0f;
+    float b = A - (5.0f*B) / 2.0f + 2.0f*C - D / 2.0f;
+    float c = -A / 2.0f + C / 2.0f;
+    float d = B;
+
+    return a*t*t*t + b*t*t + c*t + d;
+}
+
+const uint8* GetPixelClamped(const SImageData& image, int x, int y)
+{
+    CLAMP(x, 0, image.m_width - 1);
+    CLAMP(y, 0, image.m_height - 1);
+    return &image.m_pixels[(y * image.m_pitch) + x * 3];
+}
+
+std::array<uint8, 3> SampleBicubic (const SImageData& image, float u, float v)
+{
+    // calculate coordinates -> also need to offset by half a pixel to keep image from shifting down and left half a pixel
+    float x = (u * image.m_width) - 0.5f;
+    int xint = int(x);
+    float xfract = x - floor(x);
+ 
+    float y = (v * image.m_height) - 0.5f;
+    int yint = int(y);
+    float yfract = y - floor(y);
+ 
+    // 1st row
+    auto p00 = GetPixelClamped(image, xint - 1, yint - 1);
+    auto p10 = GetPixelClamped(image, xint + 0, yint - 1);
+    auto p20 = GetPixelClamped(image, xint + 1, yint - 1);
+    auto p30 = GetPixelClamped(image, xint + 2, yint - 1);
+ 
+    // 2nd row
+    auto p01 = GetPixelClamped(image, xint - 1, yint + 0);
+    auto p11 = GetPixelClamped(image, xint + 0, yint + 0);
+    auto p21 = GetPixelClamped(image, xint + 1, yint + 0);
+    auto p31 = GetPixelClamped(image, xint + 2, yint + 0);
+ 
+    // 3rd row
+    auto p02 = GetPixelClamped(image, xint - 1, yint + 1);
+    auto p12 = GetPixelClamped(image, xint + 0, yint + 1);
+    auto p22 = GetPixelClamped(image, xint + 1, yint + 1);
+    auto p32 = GetPixelClamped(image, xint + 2, yint + 1);
+ 
+    // 4th row
+    auto p03 = GetPixelClamped(image, xint - 1, yint + 2);
+    auto p13 = GetPixelClamped(image, xint + 0, yint + 2);
+    auto p23 = GetPixelClamped(image, xint + 1, yint + 2);
+    auto p33 = GetPixelClamped(image, xint + 2, yint + 2);
+ 
+    // interpolate bi-cubically!
+    // Clamp the values since the curve can put the value below 0 or above 255
+    std::array<uint8, 3> ret;
+    for (int i = 0; i < 3; ++i)
+    {
+        float col0 = CubicHermite(p00[i], p10[i], p20[i], p30[i], xfract);
+        float col1 = CubicHermite(p01[i], p11[i], p21[i], p31[i], xfract);
+        float col2 = CubicHermite(p02[i], p12[i], p22[i], p32[i], xfract);
+        float col3 = CubicHermite(p03[i], p13[i], p23[i], p33[i], xfract);
+        float value = CubicHermite(col0, col1, col2, col3, yfract);
+        CLAMP(value, 0.0f, 255.0f);
+        ret[i] = uint8(value);
+    }
+    return ret;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////
 int main (int argc, char **argv)
 {
     // get command line params if we can
@@ -579,21 +662,13 @@ int main (int argc, char **argv)
     {
         SProgress progress("Analyzing Image", srcImage.m_width + srcImage.m_height);
 
-        // test the right wall, above zero
-        srcX = 0;
-        destX = srcImage.m_width - 1;
-        for (int i = 0; i <= halfImageHeight; ++i)
+        // Test perfectly horizontal, for the case of no rotation needed
         {
-            // update progress and update our test line
-            progress.Update();
-            srcY = halfImageHeight - i;
-            destY = halfImageHeight + i;
-
-            // This happens if the height is an even number
-            if (srcY >= srcImage.m_height)
-                break;
-
             // sum up the amplitude data along the line
+            srcX = 0;
+            srcY = halfImageHeight;
+            destX = srcImage.m_width - 1;
+            destY = halfImageHeight;
             float totalMag = 0.0f;
             DrawLine(
                 &frequencyMagnitudesRaw.m_pixels[0],
@@ -619,21 +694,13 @@ int main (int argc, char **argv)
             }
         }
 
-        // test the left wall, above zero
-        srcX = 0;
-        destX = srcImage.m_width - 1;
-        for (int i = 0; i <= halfImageHeight; ++i)
+        // Test perfectly vertical, for the case of no rotation needed
         {
-            // update progress and update our test line
-            progress.Update();
-            srcY = halfImageHeight + i;
-            destY = halfImageHeight - i;
-
-            // This happens if the height is an even number
-            if (srcY >= srcImage.m_height)
-                break;
-
             // sum up the amplitude data along the line
+            srcX = halfImageWidth;
+            srcY = 0;
+            destX = halfImageWidth;
+            destY = srcImage.m_height - 1;
             float totalMag = 0.0f;
             DrawLine(
                 &frequencyMagnitudesRaw.m_pixels[0],
@@ -659,7 +726,53 @@ int main (int argc, char **argv)
             }
         }
 
-        // test the top wall
+        // test the horizontal walls
+        srcX = 0;
+        destX = srcImage.m_width - 1;
+        for (int i = 0; i <= srcImage.m_height; ++i)
+        {
+            // update progress and update our test line
+            progress.Update();
+            srcY = i;
+            destY = srcImage.m_height - 1 - i;
+
+            // sum up the amplitude data along the line
+            // make sure to explicitly get the center point (DC)
+            float totalMag = 0.0f;
+            DrawLine(
+                &frequencyMagnitudesRaw.m_pixels[0],
+                frequencyMagnitudesRaw.m_width,
+                halfImageWidth, halfImageHeight, destX, destY,
+                [&totalMag](const float *pixel)
+                {
+                    totalMag += *pixel;
+                }
+            );
+            DrawLine(
+                &frequencyMagnitudesRaw.m_pixels[0],
+                frequencyMagnitudesRaw.m_width,
+                halfImageWidth, halfImageHeight, srcX, srcY,
+                [&totalMag](const float *pixel)
+                {
+                    totalMag += *pixel;
+                }
+            );
+
+            // if this is higher than what we had before, store it off as the new winner
+            if (totalMag > bestValue)
+            {
+                bestLine[0] = srcX;
+                bestLine[1] = srcY;
+                bestLine[2] = destX;
+                bestLine[3] = destY;
+                float dx = float(destX - srcX);
+                float dy = float(destY - srcY);
+                bestAngle = atan2(dy, dx);
+                bestValue = totalMag;
+            }
+        }
+
+        // test the vertical walls wall
         srcY = 0;
         destY = srcImage.m_height - 1;
         for (int i = 0; i <= srcImage.m_width; ++i)
@@ -670,11 +783,21 @@ int main (int argc, char **argv)
             destX = srcImage.m_width - 1 - i;
 
             // sum up the amplitude data along the line
+            // make sure to explicitly get the center point (DC)
             float totalMag = 0.0f;
             DrawLine(
                 &frequencyMagnitudesRaw.m_pixels[0],
                 frequencyMagnitudesRaw.m_width,
-                srcX, srcY, destX, destY,
+                halfImageWidth, halfImageHeight, destX, destY,
+                [&totalMag](const float *pixel)
+                {
+                    totalMag += *pixel;
+                }
+            );
+            DrawLine(
+                &frequencyMagnitudesRaw.m_pixels[0],
+                frequencyMagnitudesRaw.m_width,
+                halfImageWidth, halfImageHeight, srcX, srcY,
                 [&totalMag](const float *pixel)
                 {
                     totalMag += *pixel;
@@ -702,11 +825,21 @@ int main (int argc, char **argv)
     DrawLine(
         (std::array<uint8, 3>*)&frequencyMagnitudes.m_pixels[0],
         frequencyMagnitudes.m_pitch / 3,
-        bestLine[0], bestLine[1], bestLine[2], bestLine[3],
+        halfImageWidth, halfImageHeight, bestLine[0], bestLine[1],
         [] (std::array<uint8, 3> *pixel)
         {
             (*pixel)[1] = 0;
             (*pixel)[2] = 0;
+        }
+    );
+    DrawLine(
+        (std::array<uint8, 3>*)&frequencyMagnitudes.m_pixels[0],
+        frequencyMagnitudes.m_pitch / 3,
+        halfImageWidth, halfImageHeight, bestLine[2], bestLine[3],
+        [] (std::array<uint8, 3> *pixel)
+        {
+            (*pixel)[0] = 0;
+            (*pixel)[1] = 0;
         }
     );
     SaveImage(outFileName, frequencyMagnitudes);
@@ -715,16 +848,9 @@ int main (int argc, char **argv)
     // We don't know if the image is supposed to be horizontal or vertical, so we can only
     // assume that the closest orientation fix is the right one.  AKA we assume the orientation
     // is almost right, but just needs a little help
-    float rotationFixDegrees = 0.0f;
     float orientationDegrees = bestAngle * 180.0f / c_pi;
-    if (orientationDegrees <= 45.0f)
-        rotationFixDegrees = -orientationDegrees;
-    else if (orientationDegrees <= 90.0f)
-        rotationFixDegrees = 90.0f - orientationDegrees;
-    else if (orientationDegrees < 135.0f)
-        rotationFixDegrees = -(orientationDegrees - 90.0f);
-    else
-        rotationFixDegrees = 180.0f - orientationDegrees;
+    float nearest90degrees = floor((orientationDegrees / 90.0f) + 0.5f) * 90.0f;
+    float rotationFixDegrees = nearest90degrees - orientationDegrees;
     printf("The image is oriented at %0.2f degrees and needs a %0.2f degree rotation adjustment.\n", orientationDegrees, rotationFixDegrees);
 
     // rotate the image.
@@ -741,23 +867,23 @@ int main (int argc, char **argv)
         rotatedImage.m_pitch += 4;
     }
     rotatedImage.m_pixels.resize(rotatedImage.m_pitch*rotatedImage.m_height);
-    float unrotation = -rotationFixDegrees * c_pi / 180.0f;
+    float unrotation = rotationFixDegrees * c_pi / 180.0f;
     for (int y = 0, yc = rotatedImage.m_height; y < yc; ++y)
     {
         for (int x = 0, xc = rotatedImage.m_width; x < xc; ++x)
         {
             float srcPointX = 0.0f;
             float srcPointY = 0.0f;
-            RotatePoint(x, y, srcPointX, srcPointY, unrotation);
-            // TODO: switch to bicubic interpolation!
-            int px = int(srcPointX);
-            int py = int(srcPointY);
+            RotatePoint(x, y, rotatedImage.m_width / 2, rotatedImage.m_height / 2, srcPointX, srcPointY, unrotation);
+            float u = srcPointX / (float)srcImage.m_width;
+            float v = srcPointY / (float)srcImage.m_height;
 
             // leave out of bounds samples black
-            if (px >= 0 && py >= 0 && px < srcImage.m_width && py < srcImage.m_height)
+            if (u >= 0.0 && v >= 0.0 && u <= 1.0f && v <= 1.0f)
             {
+                std::array<uint8, 3> src = SampleBicubic(srcImage, u, v);
                 uint8* dest = &rotatedImage.m_pixels[y * rotatedImage.m_pitch + x * 3];
-                uint8* src = &srcImage.m_pixels[py * srcImage.m_pitch + px * 3];
+
                 dest[0] = src[0];
                 dest[1] = src[1];
                 dest[2] = src[2];
@@ -769,42 +895,31 @@ int main (int argc, char **argv)
     strcpy(outFileName, baseFileName);
     strcat(outFileName, ".rotated.bmp");
     SaveImage(outFileName, rotatedImage);
-
     return 0;
 }
 
 /*
 
 TODO:
-* Make DFT / IDFT faster!
- * separate axis
- * threaded
- * fast fourier transform from the audio post?
-
-* save the dft
-* save a version of the dft that has the line drawn through it of highest value (maybe zero out red and green so it's a blue line that shows magnitudes)
-* rotate and save out image
- * just loop through image of same size, untransform coordinate, bicubic sample from source image
-
-* print out details of angle adjustment
-
-* auto rotate images!
- * fft the image
- * do auto correlation with a rotating line (0-180 degrees)
- * rotate image, using bicubic sampling for interpolation
- * pad rotated image with black
-
-
+* test2's dft overlay lines seem wrong.  That doesn't look like the best line has won.
+* see why it wants to rotate zelda guy.
+ * make sure it's doing the perfect 90 degree angles, to be able to catch when it doesn't need rotation
+* test2.bmp is rotated the wrong way?
+* i think you need to make sure all the lines EXPLICITLY pass through DC.
+ * maybe need to do two lines - pos and neg - and add them together.
+ * i think this is causing the problems
 
 
 Blog:
-* compare timing of faster DFT / IFT vs before
+* compare timing of faster DFT / IFT vs before (mention would make it threaded and do FFT)
 * not using sliding dot product! don't mention that!
  * mention histogram similarity, and reference search engine post
 * get some good images to demonstrate it on (hopefully a little bit larger images?)
 * show fft before and after for each image
 * make a diagram to show how this works (draw a line through center and mention that's where it samples)
 
+* link to this which talks about how to make it even faster
+ * http://dsp.stackexchange.com/questions/32408/faster-way-of-getting-2d-frequency-amplitudes-than-dft
 
 * mention that it goes from N^2 to 2N (or figure out exactly what the diff is?)
  * check here under "how it works": http://homepages.inf.ed.ac.uk/rbf/HIPR2/fourier.htm
