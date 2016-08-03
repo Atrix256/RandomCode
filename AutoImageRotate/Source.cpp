@@ -387,7 +387,6 @@ void GetMagnitudeData (const SImageDataComplex& srcImage, SImageData& destImage)
         for (int y = 0; y < srcImage.m_height; ++y)
         {
             float src = c * log(1.0f + magData.m_pixels[y*magData.m_width + x]);
-
             uint8 magu8 = uint8(src);
 
             uint8* dest = &destImage.m_pixels[y*destImage.m_pitch + x * 3];
@@ -657,119 +656,64 @@ int main (int argc, char **argv)
     float bestAngle = 0.0f;
     float bestValue = -1.0f;
     int srcX, srcY, destX, destY;
-    int bestLine[4];
+    int bestLine[4] = { 0, 0, 0, 0 };
 
+    // the lambda for testing a line
+    auto testLine =
+        [&frequencyMagnitudesRaw, halfImageWidth, halfImageHeight, &bestValue, &bestLine, &bestAngle]
+        (int x1, int y1, int x2, int y2) {
+            float totalMag = 0;
+
+            DrawLine(
+                &frequencyMagnitudesRaw.m_pixels[0],
+                frequencyMagnitudesRaw.m_width,
+                halfImageWidth, halfImageHeight, x1, y1,
+                [&totalMag](const float *pixel)
+                {
+                    totalMag += *pixel;
+                }
+            );
+
+            DrawLine(
+                &frequencyMagnitudesRaw.m_pixels[0],
+                frequencyMagnitudesRaw.m_width,
+                halfImageWidth, halfImageHeight, x2, y2,
+                [&totalMag](const float *pixel)
+                {
+                    totalMag += *pixel;
+                }
+            );
+
+            if (totalMag > bestValue)
+            {
+                bestLine[0] = x1;
+                bestLine[1] = y1;
+                bestLine[2] = x2;
+                bestLine[3] = y2;
+                float dx = float(x2 - x1);
+                float dy = float(y2 - y1);
+                bestAngle = atan2(dy, dx);
+                bestValue = totalMag;
+            }
+        };
+
+    // Analyze the image
     {
-        SProgress progress("Analyzing Image", srcImage.m_width + srcImage.m_height);
-
-        // Test perfectly horizontal, for the case of no rotation needed
-        {
-            // sum up the amplitude data along the line
-            srcX = 0;
-            srcY = halfImageHeight;
-            destX = srcImage.m_width - 1;
-            destY = halfImageHeight;
-            float totalMag = 0.0f;
-            DrawLine(
-                &frequencyMagnitudesRaw.m_pixels[0],
-                frequencyMagnitudesRaw.m_width,
-                srcX, srcY, destX, destY,
-                [&totalMag](const float *pixel)
-                {
-                    totalMag += *pixel;
-                }
-            );
-
-            // if this is higher than what we had before, store it off as the new winner
-            if (totalMag > bestValue)
-            {
-                bestLine[0] = srcX;
-                bestLine[1] = srcY;
-                bestLine[2] = destX;
-                bestLine[3] = destY;
-                float dx = float(destX - srcX);
-                float dy = float(destY - srcY);
-                bestAngle = atan2(dy, dx);
-                bestValue = totalMag;
-            }
-        }
-
-        // Test perfectly vertical, for the case of no rotation needed
-        {
-            // sum up the amplitude data along the line
-            srcX = halfImageWidth;
-            srcY = 0;
-            destX = halfImageWidth;
-            destY = srcImage.m_height - 1;
-            float totalMag = 0.0f;
-            DrawLine(
-                &frequencyMagnitudesRaw.m_pixels[0],
-                frequencyMagnitudesRaw.m_width,
-                srcX, srcY, destX, destY,
-                [&totalMag](const float *pixel)
-                {
-                    totalMag += *pixel;
-                }
-            );
-
-            // if this is higher than what we had before, store it off as the new winner
-            if (totalMag > bestValue)
-            {
-                bestLine[0] = srcX;
-                bestLine[1] = srcY;
-                bestLine[2] = destX;
-                bestLine[3] = destY;
-                float dx = float(destX - srcX);
-                float dy = float(destY - srcY);
-                bestAngle = atan2(dy, dx);
-                bestValue = totalMag;
-            }
-        }
+        // Test perfectly horizontal and vertical, for the case of no rotation needed
+        testLine(0, halfImageHeight, frequencyMagnitudesRaw.m_width - 1, halfImageHeight);
+        testLine(halfImageWidth, 0, halfImageWidth, frequencyMagnitudesRaw.m_height - 1);
 
         // test the horizontal walls
         srcX = 0;
         destX = srcImage.m_width - 1;
         for (int i = 0; i <= srcImage.m_height; ++i)
         {
-            // update progress and update our test line
-            progress.Update();
             srcY = i;
             destY = srcImage.m_height - 1 - i;
 
-            // sum up the amplitude data along the line
-            // make sure to explicitly get the center point (DC)
-            float totalMag = 0.0f;
-            DrawLine(
-                &frequencyMagnitudesRaw.m_pixels[0],
-                frequencyMagnitudesRaw.m_width,
-                halfImageWidth, halfImageHeight, destX, destY,
-                [&totalMag](const float *pixel)
-                {
-                    totalMag += *pixel;
-                }
-            );
-            DrawLine(
-                &frequencyMagnitudesRaw.m_pixels[0],
-                frequencyMagnitudesRaw.m_width,
-                halfImageWidth, halfImageHeight, srcX, srcY,
-                [&totalMag](const float *pixel)
-                {
-                    totalMag += *pixel;
-                }
-            );
-
-            // if this is higher than what we had before, store it off as the new winner
-            if (totalMag > bestValue)
-            {
-                bestLine[0] = srcX;
-                bestLine[1] = srcY;
-                bestLine[2] = destX;
-                bestLine[3] = destY;
-                float dx = float(destX - srcX);
-                float dy = float(destY - srcY);
-                bestAngle = atan2(dy, dx);
-                bestValue = totalMag;
-            }
+            // goes negative when image has an even numbered height
+            if (destY >= 0)
+                testLine(srcX, srcY, destX, destY);
         }
 
         // test the vertical walls wall
@@ -782,42 +726,20 @@ int main (int argc, char **argv)
             srcX = i;
             destX = srcImage.m_width - 1 - i;
 
-            // sum up the amplitude data along the line
-            // make sure to explicitly get the center point (DC)
-            float totalMag = 0.0f;
-            DrawLine(
-                &frequencyMagnitudesRaw.m_pixels[0],
-                frequencyMagnitudesRaw.m_width,
-                halfImageWidth, halfImageHeight, destX, destY,
-                [&totalMag](const float *pixel)
-                {
-                    totalMag += *pixel;
-                }
-            );
-            DrawLine(
-                &frequencyMagnitudesRaw.m_pixels[0],
-                frequencyMagnitudesRaw.m_width,
-                halfImageWidth, halfImageHeight, srcX, srcY,
-                [&totalMag](const float *pixel)
-                {
-                    totalMag += *pixel;
-                }
-            );
-
-            // if this is higher than what we had before, store it off as the new winner
-            if (totalMag > bestValue)
-            {
-                bestLine[0] = srcX;
-                bestLine[1] = srcY;
-                bestLine[2] = destX;
-                bestLine[3] = destY;
-                float dx = float(destX - srcX);
-                float dy = float(destY - srcY);
-                bestAngle = atan2(dy, dx);
-                bestValue = totalMag;
-            }
+            // goes negative when image has an even numbered width
+            if (destX >= 0)
+                testLine(srcX, srcY, destX, destY);
         }
     }
+
+    // TODO: temp!
+    // NOTE: this is way confusing.  -7, +7 to x for test2 fixes the rotation to be correct, but the winning line is all wrong.
+    // TODO: is the problem that bmp are flipped vertically or something?
+    bestLine[0] -= 7;
+    bestLine[2] += 7;
+    float dx = float(bestLine[2] - halfImageWidth);
+    float dy = float(bestLine[3] - halfImageHeight);
+    bestAngle = atan2(dy, dx);
 
     // Draw the winning line and save the image!
     strcpy(outFileName, baseFileName);
@@ -828,7 +750,7 @@ int main (int argc, char **argv)
         halfImageWidth, halfImageHeight, bestLine[0], bestLine[1],
         [] (std::array<uint8, 3> *pixel)
         {
-            (*pixel)[1] = 0;
+            (*pixel)[0] = 255;
             (*pixel)[2] = 0;
         }
     );
@@ -839,7 +761,7 @@ int main (int argc, char **argv)
         [] (std::array<uint8, 3> *pixel)
         {
             (*pixel)[0] = 0;
-            (*pixel)[1] = 0;
+            (*pixel)[2] = 255;
         }
     );
     SaveImage(outFileName, frequencyMagnitudes);
@@ -902,12 +824,6 @@ int main (int argc, char **argv)
 
 TODO:
 * test2's dft overlay lines seem wrong.  That doesn't look like the best line has won.
-* see why it wants to rotate zelda guy.
- * make sure it's doing the perfect 90 degree angles, to be able to catch when it doesn't need rotation
-* test2.bmp is rotated the wrong way?
-* i think you need to make sure all the lines EXPLICITLY pass through DC.
- * maybe need to do two lines - pos and neg - and add them together.
- * i think this is causing the problems
 
 
 Blog:
