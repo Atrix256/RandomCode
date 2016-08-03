@@ -690,8 +690,8 @@ int main (int argc, char **argv)
                 bestLine[1] = y1;
                 bestLine[2] = x2;
                 bestLine[3] = y2;
-                float dx = float(x2 - x1);
-                float dy = float(y2 - y1);
+                float dx = float(bestLine[2] - halfImageWidth);
+                float dy = float(bestLine[3] - halfImageHeight);
                 bestAngle = atan2(dy, dx);
                 bestValue = totalMag;
             }
@@ -722,7 +722,6 @@ int main (int argc, char **argv)
         for (int i = 0; i <= srcImage.m_width; ++i)
         {
             // update progress and update our test line
-            progress.Update();
             srcX = i;
             destX = srcImage.m_width - 1 - i;
 
@@ -735,11 +734,13 @@ int main (int argc, char **argv)
     // TODO: temp!
     // NOTE: this is way confusing.  -7, +7 to x for test2 fixes the rotation to be correct, but the winning line is all wrong.
     // TODO: is the problem that bmp are flipped vertically or something?
+    /*
     bestLine[0] -= 7;
     bestLine[2] += 7;
     float dx = float(bestLine[2] - halfImageWidth);
     float dy = float(bestLine[3] - halfImageHeight);
     bestAngle = atan2(dy, dx);
+    */
 
     // Draw the winning line and save the image!
     strcpy(outFileName, baseFileName);
@@ -824,6 +825,8 @@ int main (int argc, char **argv)
 
 TODO:
 * test2's dft overlay lines seem wrong.  That doesn't look like the best line has won.
+? is there a problem with diagonals having higher sums because there are more samples? maybe need to average instead of total?
+? are there negative values that mess things up?
 
 
 Blog:
