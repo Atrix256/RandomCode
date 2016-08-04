@@ -227,29 +227,6 @@ void ImageToGrey (const SImageData &srcImage, SImageData &destImage)
 }
 
 //-----------------------------------------------------------------------------------------------------------
-std::complex<float> DFTPixel (const SImageData &srcImage, int K, int L)
-{
-    std::complex<float> ret(0.0f, 0.0f);
-
-    for (int x = 0; x < srcImage.m_width; ++x)
-    {
-        for (int y = 0; y < srcImage.m_height; ++y)
-        {
-            // Get the pixel value (assuming greyscale) and convert it to [0,1] space
-            const uint8 *src = &srcImage.m_pixels[(y * srcImage.m_pitch) + x * 3];
-            float grey = float(src[0]) / 255.0f;
-
-            // Add to the sum of the return value
-            float v = float(K * x) / float(srcImage.m_width);
-            v += float(L * y) / float(srcImage.m_height);
-            ret += std::complex<float>(grey, 0.0f) * std::polar<float>(1.0f, -2.0f * c_pi * v);
-        }
-    }
-
-    return ret;
-}
-
-//-----------------------------------------------------------------------------------------------------------
 std::complex<float> DFTPixelHorizontalPass (const SImageData &srcImage, int K, int L)
 {
     std::complex<float> ret(0.0f, 0.0f);
@@ -265,7 +242,7 @@ std::complex<float> DFTPixelHorizontalPass (const SImageData &srcImage, int K, i
         ret += std::complex<float>(grey, 0.0f) * std::polar<float>(1.0f, -2.0f * c_pi * v);
     }
 
-    return ret;
+    return ret / float(srcImage.m_width);
 }
 
 //-----------------------------------------------------------------------------------------------------------
@@ -284,7 +261,7 @@ std::complex<float> DFTPixelVerticalPass (const SImageDataComplex& horizontalPas
         ret += hPassData* std::polar<float>(1.0f, -2.0f * c_pi * v);
     }
 
-    return ret;
+    return ret / float(horizontalPass.m_height);
 }
  
 //-----------------------------------------------------------------------------------------------------------
@@ -742,6 +719,132 @@ int main (int argc, char **argv)
     bestAngle = atan2(dy, dx);
     */
 
+    /*bestLine winner:
+    132, 0, 67, 132
+
+    vs wat seems like it should be the winner
+    125, 0, 74, 132
+    */
+
+    struct SSample
+    {
+        float value;
+        int x;
+        int y;
+    };
+
+
+    // best line winner: 132, 0, 67, 132
+    {
+        std::vector<SSample> samples;
+        DrawLine(
+            &frequencyMagnitudesRaw.m_pixels[0],
+            frequencyMagnitudesRaw.m_width,
+            halfImageWidth, halfImageHeight, 132, 0,
+            [&samples, &frequencyMagnitudesRaw](float* pixel)
+            {
+                int relPixel = ((int)pixel - (int)&frequencyMagnitudesRaw.m_pixels[0]) / sizeof(float);
+                int x = relPixel % frequencyMagnitudesRaw.m_width;
+                int y = relPixel / frequencyMagnitudesRaw.m_width;
+                samples.push_back(SSample{*pixel, x, y});
+            }
+        );
+        DrawLine(
+            &frequencyMagnitudesRaw.m_pixels[0],
+            frequencyMagnitudesRaw.m_width,
+            halfImageWidth, halfImageHeight, 67, 32,
+            [&samples, &frequencyMagnitudesRaw](float* pixel)
+            {
+                int relPixel = ((int)pixel - (int)&frequencyMagnitudesRaw.m_pixels[0]) / sizeof(float);
+                int x = relPixel % frequencyMagnitudesRaw.m_width;
+                int y = relPixel / frequencyMagnitudesRaw.m_width;
+                samples.push_back(SSample{*pixel, x, y});
+            }
+        );
+
+        FILE* file = fopen("1.csv", "w+t");
+        if (file)
+        {
+            for (const SSample& s : samples)
+                fprintf(file, "\"%i\",\"%i\",\"%f\"\n", s.x, s.y, s.value);
+            fclose(file);
+        }
+    }
+    
+    // line that seems like it should win: 125, 0, 74, 132
+    {
+        std::vector<SSample> samples;
+        DrawLine(
+            &frequencyMagnitudesRaw.m_pixels[0],
+            frequencyMagnitudesRaw.m_width,
+            halfImageWidth, halfImageHeight, 125, 0,
+            [&samples, &frequencyMagnitudesRaw](float* pixel)
+            {
+                int relPixel = ((int)pixel - (int)&frequencyMagnitudesRaw.m_pixels[0]) / sizeof(float);
+                int x = relPixel % frequencyMagnitudesRaw.m_width;
+                int y = relPixel / frequencyMagnitudesRaw.m_width;
+                samples.push_back(SSample{*pixel, x, y});
+            }
+        );
+        DrawLine(
+            &frequencyMagnitudesRaw.m_pixels[0],
+            frequencyMagnitudesRaw.m_width,
+            halfImageWidth, halfImageHeight, 74, 32,
+            [&samples, &frequencyMagnitudesRaw](float* pixel)
+            {
+                int relPixel = ((int)pixel - (int)&frequencyMagnitudesRaw.m_pixels[0]) / sizeof(float);
+                int x = relPixel % frequencyMagnitudesRaw.m_width;
+                int y = relPixel / frequencyMagnitudesRaw.m_width;
+                samples.push_back(SSample{*pixel, x, y});
+            }
+        );
+
+        FILE* file = fopen("2.csv", "w+t");
+        if (file)
+        {
+            for (const SSample& s : samples)
+                fprintf(file, "\"%i\",\"%i\",\"%f\"\n", s.x, s.y, s.value);
+            fclose(file);
+        }
+    }
+
+    // actual winning line
+    {
+        std::vector<SSample> samples;
+        DrawLine(
+            &frequencyMagnitudesRaw.m_pixels[0],
+            frequencyMagnitudesRaw.m_width,
+            halfImageWidth, halfImageHeight, bestLine[0], bestLine[1],
+            [&samples, &frequencyMagnitudesRaw](float* pixel)
+            {
+                int relPixel = ((int)pixel - (int)&frequencyMagnitudesRaw.m_pixels[0]) / sizeof(float);
+                int x = relPixel % frequencyMagnitudesRaw.m_width;
+                int y = relPixel / frequencyMagnitudesRaw.m_width;
+                samples.push_back(SSample{*pixel, x, y});
+            }
+        );
+        DrawLine(
+            &frequencyMagnitudesRaw.m_pixels[0],
+            frequencyMagnitudesRaw.m_width,
+            halfImageWidth, halfImageHeight, bestLine[2], bestLine[3],
+            [&samples, &frequencyMagnitudesRaw](float* pixel)
+            {
+                int relPixel = ((int)pixel - (int)&frequencyMagnitudesRaw.m_pixels[0]) / sizeof(float);
+                int x = relPixel % frequencyMagnitudesRaw.m_width;
+                int y = relPixel / frequencyMagnitudesRaw.m_width;
+                samples.push_back(SSample{*pixel, x, y});
+            }
+        );
+
+        FILE* file = fopen("3.csv", "w+t");
+        if (file)
+        {
+            for (const SSample& s : samples)
+                fprintf(file, "\"%i\",\"%i\",\"%f\"\n", s.x, s.y, s.value);
+            fclose(file);
+        }
+    }
+
     // Draw the winning line and save the image!
     strcpy(outFileName, baseFileName);
     strcat(outFileName, ".dft2.bmp");
@@ -822,6 +925,8 @@ int main (int argc, char **argv)
 }
 
 /*
+
+Maybe the issue is that this technique is no good? it's averaging together info or something?
 
 TODO:
 * test2's dft overlay lines seem wrong.  That doesn't look like the best line has won.
