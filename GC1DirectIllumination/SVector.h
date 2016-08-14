@@ -19,11 +19,7 @@ struct SVector
 };
 
 //=================================================================================
-inline SVector operator * (const SVector& a, float f)
-{
-    return SVector(a.m_x*f, a.m_y*f, a.m_z*f);
-}
-
+//  Vector vs Vector
 //=================================================================================
 inline SVector operator + (const SVector& a, const SVector& b)
 {
@@ -37,6 +33,18 @@ inline SVector operator - (const SVector& a, const SVector& b)
 }
 
 //=================================================================================
+inline SVector operator * (const SVector& a, const SVector& b)
+{
+    return SVector(a.m_x * b.m_x, a.m_y * b.m_y, a.m_z * b.m_z);
+}
+
+//=================================================================================
+inline SVector operator / (const SVector& a, const SVector& b)
+{
+    return SVector(a.m_x / b.m_x, a.m_y / b.m_y, a.m_z / b.m_z);
+}
+
+//=================================================================================
 inline SVector operator += (SVector& a, const SVector& b)
 {
     a.m_x += b.m_x;
@@ -46,12 +54,12 @@ inline SVector operator += (SVector& a, const SVector& b)
 }
 
 //=================================================================================
-inline void Normalize(SVector& a)
+inline SVector operator -= (SVector& a, const SVector& b)
 {
-    float len = sqrt((a.m_x * a.m_x) + (a.m_y * a.m_y) + (a.m_z * a.m_z));
-    a.m_x /= len;
-    a.m_y /= len;
-    a.m_z /= len;
+    a.m_x -= b.m_x;
+    a.m_y -= b.m_y;
+    a.m_z -= b.m_z;
+    return a;
 }
 
 //=================================================================================
@@ -61,4 +69,65 @@ inline float Dot (const SVector& a, const SVector& b)
         a.m_x*b.m_x +
         a.m_y*b.m_y +
         a.m_z*b.m_z;
+}
+
+//=================================================================================
+// Vector Unitary Ops
+//=================================================================================
+inline SVector operator - (const SVector& a)
+{
+    return SVector(-a.m_x, -a.m_y, -a.m_z);
+}
+
+//=================================================================================
+inline float LengthSq (const SVector& a)
+{
+    return (a.m_x * a.m_x) + (a.m_y * a.m_y) + (a.m_z * a.m_z);
+}
+
+//=================================================================================
+inline float Length (const SVector& a)
+{
+    return sqrt(LengthSq(a));
+}
+
+//=================================================================================
+inline void Normalize (SVector& a)
+{
+    float len = Length(a);
+    a.m_x /= len;
+    a.m_y /= len;
+    a.m_z /= len;
+}
+
+//=================================================================================
+//  Vector vs Scalar
+//=================================================================================
+inline SVector operator * (const SVector& a, float f)
+{
+    return SVector(a.m_x*f, a.m_y*f, a.m_z*f);
+}
+
+//=================================================================================
+inline SVector operator / (const SVector& a, float f)
+{
+    return SVector(a.m_x/f, a.m_y/f, a.m_z/f);
+}
+
+//=================================================================================
+inline SVector operator *= (SVector& a, float b)
+{
+    a.m_x *= b;
+    a.m_y *= b;
+    a.m_z *= b;
+    return a;
+}
+
+//=================================================================================
+inline SVector operator /= (SVector& a, float b)
+{
+    a.m_x /= b;
+    a.m_y /= b;
+    a.m_z /= b;
+    return a;
 }

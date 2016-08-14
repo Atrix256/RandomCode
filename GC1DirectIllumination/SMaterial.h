@@ -2,14 +2,22 @@
 
 #include "SVector.h"
 
+#pragma once
+
+enum class TMaterialID : size_t { };
+
 //=================================================================================
-static const size_t c_invalidMaterialID = -1;
+static const TMaterialID c_invalidMaterialID = (TMaterialID)-1;
+
+//=================================================================================
 struct SMaterial
 {
-    SMaterial(SVector diffuse = SVector())
+    SMaterial(SVector diffuse = SVector(), SVector emissive = SVector())
         : m_diffuse(diffuse)
+        , m_emissive(emissive)
     {
     }
 
     SVector m_diffuse;
+    SVector m_emissive;
 };

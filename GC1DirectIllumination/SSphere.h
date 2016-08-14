@@ -7,18 +7,18 @@
 //=================================================================================
 struct SSphere
 {
-    SSphere(SVector position = SVector(), float radius = 0.0f, size_t materialID = 0)
+    SSphere(SVector position = SVector(), float radius = 0.0f, size_t materialID = (size_t)c_invalidMaterialID)
         : m_position(position)
         , m_radius(radius)
-        , m_objectID(++g_lastObjectID)
-        , m_materialID(materialID)
+        , m_objectID(GenerateObjectID())
+        , m_materialID((TMaterialID)materialID)
     {
     }
 
-    SVector m_position;
-    float   m_radius;
-    size_t  m_objectID;
-    size_t  m_materialID;
+    SVector     m_position;
+    float       m_radius;
+    TObjectID   m_objectID;
+    TMaterialID m_materialID;
 };
 
 //=================================================================================
@@ -47,7 +47,7 @@ inline bool RayIntersects(const SVector& rayPos, const SVector& rayDir, const SS
 }
 
 //=================================================================================
-inline bool RayIntersects(const SVector& rayPos, const SVector& rayDir, const SSphere& sphere, SCollisionInfo& info, size_t ignoreObjectId = c_invalidObjectID)
+inline bool RayIntersects(const SVector& rayPos, const SVector& rayDir, const SSphere& sphere, SCollisionInfo& info, TObjectID ignoreObjectId = c_invalidObjectID)
 {
     if (ignoreObjectId == sphere.m_objectID)
         return false;
@@ -85,16 +85,16 @@ inline bool RayIntersects(const SVector& rayPos, const SVector& rayDir, const SS
     }
 
     //enforce a max distance if we should
-    if (info.m_collisionTime >= 0.0 && collisionTime > info.m_collisionTime)
+    if (info.m_maxCollisionTime >= 0.0 && collisionTime > info.m_maxCollisionTime)
         return false;
 
     // set all the info params since we are garaunteed a hit at this point
     info.m_fromInside = fromInside;
-    info.m_collisionTime = collisionTime;
+    info.m_maxCollisionTime = collisionTime;
     info.m_materialID = sphere.m_materialID;
 
     //compute the point of intersection
-    info.m_intersectionPoint = rayPos + rayDir * info.m_collisionTime;
+    info.m_intersectionPoint = rayPos + rayDir * info.m_maxCollisionTime;
 
     // calculate the normal
     info.m_surfaceNormal = info.m_intersectionPoint - sphere.m_position;

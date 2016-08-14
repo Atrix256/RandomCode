@@ -83,8 +83,11 @@
     <ClInclude Include="SCollisionInfo.h" />
     <ClInclude Include="SImageData.h" />
     <ClInclude Include="SMaterial.h" />
+    <ClInclude Include="SPointLight.h" />
+    <ClInclude Include="STimer.h" />
     <ClInclude Include="SSphere.h" />
     <ClInclude Include="SVector.h" />
+    <ClInclude Include="Utils.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
