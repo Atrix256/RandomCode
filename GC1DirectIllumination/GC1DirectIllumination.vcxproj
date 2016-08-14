@@ -78,6 +78,14 @@
   <ItemGroup>
     <ClCompile Include="Source.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="ObjectID.h" />
+    <ClInclude Include="SCollisionInfo.h" />
+    <ClInclude Include="SImageData.h" />
+    <ClInclude Include="SMaterial.h" />
+    <ClInclude Include="SSphere.h" />
+    <ClInclude Include="SVector.h" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

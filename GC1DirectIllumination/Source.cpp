@@ -6,197 +6,15 @@
 #include <array>
 #include <thread>
 #include <atomic>
-#include <windows.h>  // for bitmap headers.  Sorry non windows people!
+
+#include "SVector.h"
+#include "SSphere.h"
+#include "SMaterial.h"
+#include "SImageData.h"
 
 //=================================================================================
 
 const float c_pi = 3.14159265359f;
-
-//=================================================================================
-struct SVector
-{
-    SVector (float x = 0.0f, float y = 0.0f, float z = 0.0f)
-        : m_x(x)
-        , m_y(y)
-        , m_z(z)
-    {}
-
-    float m_x;
-    float m_y;
-    float m_z;
-};
-
-SVector operator * (const SVector& a, float f)
-{
-    return SVector(a.m_x*f, a.m_y*f, a.m_z*f);
-}
-
-SVector operator + (const SVector& a, const SVector& b)
-{
-    return SVector(a.m_x + b.m_x, a.m_y + b.m_y, a.m_z + b.m_z);
-}
-
-SVector operator - (const SVector& a, const SVector& b)
-{
-    return SVector(a.m_x - b.m_x, a.m_y - b.m_y, a.m_z - b.m_z);
-}
-
-SVector operator += (SVector& a, const SVector& b)
-{
-    a.m_x += b.m_x;
-    a.m_y += b.m_y;
-    a.m_z += b.m_z;
-    return a;
-}
-
-void Normalize (SVector& a)
-{
-    float len = sqrt((a.m_x * a.m_x) + (a.m_y * a.m_y) + (a.m_z * a.m_z));
-    a.m_x /= len;
-    a.m_y /= len;
-    a.m_z /= len;
-}
-
-float Dot (const SVector& a, const SVector& b)
-{
-    return
-        a.m_x*b.m_x +
-        a.m_y*b.m_y +
-        a.m_z*b.m_z;
-}
-
-//=================================================================================
-static const size_t c_invalidMaterialID = -1;
-struct SMaterial
-{
-    SMaterial(SVector diffuse = SVector())
-        : m_diffuse(diffuse)
-    {
-    }
-
-    SVector m_diffuse;
-};
-
-//=================================================================================
-static const size_t c_invalidObjectID = 0;
-size_t g_lastObjectID = c_invalidObjectID;
-
-struct SCollisionInfo
-{
-    SCollisionInfo ()
-        : m_objectID(c_invalidObjectID)
-        , m_materialID(c_invalidMaterialID)
-        , m_collisionTime(-1.0f)
-        , m_fromInside(false)
-    {
-    }
-
-    size_t  m_objectID;
-    size_t  m_materialID;
-    float   m_collisionTime;
-    bool    m_fromInside;
-    SVector m_intersectionPoint;
-    SVector m_surfaceNormal;
-};
-
-//=================================================================================
-struct SSphere
-{
-    SSphere(SVector position = SVector(), float radius = 0.0f, size_t materialID = 0)
-        : m_position(position)
-        , m_radius(radius)
-        , m_objectID(++g_lastObjectID)
-        , m_materialID(materialID)
-    {
-    }
-
-    SVector m_position;
-    float   m_radius;
-    size_t  m_objectID;
-    size_t  m_materialID;
-};
-
-bool RayIntersects (const SVector& rayPos, const SVector& rayDir, const SSphere& sphere)
-{
-    //get the vector from the center of this circle to where the ray begins.
-    SVector m = rayPos - sphere.m_position;
-
-    //get the dot product of the above vector and the ray's vector
-    float b = Dot(m, rayDir);
-
-    float c = Dot(m, m) - sphere.m_radius * sphere.m_radius;
-
-    //exit if r's origin outside s (c > 0) and r pointing away from s (b > 0)
-    if (c > 0.0 && b > 0.0)
-        return false;
-
-    //calculate discriminant
-    float discr = b * b - c;
-
-    //a negative discriminant corresponds to ray missing sphere
-    if (discr < 0.0)
-        return false;
-
-    return true;
-}
-
-bool RayIntersects (const SVector& rayPos, const SVector& rayDir, const SSphere& sphere, SCollisionInfo& info, size_t ignoreObjectId = c_invalidObjectID)
-{
-    if (ignoreObjectId == sphere.m_objectID)
-        return false;
-
-    //get the vector from the center of this circle to where the ray begins.
-    SVector m = rayPos - sphere.m_position;
-
-    //get the dot product of the above vector and the ray's vector
-    float b = Dot(m, rayDir);
-
-    float c = Dot(m, m) - sphere.m_radius * sphere.m_radius;
-
-    //exit if r's origin outside s (c > 0) and r pointing away from s (b > 0)
-    if (c > 0.0 && b > 0.0)
-        return false;
-
-    //calculate discriminant
-    float discr = b * b - c;
-
-    //a negative discriminant corresponds to ray missing sphere
-    if (discr < 0.0)
-        return false;
-
-    //not inside til proven otherwise
-    bool fromInside = false;
-
-    //ray now found to intersect sphere, compute smallest t value of intersection
-    float collisionTime = -b - sqrt(discr);
-
-    //if t is negative, ray started inside sphere so clamp t to zero and remember that we hit from the inside
-    if (collisionTime < 0.0)
-    {
-        collisionTime = -b + sqrt(discr);
-        fromInside = true;
-    }
-
-    //enforce a max distance if we should
-    if (info.m_collisionTime >= 0.0 && collisionTime > info.m_collisionTime)
-        return false;
-
-    // set all the info params since we are garaunteed a hit at this point
-    info.m_fromInside = fromInside;
-    info.m_collisionTime = collisionTime;
-    info.m_materialID = sphere.m_materialID;
-
-    //compute the point of intersection
-    info.m_intersectionPoint = rayPos + rayDir * info.m_collisionTime;
-
-    // calculate the normal
-    info.m_surfaceNormal = info.m_intersectionPoint - sphere.m_position;
-    Normalize(info.m_surfaceNormal);
-
-    // we found a hit!
-    info.m_objectID = sphere.m_objectID;
-    return true;
-}
 
 //=================================================================================
 //                                 SETTINGS
@@ -214,7 +32,7 @@ static const SVector c_cameraPos = { 0.0f, 0.0f, 0.0f };
 static const SVector c_cameraRight = { 1.0f, 0.0f, 0.0f };
 static const SVector c_cameraUp = { 0.0f, 1.0f, 0.0f };
 static const SVector c_cameraFwd = { 0.0f, 0.0f, 1.0f };
-static const float c_nearDist = 0.01f; // TODO: put to 0.1 or something
+static const float c_nearDist = 0.01f;
 static const float c_cameraVerticalFOV = 90.0f * c_pi / 180.0f;  // TODO: find a better vertical FOV? or maybe this is ok...
 
 // Materials
@@ -248,75 +66,12 @@ typedef std::array<uint8, 3> BGR_U8;
 typedef std::array<float, 3> RGB_F32;
 
 //=================================================================================
-template <size_t WIDTH, size_t HEIGHT, typename PIXELTYPE>
-struct SImageData
-{
-    SImageData ()
-    {
-        m_pixels = new PIXELTYPE[NumPixels()];
-    }
-
-    ~SImageData ()
-    {
-        delete[] m_pixels;
-    }
-
-    static size_t Width () { return WIDTH; }
-    static size_t Height () { return HEIGHT; }
-    static size_t NumPixels () { return WIDTH*HEIGHT; }
- 
-    PIXELTYPE* m_pixels;
-};
-
-//=================================================================================
 // GLOBALS
 //=================================================================================
 
 // lower left of image is (0,0)
 SImageData<c_imageWidth, c_imageHeight, RGB_F32> g_image_RGB_F32;
 
-static std::atomic<size_t> g_currentPixelIndex(-1);
-
-//=================================================================================
-template <size_t WIDTH, size_t HEIGHT>
-bool SaveImage (const char *fileName, const SImageData<WIDTH, HEIGHT, BGR_U8> &image)
-{
-    // open the file if we can
-    FILE *file;
-    file = fopen(fileName, "wb");
-    if (!file)
-        return false;
- 
-    // make the header info
-    BITMAPFILEHEADER header;
-    BITMAPINFOHEADER infoHeader;
- 
-    header.bfType = 0x4D42;
-    header.bfReserved1 = 0;
-    header.bfReserved2 = 0;
-    header.bfOffBits = 54;
- 
-    infoHeader.biSize = 40;
-    infoHeader.biWidth = image.Width();
-    infoHeader.biHeight = image.Height();
-    infoHeader.biPlanes = 1;
-    infoHeader.biBitCount = 24;
-    infoHeader.biCompression = 0;
-    infoHeader.biSizeImage = image.NumPixels() * sizeof(BGR_U8);
-    infoHeader.biXPelsPerMeter = 0;
-    infoHeader.biYPelsPerMeter = 0;
-    infoHeader.biClrUsed = 0;
-    infoHeader.biClrImportant = 0;
- 
-    header.bfSize = infoHeader.biSizeImage + header.bfOffBits;
- 
-    // write the data and close the file
-    fwrite(&header, sizeof(header), 1, file);
-    fwrite(&infoHeader, sizeof(infoHeader), 1, file);
-    fwrite(&image.m_pixels[0], infoHeader.biSizeImage, 1, file);
-    fclose(file);
-    return true;
-}
 //=================================================================================
 void RenderPixel (float u, float v, RGB_F32& pixel)
 {
@@ -353,6 +108,8 @@ void RenderPixel (float u, float v, RGB_F32& pixel)
 //=================================================================================
 void ThreadFunc ()
 {
+    static std::atomic<size_t> g_currentPixelIndex(-1);
+
     // render individual pixels across multiple threads until we run out of pixels to do
     size_t pixelIndex = ++g_currentPixelIndex;
     while (pixelIndex < g_image_RGB_F32.NumPixels())
@@ -406,6 +163,15 @@ int main (int argc, char **argv)
 
 TODO:
 
+* Set up renderer with Li and Lo functions like the text has it
+
+* implement lambert and biradiance
+ * Lambertian lighting is just no specular.
+ * L dot N.  N is surface normal, L is direction to light.
+ * Biradiance is a way of making lights call off over distance.
+
+* make emissive work too since it's already in equation!
+
 * need to make sure and handle PITCH for writing pixels correctly.  the BMP format requires it!
 
 * make it print out how long it took to render images
@@ -423,6 +189,8 @@ TODO:
 * are you doing srgb correction correctly?
 
 * get lighting to work like in the chapter
+
+
 
 ? write up blog post / put code up?
 ? what next?
