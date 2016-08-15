@@ -21,7 +21,7 @@
 
 // image size
 static const size_t c_imageWidth = 500;
-static const size_t c_imageHeight = 400;
+static const size_t c_imageHeight = 500;
 
 // threading toggle
 static const bool c_forceSingleThreaded = false;
@@ -119,7 +119,7 @@ SVector L_in (const SVector& X, const SVector& dir)
 
     // if we didn't hit anything, return black / darkness
     if (collisionInfo.m_objectID == c_invalidObjectID)
-        return SVector(0.1f, 0.1f, 0.1f);
+        return SVector();
 
     // else, return the amount of light coming towards us from the object we hit
     return L_out(collisionInfo, -dir);
