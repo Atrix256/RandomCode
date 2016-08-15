@@ -1,30 +1,58 @@
 #pragma once
 
 #include <windows.h>  // for bitmap headers.  Sorry non windows people!
+#include <vector>
 
-template <size_t WIDTH, size_t HEIGHT, typename PIXELTYPE>
-struct SImageData
+//=================================================================================
+typedef uint8_t uint8;
+typedef std::array<uint8, 3> BGR_U8;
+typedef std::array<float, 3> RGB_F32;
+
+//=================================================================================
+struct SImageDataRGBF32
 {
-    SImageData()
+    SImageDataRGBF32 (size_t width, size_t height)
+        : m_width(width)
+        , m_height(height)
     {
-        m_pixels = new PIXELTYPE[NumPixels()];
+        m_pixels.resize(m_width * m_height);
     }
 
-    ~SImageData()
-    {
-        delete[] m_pixels;
-    }
-
-    static size_t Width() { return WIDTH; }
-    static size_t Height() { return HEIGHT; }
-    static size_t NumPixels() { return WIDTH*HEIGHT; }
-
-    PIXELTYPE* m_pixels;
+    const size_t m_width;
+    const size_t m_height;
+    std::vector<RGB_F32> m_pixels;
 };
 
 //=================================================================================
-template <size_t WIDTH, size_t HEIGHT, typename PIXELTYPE>
-bool SaveImage (const char *fileName, const SImageData<WIDTH, HEIGHT, PIXELTYPE> &image)
+struct SImageDataBGRU8
+{
+    SImageDataBGRU8 (size_t width, size_t height)
+        : m_width(width)
+        , m_height(height)
+        , m_pitch(WidthToPitch(width))
+    {
+        m_pixels.resize(m_pitch * m_height);
+    }
+
+    static size_t WidthToPitch (size_t width)
+    {
+        size_t pitch = width * 3;
+        if (pitch & 3)
+        {
+            pitch &= ~3;
+            pitch += 4;
+        }
+        return pitch;
+    }
+
+    const size_t m_width;
+    const size_t m_height;
+    const size_t m_pitch;
+    std::vector<uint8> m_pixels;
+};
+
+//=================================================================================
+bool SaveImage (const char *fileName, const SImageDataBGRU8 &image)
 {
     // open the file if we can
     FILE *file;
@@ -42,12 +70,12 @@ bool SaveImage (const char *fileName, const SImageData<WIDTH, HEIGHT, PIXELTYPE>
     header.bfOffBits = 54;
  
     infoHeader.biSize = 40;
-    infoHeader.biWidth = image.Width();
-    infoHeader.biHeight = image.Height();
+    infoHeader.biWidth = image.m_width;
+    infoHeader.biHeight = image.m_height;
     infoHeader.biPlanes = 1;
     infoHeader.biBitCount = 24;
     infoHeader.biCompression = 0;
-    infoHeader.biSizeImage = image.NumPixels() * sizeof(PIXELTYPE);
+    infoHeader.biSizeImage = image.m_pixels.size();
     infoHeader.biXPelsPerMeter = 0;
     infoHeader.biYPelsPerMeter = 0;
     infoHeader.biClrUsed = 0;

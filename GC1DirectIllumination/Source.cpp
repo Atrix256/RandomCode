@@ -21,18 +21,18 @@
 
 // image size
 static const size_t c_imageWidth = 500;
-static const size_t c_imageHeight = 500;
+static const size_t c_imageHeight = 400;
 
 // threading toggle
 static const bool c_forceSingleThreaded = false;
 
 // camera
-static const SVector c_cameraPos = { 0.0f, 0.0f, 0.0f };
+static const SVector c_cameraPos = { 0.0f, 0.0f, -2.0f };
 static const SVector c_cameraRight = { 1.0f, 0.0f, 0.0f };
 static const SVector c_cameraUp = { 0.0f, 1.0f, 0.0f };
 static const SVector c_cameraFwd = { 0.0f, 0.0f, 1.0f };
 static const float c_nearDist = 0.1f;
-static const float c_cameraVerticalFOV = 90.0f * c_pi / 180.0f;
+static const float c_cameraVerticalFOV = 60.0f * c_pi / 180.0f;
 
 // Materials
 auto c_materials = make_array(
@@ -63,10 +63,7 @@ auto c_pointLights = make_array(
 //=================================================================================
 static const size_t c_numPixels = c_imageWidth * c_imageHeight;
 static const float c_aspectRatio = float(c_imageWidth) / float(c_imageHeight);
- 
-typedef uint8_t uint8;
-typedef std::array<uint8, 3> BGR_U8;
-typedef std::array<float, 3> RGB_F32;
+static const float c_cameraHorizFOV = c_cameraVerticalFOV * c_aspectRatio;
 
 //=================================================================================
 bool Visible (const SVector& a, const SVector& dir, float length, TObjectID ignoreObjectID = c_invalidObjectID)
@@ -122,7 +119,7 @@ SVector L_in (const SVector& X, const SVector& dir)
 
     // if we didn't hit anything, return black / darkness
     if (collisionInfo.m_objectID == c_invalidObjectID)
-        return SVector();
+        return SVector(0.1f, 0.1f, 0.1f);
 
     // else, return the amount of light coming towards us from the object we hit
     return L_out(collisionInfo, -dir);
@@ -137,9 +134,10 @@ void RenderPixel (float u, float v, RGB_F32& pixel)
 
     // find where the ray hits the near plane, and normalize that vector to get the ray direction.
     SVector rayStart = c_cameraPos + c_cameraFwd * c_nearDist;
-    const float windowTop = tan(c_cameraVerticalFOV/2) * c_nearDist;
+    const float windowTop = tan(c_cameraVerticalFOV / 2.0f) * c_nearDist;
+    const float windowRight = tan(c_cameraHorizFOV / 2.0f) * c_nearDist;
+    rayStart += c_cameraRight * windowRight * u;
     rayStart += c_cameraUp * windowTop * v;
-    rayStart += c_cameraRight * windowTop * u * c_aspectRatio;
     SVector rayDir = rayStart - c_cameraPos;
     Normalize(rayDir);
 
@@ -153,20 +151,20 @@ void RenderPixel (float u, float v, RGB_F32& pixel)
 }
 
 //=================================================================================
-void ThreadFunc(SImageData<c_imageWidth, c_imageHeight, RGB_F32>& image)
+void ThreadFunc (SImageDataRGBF32& image)
 {
     static std::atomic<size_t> g_currentPixelIndex(-1);
 
     // render individual pixels across multiple threads until we run out of pixels to do
     size_t pixelIndex = ++g_currentPixelIndex;
-    while (pixelIndex < image.NumPixels())
+    while (pixelIndex < image.m_pixels.size())
     {
         // get the current pixel's UV and actual memory location
-        size_t x = pixelIndex % image.Width();
-        size_t y = pixelIndex / image.Width();
-        float xPercent = (float)x / (float)image.Width();
-        float yPercent = (float)y / (float)image.Height();
-        RGB_F32& pixel = image.m_pixels[y * image.Width() + x];
+        size_t x = pixelIndex % image.m_width;
+        size_t y = pixelIndex / image.m_height;
+        float xPercent = (float)x / (float)image.m_width;
+        float yPercent = (float)y / (float)image.m_height;
+        RGB_F32& pixel = image.m_pixels[pixelIndex];
 
         // render the current pixel
         RenderPixel(xPercent, yPercent, pixel);
@@ -179,33 +177,40 @@ void ThreadFunc(SImageData<c_imageWidth, c_imageHeight, RGB_F32>& image)
 //=================================================================================
 int main (int argc, char **argv)
 {
-    STimer Timer;
-
     // make an RGB f32 texture.
     // lower left of image is (0,0).
-    SImageData<c_imageWidth, c_imageHeight, RGB_F32> image_RGB_F32;
+    SImageDataRGBF32 image_RGB_F32(c_imageWidth, c_imageHeight);
 
-    // spin up some threads to do work, and wait for them to be finished.
-    size_t numThreads = c_forceSingleThreaded ? 1 : std::thread::hardware_concurrency();
-    printf("Spinning up %i threads to make a %i x %i image\r\n", numThreads, c_imageWidth, c_imageHeight);
-    std::vector<std::thread> threads;
-    threads.resize(numThreads);
-    for (std::thread& t : threads)
-        t = std::thread(ThreadFunc, std::ref(image_RGB_F32));
-    for (std::thread& t : threads)
-        t.join();
+    // Render to the image
+    {
+        STimer Timer;
+
+        // spin up some threads to do work, and wait for them to be finished.
+        size_t numThreads = c_forceSingleThreaded ? 1 : std::thread::hardware_concurrency();
+        printf("Spinning up %i threads to make a %i x %i image\r\n", numThreads, c_imageWidth, c_imageHeight);
+        std::vector<std::thread> threads;
+        threads.resize(numThreads);
+        for (std::thread& t : threads)
+            t = std::thread(ThreadFunc, std::ref(image_RGB_F32));
+        for (std::thread& t : threads)
+            t.join();
+        printf("Render Time = ");
+    }
 
     // Convert from RGB floating point to BGR u8
-    SImageData<c_imageWidth, c_imageHeight, BGR_U8> image_BGR_U8;
-    RGB_F32 *src = image_RGB_F32.m_pixels;
-    BGR_U8 *dest = image_BGR_U8.m_pixels;
-    for (size_t i = 0; i < image_BGR_U8.NumPixels(); ++i)
+    SImageDataBGRU8 image_BGR_U8(c_imageWidth, c_imageHeight);
+    for (size_t y = 0; y < c_imageHeight; ++y)
     {
-        (*dest)[0] = uint8((*src)[2] * 255.0f);
-        (*dest)[1] = uint8((*src)[1] * 255.0f);
-        (*dest)[2] = uint8((*src)[0] * 255.0f);
-        ++src;
-        ++dest;
+        RGB_F32 *src = &image_RGB_F32.m_pixels[y*image_RGB_F32.m_width];
+        BGR_U8 *dest = (BGR_U8*)&image_BGR_U8.m_pixels[y*image_BGR_U8.m_pitch];
+        for (size_t x = 0; x < c_imageWidth; ++x)
+        {
+            (*dest)[0] = uint8((*src)[2] * 255.0f);
+            (*dest)[1] = uint8((*src)[1] * 255.0f);
+            (*dest)[2] = uint8((*src)[0] * 255.0f);
+            ++src;
+            ++dest;
+        }
     }
 
     // save the image
@@ -216,33 +221,23 @@ int main (int argc, char **argv)
 /*
 
 TODO:
-
-* need to make sure and handle PITCH for writing pixels correctly.  the BMP format requires it!
- * honestly i think we may need 2 image type classes... one for BMP output, and the other for internal float stuff
-
-* Test that aspect ratio works correctly.  Try a rectangular image
-
-* do todos in code
-
-* how do you make it not have distortion at edges again? shadertoy demos address that
- * they make the near plane be a lot farther (like 6.0!)
- * i think the problem is actually how the rays are generated.  Try doing it as even steps in degrees, instead of how you have it right now.
-
+* read next chapter, implement stuff
 
 
 
 
 
 NOTES IN CASE NOT COVERED IN FUTURE:
-* dont forget to tone map to get from whatever floating point values back to 0..1
+* dont forget to tone map to get from whatever floating point values back to 0..1 before going to u8
  * saturate towards white!
 * bloom
 * anti aliasing
 * ambient lighting?
 
 TODO LATER:
-* make it so you can animate things over time at a specified frame rate.  write each frame to disk. combine with ffmpeg to make videos!
+* make it so you can animate things & camera over time at a specified frame rate.  write each frame to disk. combine with ffmpeg to make videos!
 * maybe a blog post?
 * make width / height be command line options?
+* aspect ratio support is weird. it stretches images in a funny way.  may be correct?
 
 */
