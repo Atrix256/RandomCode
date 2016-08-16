@@ -220,24 +220,46 @@ int main (int argc, char **argv)
 
 /*
 
-TODO:
-* read next chapter, implement stuff
+NEXT:
+* make it recursive with a maximum bounce depth
+* make it do multiple rays per pixel and average them
+* make it jitter the source rays for AA
 
 
-
-
-
-NOTES IN CASE NOT COVERED IN FUTURE:
+GRAPHICS FEATURES:
+* scattering function
+* importance sampling
 * dont forget to tone map to get from whatever floating point values back to 0..1 before going to u8
  * saturate towards white!
 * bloom
 * anti aliasing
 * ambient lighting?
+* directional lights and cone lights
+* other primitive types
+* CSG
+* reflection, refraction
+* beer's law / internal reflection stuff
+* participating media (fog)
+* blue noise sampling
+* subsurface scattering
+* bokeh
+* depth of field
+* motion blur
+* importance sampling
+* load and render meshes
+* textures
+* bump mapping
+? look up "volumetric path tracing"?  https://en.wikipedia.org/wiki/Volumetric_path_tracing
+* area lights and image based lighting
+* chromatic abberation etc (may need to do frequency sampling!!)
 
-TODO LATER:
+OTHER:
+* make it display progress as it goes?
+ * might need to double buffer or something
 * make it so you can animate things & camera over time at a specified frame rate.  write each frame to disk. combine with ffmpeg to make videos!
 * maybe a blog post?
 * make width / height be command line options?
 * aspect ratio support is weird. it stretches images in a funny way.  may be correct?
+
 
 */
