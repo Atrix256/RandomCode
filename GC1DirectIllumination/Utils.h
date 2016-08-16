@@ -16,3 +16,14 @@ auto make_array(T&&... values) ->
             typename std::common_type<T...>::type>::type,
         sizeof...(T)>{std::forward<T>(values)...};
 }
+
+//=================================================================================
+inline float Clamp (float v, float min, float max)
+{
+    if (v < min)
+        return min;
+    else if (v > max)
+        return max;
+    else
+        return v;
+}

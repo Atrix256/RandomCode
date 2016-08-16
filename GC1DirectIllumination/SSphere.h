@@ -7,7 +7,7 @@
 //=================================================================================
 struct SSphere
 {
-    SSphere(SVector position = SVector(), float radius = 0.0f, size_t materialID = (size_t)c_invalidMaterialID)
+    SSphere(SVector position, float radius, size_t materialID)
         : m_position(position)
         , m_radius(radius)
         , m_objectID(GenerateObjectID())
@@ -22,32 +22,7 @@ struct SSphere
 };
 
 //=================================================================================
-inline bool RayIntersects(const SVector& rayPos, const SVector& rayDir, const SSphere& sphere)
-{
-    //get the vector from the center of this circle to where the ray begins.
-    SVector m = rayPos - sphere.m_position;
-
-    //get the dot product of the above vector and the ray's vector
-    float b = Dot(m, rayDir);
-
-    float c = Dot(m, m) - sphere.m_radius * sphere.m_radius;
-
-    //exit if r's origin outside s (c > 0) and r pointing away from s (b > 0)
-    if (c > 0.0 && b > 0.0)
-        return false;
-
-    //calculate discriminant
-    float discr = b * b - c;
-
-    //a negative discriminant corresponds to ray missing sphere
-    if (discr < 0.0)
-        return false;
-
-    return true;
-}
-
-//=================================================================================
-inline bool RayIntersects(const SVector& rayPos, const SVector& rayDir, const SSphere& sphere, SCollisionInfo& info, TObjectID ignoreObjectId = c_invalidObjectID)
+inline bool RayIntersects (const SVector& rayPos, const SVector& rayDir, const SSphere& sphere, SCollisionInfo& info, TObjectID ignoreObjectId = c_invalidObjectID)
 {
     if (ignoreObjectId == sphere.m_objectID)
         return false;

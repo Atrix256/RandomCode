@@ -39,5 +39,11 @@
     <ClInclude Include="STimer.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="Random.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="STriangle.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

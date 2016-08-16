@@ -105,19 +105,19 @@ inline SVector operator /= (SVector& a, float b)
 //=================================================================================
 //  Utility Functions
 //=================================================================================
-inline float LengthSq(const SVector& a)
+inline float LengthSq (const SVector& a)
 {
     return (a.m_x * a.m_x) + (a.m_y * a.m_y) + (a.m_z * a.m_z);
 }
 
 //=================================================================================
-inline float Length(const SVector& a)
+inline float Length (const SVector& a)
 {
     return sqrt(LengthSq(a));
 }
 
 //=================================================================================
-inline void Normalize(SVector& a)
+inline void Normalize (SVector& a)
 {
     float len = Length(a);
     a.m_x /= len;
@@ -126,10 +126,32 @@ inline void Normalize(SVector& a)
 }
 
 //=================================================================================
-inline float Dot(const SVector& a, const SVector& b)
+inline float Dot (const SVector& a, const SVector& b)
 {
     return
         a.m_x*b.m_x +
         a.m_y*b.m_y +
         a.m_z*b.m_z;
+}
+
+//=================================================================================
+inline SVector Cross (const SVector& a, const SVector& b)
+{
+    return SVector(
+        a.m_y*b.m_z - a.m_z*b.m_y,
+        a.m_z*b.m_x - a.m_x*b.m_z,
+        a.m_x*b.m_y - a.m_y*b.m_x
+    );
+}
+
+//=================================================================================
+inline SVector Reflect (const SVector& incident, const SVector& normal)
+{
+    return incident - 2.0f * normal * Dot(incident, normal);
+}
+
+//=================================================================================
+inline bool NotZero (const SVector& a)
+{
+    return a.m_x != 0.0f && a.m_y != 0.0f && a.m_z != 0.0f;
 }

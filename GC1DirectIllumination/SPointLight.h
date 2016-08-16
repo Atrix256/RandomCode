@@ -5,7 +5,7 @@
 
 struct SPointLight
 {
-    SPointLight(SVector position = SVector(), SVector color = SVector())
+    SPointLight(SVector position, SVector color)
         : m_position(position)
         , m_color(color)
     {
