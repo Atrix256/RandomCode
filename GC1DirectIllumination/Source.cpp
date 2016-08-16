@@ -20,8 +20,12 @@
 //=================================================================================
 
 // image size
-static const size_t c_imageWidth = 500;
-static const size_t c_imageHeight = 500;
+static const size_t c_imageWidth = 1000;
+static const size_t c_imageHeight = 1000;
+
+// sampling
+static const size_t c_samplesPerPixel = 32;
+static const bool c_jitterSamples = true;
 
 // threading toggle
 static const bool c_forceSingleThreaded = false;
@@ -64,6 +68,8 @@ auto c_pointLights = make_array(
 static const size_t c_numPixels = c_imageWidth * c_imageHeight;
 static const float c_aspectRatio = float(c_imageWidth) / float(c_imageHeight);
 static const float c_cameraHorizFOV = c_cameraVerticalFOV * c_aspectRatio;
+static const float c_windowTop = tan(c_cameraVerticalFOV / 2.0f) * c_nearDist;
+static const float c_windowRight = tan(c_cameraHorizFOV / 2.0f) * c_nearDist;
 
 //=================================================================================
 bool Visible (const SVector& a, const SVector& dir, float length, TObjectID ignoreObjectID = c_invalidObjectID)
@@ -126,7 +132,7 @@ SVector L_in (const SVector& X, const SVector& dir)
 }
 
 //=================================================================================
-void RenderPixel (float u, float v, RGB_F32& pixel)
+void RenderPixel(float u, float v, SVector& pixel)
 {
     // make (u,v) go from [-1,1] instead of [0,1]
     u = u * 2.0f - 1.0f;
@@ -134,20 +140,14 @@ void RenderPixel (float u, float v, RGB_F32& pixel)
 
     // find where the ray hits the near plane, and normalize that vector to get the ray direction.
     SVector rayStart = c_cameraPos + c_cameraFwd * c_nearDist;
-    const float windowTop = tan(c_cameraVerticalFOV / 2.0f) * c_nearDist;
-    const float windowRight = tan(c_cameraHorizFOV / 2.0f) * c_nearDist;
-    rayStart += c_cameraRight * windowRight * u;
-    rayStart += c_cameraUp * windowTop * v;
+    rayStart += c_cameraRight * c_windowRight * u;
+    rayStart += c_cameraUp * c_windowTop * v;
     SVector rayDir = rayStart - c_cameraPos;
     Normalize(rayDir);
 
     // our pixel is the amount of light coming in to the position on our near plane from the ray direction.
-    SVector out = L_in(rayStart, rayDir);
-
-    // apply SRGB correction
-    pixel[0] = powf(out.m_x, 1.0f / 2.2f);
-    pixel[1] = powf(out.m_y, 1.0f / 2.2f);
-    pixel[2] = powf(out.m_z, 1.0f / 2.2f);
+    // take c_samplesPerPixels.
+    pixel = L_in(rayStart, rayDir);
 }
 
 //=================================================================================
@@ -166,8 +166,29 @@ void ThreadFunc (SImageDataRGBF32& image)
         float yPercent = (float)y / (float)image.m_height;
         RGB_F32& pixel = image.m_pixels[pixelIndex];
 
-        // render the current pixel
-        RenderPixel(xPercent, yPercent, pixel);
+        // render the current pixel by averaging multiple (possibly jittered) samples
+        for (size_t i = 0; i < c_samplesPerPixel; ++i)
+        {
+            float jitterX = 0.0f;
+            float jitterY = 0.0f;
+            if (c_jitterSamples)
+            {
+                jitterX = (((float)rand()) / ((float)RAND_MAX) - 0.5f) / (float)image.m_width;
+                jitterY = (((float)rand()) / ((float)RAND_MAX) - 0.5f) / (float)image.m_height;
+            }
+
+            SVector out;
+            RenderPixel(xPercent + jitterX, yPercent + jitterY, out);
+
+            pixel[0] += out.m_x / (float)c_samplesPerPixel;
+            pixel[1] += out.m_y / (float)c_samplesPerPixel;
+            pixel[2] += out.m_z / (float)c_samplesPerPixel;
+        }
+
+        // apply SRGB correction
+        pixel[0] = powf(pixel[0], 1.0f / 2.2f);
+        pixel[1] = powf(pixel[1], 1.0f / 2.2f);
+        pixel[2] = powf(pixel[2], 1.0f / 2.2f);
 
         // move to next pixel
         pixelIndex = ++g_currentPixelIndex;
@@ -221,12 +242,12 @@ int main (int argc, char **argv)
 /*
 
 NEXT:
-* make it recursive with a maximum bounce depth
-* make it do multiple rays per pixel and average them
-* make it jitter the source rays for AA
+* make it recursive with a maximum bounce depth. bounce randomly in positive hemisphere.  May need scattering function.
+* get rid of point lights and just use emissive objects instead? how does light falloff over distance work in a path tracer?
 
 
 GRAPHICS FEATURES:
+* better source of random numbers than rand
 * scattering function
 * importance sampling
 * dont forget to tone map to get from whatever floating point values back to 0..1 before going to u8
@@ -240,7 +261,9 @@ GRAPHICS FEATURES:
 * reflection, refraction
 * beer's law / internal reflection stuff
 * participating media (fog)
-* blue noise sampling
+* blue noise sampling?
+ * try different jittering patterns
+ * could even try blue noise dithered thing!
 * subsurface scattering
 * bokeh
 * depth of field
@@ -252,6 +275,7 @@ GRAPHICS FEATURES:
 ? look up "volumetric path tracing"?  https://en.wikipedia.org/wiki/Volumetric_path_tracing
 * area lights and image based lighting
 * chromatic abberation etc (may need to do frequency sampling!!)
+* adaptive rendering? render at low res, then progressively higher res? look into how that works.
 
 OTHER:
 * make it display progress as it goes?
