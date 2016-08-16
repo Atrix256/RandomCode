@@ -63,19 +63,16 @@ inline bool RayIntersects (const SVector& rayPos, const SVector& rayDir, const S
     if (info.m_maxCollisionTime >= 0.0 && collisionTime > info.m_maxCollisionTime)
         return false;
 
-    // set all the info params since we are garaunteed a hit at this point
-    info.m_fromInside = fromInside;
-    info.m_maxCollisionTime = collisionTime;
-    info.m_materialID = sphere.m_materialID;
+    SVector normal = rayPos + rayDir * collisionTime - sphere.m_position;
+    Normalize(normal);
 
-    //compute the point of intersection
-    info.m_intersectionPoint = rayPos + rayDir * info.m_maxCollisionTime;
-
-    // calculate the normal
-    info.m_surfaceNormal = info.m_intersectionPoint - sphere.m_position;
-    Normalize(info.m_surfaceNormal);
-
-    // we found a hit!
-    info.m_objectID = sphere.m_objectID;
+    info.SuccessfulHit(
+        sphere.m_objectID,
+        sphere.m_materialID,
+        fromInside,
+        rayPos + rayDir * collisionTime,
+        normal,
+        collisionTime
+    );
     return true;
 }

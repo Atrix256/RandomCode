@@ -65,21 +65,22 @@ auto c_spheres = make_array(
     SSphere(SVector(0.0f, 2.0f, 2.0f), 0.5f, 3),
     SSphere(SVector(0.0f,-2.0f, 2.0f), 0.5f, 4),
 
-    SSphere(SVector(0.1f, 0.1f, 0.0f), 0.03f, 8),   // red light
+    SSphere(SVector(0.5f, 0.1f, 0.0f), 0.03f, 8),     // red light
     SSphere(SVector(-0.3f, -0.3f, 0.0f), 0.03f, 9),   // green light
     SSphere(SVector(-0.3f, 0.1f, -1.0f), 0.03f, 10)   // blue light
 );
 
 // Triangles
 auto c_triangles = make_array(
-    STriangle(SVector(1.5f, 1.0f, 1.25f), SVector(1.5f, 0.0f, 1.75f), SVector(0.5f, 0.0f, 2.25f), 5)
+    STriangle(SVector(1.5f, 1.0f, 1.25f), SVector(1.5f, 0.0f, 1.75f), SVector(0.5f, 0.0f, 2.25f), 5),
+    STriangle(SVector(0.5f, 0.25f, 3.5f), SVector(1.5f, 0.25f, 3.0f), SVector(1.5f, 1.25f, 2.5f), 5)
 );
 
 // Lights
 auto c_pointLights = make_array(
-    SPointLight(SVector(0.1f, 0.1f, 0.0f), SVector(5.0f, 1.0f, 1.0f)),
-    SPointLight(SVector(-0.3f, -0.3f, 0.0f), SVector(1.0f, 5.0f, 1.0f)),
-    SPointLight(SVector(-0.3f, 0.1f, -1.0f), SVector(1.0f, 1.0f, 5.0f))
+    SPointLight(SVector(0.5f, 0.1f, 0.0f), SVector(5.0f, 1.0f, 1.0f)),   // red
+    SPointLight(SVector(-0.3f, -0.3f, 0.0f), SVector(1.0f, 5.0f, 1.0f)), // green
+    SPointLight(SVector(-0.3f, 0.1f, -1.0f), SVector(1.0f, 1.0f, 5.0f))  // blue
 );
 
 //=================================================================================
@@ -90,26 +91,26 @@ static const float c_windowTop = tan(c_cameraVerticalFOV / 2.0f) * c_nearDist;
 static const float c_windowRight = tan(c_cameraHorizFOV / 2.0f) * c_nearDist;
 
 //=================================================================================
-bool Visible (const SVector& a, const SVector& dir, float length, TObjectID ignoreObjectID = c_invalidObjectID)
+bool AnyIntersection (const SVector& a, const SVector& dir, float length, TObjectID ignoreObjectID = c_invalidObjectID)
 {
     SCollisionInfo collisionInfo;
     collisionInfo.m_maxCollisionTime = length;
     for (const SSphere& s : c_spheres)
     {
         if (RayIntersects(a, dir, s, collisionInfo, ignoreObjectID) && c_materials[(size_t)collisionInfo.m_materialID].m_blocksLight)
-            return false;
+            return true;
     }
     for (const STriangle& t : c_triangles)
     {
         if (RayIntersects(a, dir, t, collisionInfo, ignoreObjectID) && c_materials[(size_t)collisionInfo.m_materialID].m_blocksLight)
-            return false;
+            return true;
     }
 
-    return true;
+    return false;
 }
 
 //=================================================================================
-bool IntersectsWorld (const SVector& rayPos, const SVector& rayDir, SCollisionInfo& collisionInfo, TObjectID ignoreObjectID = c_invalidObjectID)
+bool ClosestIntersection (const SVector& rayPos, const SVector& rayDir, SCollisionInfo& collisionInfo, TObjectID ignoreObjectID = c_invalidObjectID)
 {
     bool ret = false;
     for (const SSphere& s : c_spheres)
@@ -140,7 +141,7 @@ SVector L_out (const SCollisionInfo& X, const SVector& dir, size_t bouncesLeft)
         dirToLight /= distToLight;
 
         // if we can see from surface point to light, add the light in
-        if (Visible(X.m_intersectionPoint, dirToLight, distToLight, X.m_objectID))
+        if (!AnyIntersection(X.m_intersectionPoint, dirToLight, distToLight, X.m_objectID))
         {
             SVector biradiance = Biradiance(pointLight, X.m_intersectionPoint);
             // TODO: scattering stuff, instead of just using diffuse and the dot product thing / test (he abs' the dot product...)
@@ -152,21 +153,19 @@ SVector L_out (const SCollisionInfo& X, const SVector& dir, size_t bouncesLeft)
 
     // add reflection.
     // Temp til I get BRDFs / BSDFs worked out.
-    /*
-    //if (NotZero(material.m_reflection))
+    if (NotZero(material.m_reflection))
     {
         SCollisionInfo collisionInfo;
         SVector reflectVector = Reflect(-dir, X.m_surfaceNormal);
-        if (IntersectsWorld(X.m_intersectionPoint, reflectVector, collisionInfo, X.m_objectID))
+        if (ClosestIntersection(X.m_intersectionPoint, reflectVector, collisionInfo, X.m_objectID))
         {
-            //ret += material.m_reflection * L_out(collisionInfo, -reflectVector, bouncesLeft - 1);
+            ret += material.m_reflection * L_out(collisionInfo, -reflectVector, bouncesLeft - 1);
 
-            ret += 0.9f * L_out(collisionInfo, -reflectVector, bouncesLeft - 1);
+            //ret += 0.9f * L_out(collisionInfo, -reflectVector, bouncesLeft - 1);
 
             //ret = SVector(1.0f, 0.0f, 1.0f);
         }
     }
-    */
 
     return ret;
 }
@@ -176,7 +175,7 @@ SVector L_in (const SVector& X, const SVector& dir)
 {
     // if this ray doesn't hit anything, return black / darkness
     SCollisionInfo collisionInfo;
-    if (!IntersectsWorld(X, dir, collisionInfo))
+    if (!ClosestIntersection(X, dir, collisionInfo))
         return SVector();
 
     // else, return the amount of light coming towards us from the object we hit
@@ -294,7 +293,8 @@ int main (int argc, char **argv)
 /*
 
 NEXT:
-* get triangles working... that will help make a better scene
+
+* make a box around the scene with triangles? that should hopefully make reflection issues easier to diagnose
 
 * make reflection work, so we know bouncing is working correctly
 * make it recursive with a maximum bounce depth. bounce randomly in positive hemisphere.  May need scattering function.

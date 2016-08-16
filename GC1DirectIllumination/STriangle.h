@@ -35,14 +35,6 @@ inline bool RayIntersects (const SVector& rayPos, const SVector& rayDir, const S
     stores the barycentric coordinates in b[], and stores the distance to the intersection
     in t. Otherwise returns false and the other output parameters are undefined.*/
 
-    // TODO: epsilon needed?
-    const float eps = 0.001f;
-
-    // TODO: these are barrycentric coordinates, may need!
-    SVector b;
-
-    // TODO: clean up this code!
-
     // Edge vectors
     SVector e_1 = triangle.m_B - triangle.m_A;
     SVector e_2 = triangle.m_C - triangle.m_A;
@@ -50,12 +42,17 @@ inline bool RayIntersects (const SVector& rayPos, const SVector& rayDir, const S
     // Face normal
     SVector n = Cross(e_1,e_2);
     Normalize(n);
+
+    // flip normal around if we hit it from the back
+    bool fromInside = Dot(n, rayDir) > 0.0f;
+    if (fromInside)
+        n *= -1.0f;
+
     const SVector& q = Cross(rayDir,e_2);
     const float a = Dot(e_1, q);
-    // Backfacing / nearly parallel, or close to the limit of precision?
-    //if ((Dot(n, rayDir) >= 0) || (abs(a) <= eps)) return false;
     const SVector& s = (rayPos - triangle.m_A) / a;
     const SVector& r = Cross(s,e_1);
+    SVector b; // NOTE: barycentric coords!
     b.m_x = Dot(s,q);
     b.m_y = Dot(r, rayDir);
     b.m_z = 1.0f - b.m_x - b.m_y;
@@ -69,13 +66,14 @@ inline bool RayIntersects (const SVector& rayPos, const SVector& rayDir, const S
     if (info.m_maxCollisionTime >= 0.0 && t > info.m_maxCollisionTime)
         return false;
 
-    info.m_maxCollisionTime = t;
-
-    info.m_objectID = triangle.m_objectID;
-    info.m_materialID = triangle.m_materialID;
-    info.m_fromInside = false; // TODO: need to figure this out for real! 
-    info.m_intersectionPoint = rayPos + rayDir * info.m_maxCollisionTime;
-    info.m_surfaceNormal = n;  // TODO: flip this around if we hit from the inside!  Maybe flip it around above?
+    info.SuccessfulHit(
+        triangle.m_objectID,
+        triangle.m_materialID,
+        fromInside,
+        rayPos + rayDir * t,
+        n,
+        t
+    );
 
     return true;
 }
