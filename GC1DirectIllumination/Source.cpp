@@ -27,15 +27,15 @@ static const size_t c_imageHeight = 1000;
 
 // sampling
 static const size_t c_samplesPerPixel = 32;
-static const bool c_jitterSamples = true;
-static const size_t c_maxBounces = 10;
+static const bool c_jitterSamples = true && (c_samplesPerPixel > 1);
+static const size_t c_maxBounces = 5;
 
 // threading toggle
 static const bool c_forceSingleThreaded = false;
 
 // camera - assumes no roll, and that (0,1,0) is up
-static const SVector c_cameraPos = { 0.0f, 0.0f, -4.0f };
-static const SVector c_cameraAt = { 0.0f, -1.0f, 0.0f };
+static const SVector c_cameraPos = { 0.1f, 0.1f, -4.0f };
+static const SVector c_cameraAt = { 0.0f, 0.0f, 0.0f };
 static const float c_nearDist = 0.1f;
 static const float c_cameraVerticalFOV = 60.0f * c_pi / 180.0f;
 
@@ -48,11 +48,11 @@ auto c_materials = make_array(
     SMaterial(SVector(0.9f, 0.1f, 0.9f), SVector(), SVector(), true),                     // matte magenta
     SMaterial(SVector(0.9f, 0.9f, 0.1f), SVector(), SVector(), true),                     // matte yellow
     SMaterial(SVector(0.9f, 0.9f, 0.9f), SVector(), SVector(), true),                     // matte white
-    SMaterial(SVector(0.1f, 0.1f, 0.1f), SVector(), SVector(1.0f, 1.0f, 1.0f), true),     // chrome
+    SMaterial(SVector(0.01f, 0.01f, 0.01f), SVector(), SVector(1.0f, 1.0f, 1.0f), true),     // chrome
     SMaterial(SVector(), SVector(0.9f, 0.1f, 0.1f), SVector(), false),                    // emissive red
     SMaterial(SVector(), SVector(0.1f, 0.9f, 0.1f), SVector(), false),                    // emissive green
     SMaterial(SVector(), SVector(0.1f, 0.1f, 0.9f), SVector(), false),                    // emissive blue
-    SMaterial(SVector(0.01f, 0.01f, 0.01f), SVector(), SVector(1.0f, 1.0f, 1.0f), true)                      // walls
+    SMaterial(SVector(0.01f, 0.01f, 0.01f), SVector(), SVector(0.1f, 0.1f, 0.1f), true)   // walls
 );
 
 // Spheres
@@ -65,7 +65,7 @@ auto c_spheres = make_array(
     SSphere(SVector(0.0f,-2.0f, 2.0f), 0.5f, 4),
 
     SSphere(SVector(0.5f, 0.1f, 0.0f), 0.03f, 8),     // red light
-    SSphere(SVector(-0.3f, -0.3f, 0.0f), 0.03f, 9),   // green light
+    SSphere(SVector(0.3f, -0.3f, 0.0f), 0.03f, 9),   // green light
     SSphere(SVector(-0.3f, 0.1f, -1.0f), 0.03f, 10)   // blue light
 );
 
@@ -104,7 +104,7 @@ auto c_triangles = make_array(
 // Lights
 auto c_pointLights = make_array(
     SPointLight(SVector(0.5f, 0.1f, 0.0f), SVector(50.0f, 10.0f, 10.0f)),   // red
-    SPointLight(SVector(-0.3f, -0.3f, 0.0f), SVector(10.0f, 50.0f, 10.0f)), // green
+    SPointLight(SVector(0.3f, -0.3f, 0.0f), SVector(10.0f, 50.0f, 10.0f)), // green
     SPointLight(SVector(-0.3f, 0.1f, -1.0f), SVector(10.0f, 10.0f, 50.0f))  // blue
 );
 
@@ -163,7 +163,6 @@ static const SVector c_cameraRight = CameraRight();
 static const SVector c_cameraUp = CameraUp();
 static const SVector c_cameraFwd = CameraFwd();
 
-
 //=================================================================================
 bool AnyIntersection (const SVector& a, const SVector& dir, float length, TObjectID ignoreObjectID = c_invalidObjectID)
 {
@@ -197,9 +196,6 @@ bool ClosestIntersection (const SVector& rayPos, const SVector& rayDir, SCollisi
 //=================================================================================
 SVector L_out (const SCollisionInfo& X, const SVector& outDir, size_t bouncesLeft)
 {
-#if 0
-    return X.m_surfaceNormal;// *0.5f + 0.5f;
-#else
     // if no bounces left, return black / darkness
     if (bouncesLeft == 0)
         return SVector();
@@ -234,16 +230,11 @@ SVector L_out (const SCollisionInfo& X, const SVector& outDir, size_t bouncesLef
     {
         SCollisionInfo collisionInfo;
         SVector reflectVector = Reflect(-outDir, X.m_surfaceNormal);
-        //ret = reflectVector;
         if (ClosestIntersection(X.m_intersectionPoint, reflectVector, collisionInfo, X.m_objectID))
-        {
             ret += material.m_reflection * L_out(collisionInfo, -reflectVector, bouncesLeft - 1);
-            //ret = SVector(1.0f, 0.0f, 1.0f);
-        }
     }
 
     return ret;
-#endif
 }
 
 //=================================================================================
@@ -370,13 +361,16 @@ int main (int argc, char **argv)
 
 NEXT:
 
-! the triangles seem to be giving inconsistent normals.  Look into it.
+* make it recursive with a maximum bounce depth. bounce randomly in positive hemisphere.  May need scattering function, including impulse support!
 
-* make reflection work, so we know bouncing is working correctly
-* make it recursive with a maximum bounce depth. bounce randomly in positive hemisphere.  May need scattering function.
+* then get rid of point lights and just use emissive objects instead?
+ * how does light falloff over distance work in a path tracer?
+ * i think it'll just work because fewer samples will hit the light source
 
-* get rid of point lights and just use emissive objects instead? how does light falloff over distance work in a path tracer?
-
+* at home there is a weird vertical line when doing 1 sample per pixel and no jitter.
+ * see if it happens at work too
+ * there's a horizontal one too when the camera is only looking down z axis
+ * goes away when we stop testing against triangles.  Only in ClosestIntersection, the other one can check!
 
 GRAPHICS FEATURES:
 * better source of random numbers than rand

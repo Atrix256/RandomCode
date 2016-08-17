@@ -7,7 +7,13 @@
 //=================================================================================
 struct SVector
 {
-    SVector (float x = 0.0f, float y = 0.0f, float z = 0.0f)
+    SVector()
+        : m_x(0.0f)
+        , m_y(0.0f)
+        , m_z(0.0f)
+    {}
+
+    SVector (float x, float y, float z)
         : m_x(x)
         , m_y(y)
         , m_z(z)
@@ -74,6 +80,12 @@ inline SVector operator - (const SVector& a)
 //  Vector vs Scalar
 //=================================================================================
 inline SVector operator * (const SVector& a, float f)
+{
+    return SVector(a.m_x*f, a.m_y*f, a.m_z*f);
+}
+
+//=================================================================================
+inline SVector operator * (float f, const SVector& a)
 {
     return SVector(a.m_x*f, a.m_y*f, a.m_z*f);
 }
