@@ -378,13 +378,9 @@ GRAPHICS FEATURES:
 * importance sampling
 * dont forget to tone map to get from whatever floating point values back to 0..1 before going to u8
  * saturate towards white!
-* bloom
-* ambient lighting?
-* directional lights
-* cone lights
+* bloom (post process)
 * other primitive types
 * CSG
-* reflection
 * refraction
 * beer's law / internal reflection stuff
 * participating media (fog)
@@ -395,7 +391,6 @@ GRAPHICS FEATURES:
 * bokeh
 * depth of field
 * motion blur
-* importance sampling
 * load and render meshes
 * textures
 * bump mapping
@@ -404,8 +399,10 @@ GRAPHICS FEATURES:
 * chromatic abberation etc (may need to do frequency sampling!!)
 * adaptive rendering? render at low res, then progressively higher res? look into how that works.
 * red / blue 3d glasses mode
-? how to address color banding?
-* load models
+? how to address color banding? or is there even banding?
+? linearly transformed cosines?
+* ggx and spherical harmonics
+* ccvt sampling and other stuff from "rolling the dice" siggraph talk
 
 SCENE:
 * add a skybox?
@@ -415,7 +412,6 @@ OTHER:
 * visualize # of raybounces, instead of colors, for complexity analysis?
  * maybe defines or settings to do this?
  * also visualize normals and reflection bounces or something?
-* add 64 bit compiling to the project -> may be faster?
 * make it so you can give some kind of identifier to materials, that generates an enum for use in object definitions.  Likely need to make materials into a macro list thing then!
  * then, can make the material id passed to objects be an enum class for strong enforcement!
  * could also maybe have a #define to toggle that makes a sphere for each point light?
