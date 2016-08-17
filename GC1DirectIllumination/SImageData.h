@@ -70,12 +70,12 @@ bool SaveImage (const char *fileName, const SImageDataBGRU8 &image)
     header.bfOffBits = 54;
  
     infoHeader.biSize = 40;
-    infoHeader.biWidth = image.m_width;
-    infoHeader.biHeight = image.m_height;
+    infoHeader.biWidth = (LONG)image.m_width;
+    infoHeader.biHeight = (LONG)image.m_height;
     infoHeader.biPlanes = 1;
     infoHeader.biBitCount = 24;
     infoHeader.biCompression = 0;
-    infoHeader.biSizeImage = image.m_pixels.size();
+    infoHeader.biSizeImage = (DWORD)image.m_pixels.size();
     infoHeader.biXPelsPerMeter = 0;
     infoHeader.biYPelsPerMeter = 0;
     infoHeader.biClrUsed = 0;
