@@ -63,7 +63,7 @@ inline bool RayIntersects (const SVector& rayPos, const SVector& rayDir, const S
     if (info.m_maxCollisionTime >= 0.0 && collisionTime > info.m_maxCollisionTime)
         return false;
 
-    SVector normal = rayPos + rayDir * collisionTime - sphere.m_position;
+    SVector normal = (rayPos + rayDir * collisionTime) - sphere.m_position;
     Normalize(normal);
 
     info.SuccessfulHit(
