@@ -22,13 +22,14 @@
 //=================================================================================
 
 // image size
-static const size_t c_imageWidth = 1000;
-static const size_t c_imageHeight = 1000;
+static const size_t c_imageWidth = 100;
+static const size_t c_imageHeight = 100;
 
 // sampling
-static const size_t c_samplesPerPixel = 32;
+static const size_t c_samplesPerPixel = 20000;
 static const bool c_jitterSamples = true && (c_samplesPerPixel > 1);
-static const size_t c_maxBounces = 5;
+static const size_t c_maxBounces = 4;
+static const float c_brightness = 20.0f;
 
 // threading toggle
 static const bool c_forceSingleThreaded = false;
@@ -48,11 +49,11 @@ auto c_materials = make_array(
     SMaterial(SVector(0.9f, 0.1f, 0.9f), SVector(), SVector(), true),                     // matte magenta
     SMaterial(SVector(0.9f, 0.9f, 0.1f), SVector(), SVector(), true),                     // matte yellow
     SMaterial(SVector(0.9f, 0.9f, 0.9f), SVector(), SVector(), true),                     // matte white
-    SMaterial(SVector(0.01f, 0.01f, 0.01f), SVector(), SVector(1.0f, 1.0f, 1.0f), true),     // chrome
+    SMaterial(SVector(0.01f, 0.01f, 0.01f), SVector(), SVector(1.0f, 1.0f, 1.0f), true),  // chrome
     SMaterial(SVector(), SVector(0.9f, 0.1f, 0.1f), SVector(), false),                    // emissive red
     SMaterial(SVector(), SVector(0.1f, 0.9f, 0.1f), SVector(), false),                    // emissive green
     SMaterial(SVector(), SVector(0.1f, 0.1f, 0.9f), SVector(), false),                    // emissive blue
-    SMaterial(SVector(0.01f, 0.01f, 0.01f), SVector(), SVector(0.1f, 0.1f, 0.1f), true)   // walls
+    SMaterial(SVector(0.5f, 0.01f, 0.01f), SVector(), SVector(0.1f, 0.1f, 0.1f), true)    // walls
 );
 
 // Spheres
@@ -162,6 +163,7 @@ static const float c_windowRight = tan(c_cameraHorizFOV / 2.0f) * c_nearDist;
 static const SVector c_cameraRight = CameraRight();
 static const SVector c_cameraUp = CameraUp();
 static const SVector c_cameraFwd = CameraFwd();
+static const float c_brightnessAdjust = c_brightness / (float)c_samplesPerPixel;
 
 //=================================================================================
 bool AnyIntersection (const SVector& a, const SVector& dir, float length, TObjectID ignoreObjectID = c_invalidObjectID)
@@ -170,12 +172,12 @@ bool AnyIntersection (const SVector& a, const SVector& dir, float length, TObjec
     collisionInfo.m_maxCollisionTime = length;
     for (const SSphere& s : c_spheres)
     {
-        if (RayIntersects(a, dir, s, collisionInfo, ignoreObjectID) && c_materials[(size_t)collisionInfo.m_materialID].m_blocksLight)
+        if (RayIntersects(a, dir, s, collisionInfo, ignoreObjectID))// && c_materials[(size_t)collisionInfo.m_materialID].m_blocksLight) // TODO: remove!
             return true;
     }
     for (const STriangle& t : c_triangles)
     {
-        if (RayIntersects(a, dir, t, collisionInfo, ignoreObjectID) && c_materials[(size_t)collisionInfo.m_materialID].m_blocksLight)
+        if (RayIntersects(a, dir, t, collisionInfo, ignoreObjectID))// && c_materials[(size_t)collisionInfo.m_materialID].m_blocksLight) // TODO: remove!
             return true;
     }
 
@@ -205,6 +207,25 @@ SVector L_out (const SCollisionInfo& X, const SVector& outDir, size_t bouncesLef
     // start with emissive lighting
     SVector ret = material.m_emissive;
 
+#if 1
+    SVector newRayDir = RandomUnitVectorInHemisphere(X.m_surfaceNormal);
+
+    SCollisionInfo collisionInfo;
+    if (ClosestIntersection(X.m_intersectionPoint, newRayDir, collisionInfo, X.m_objectID))
+    {
+        float cos_theta = Dot(newRayDir, X.m_surfaceNormal);
+
+        SVector BRDF = 2.0f * material.m_diffuse * cos_theta; // TODO: name it reflectance, not diffuse!
+
+        ret += BRDF * L_out(collisionInfo, -newRayDir, bouncesLeft - 1);
+    }
+
+
+
+
+    
+
+#else
     // add direction illumination from each light
     for (const SPointLight& pointLight : c_pointLights)
     {
@@ -233,6 +254,7 @@ SVector L_out (const SCollisionInfo& X, const SVector& outDir, size_t bouncesLef
         if (ClosestIntersection(X.m_intersectionPoint, reflectVector, collisionInfo, X.m_objectID))
             ret += material.m_reflection * L_out(collisionInfo, -reflectVector, bouncesLeft - 1);
     }
+#endif
 
     return ret;
 }
@@ -298,9 +320,9 @@ void ThreadFunc (SImageDataRGBF32& image)
             SVector out;
             RenderPixel(xPercent + jitterX, yPercent + jitterY, out);
 
-            pixel[0] += out.m_x / (float)c_samplesPerPixel;
-            pixel[1] += out.m_y / (float)c_samplesPerPixel;
-            pixel[2] += out.m_z / (float)c_samplesPerPixel;
+            pixel[0] += out.m_x * c_brightnessAdjust;
+            pixel[1] += out.m_y * c_brightnessAdjust;
+            pixel[2] += out.m_z * c_brightnessAdjust;
         }
 
         // apply SRGB correction
@@ -354,6 +376,7 @@ int main (int argc, char **argv)
 
     // save the image
     SaveImage("out.bmp", image_BGR_U8);
+    WaitForEnter();
     return 0;
 }
 
@@ -362,6 +385,10 @@ int main (int argc, char **argv)
 NEXT:
 
 * make it recursive with a maximum bounce depth. bounce randomly in positive hemisphere.  May need scattering function, including impulse support!
+
+* importance sampling: https://inst.eecs.berkeley.edu/~cs294-13/fa09/lectures/scribe-lecture5.pdf
+
+* get importance sampling working, to get reflection working for scattering / BRDF
 
 * then get rid of point lights and just use emissive objects instead?
  * how does light falloff over distance work in a path tracer?
@@ -376,6 +403,7 @@ GRAPHICS FEATURES:
 * better source of random numbers than rand
 * scattering function
 * importance sampling
+* ! multiple importance sampling
 * dont forget to tone map to get from whatever floating point values back to 0..1 before going to u8
  * saturate towards white!
 * bloom (post process)
@@ -408,6 +436,8 @@ SCENE:
 * add a skybox?
 
 OTHER:
+* show a percentage done.  Could increment a uint64 each time you do a sample. use that as a percentage.
+* Implement RandomUnitVectorInHemisphere better
 * do TODO's in code files
 * visualize # of raybounces, instead of colors, for complexity analysis?
  * maybe defines or settings to do this?

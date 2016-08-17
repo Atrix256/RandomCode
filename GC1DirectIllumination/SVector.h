@@ -3,6 +3,8 @@
 #pragma once
 
 #include <cmath>
+#include "Utils.h"
+#include "Random.h"
 
 //=================================================================================
 struct SVector
@@ -166,4 +168,27 @@ inline SVector Reflect (const SVector& incident, const SVector& normal)
 inline bool NotZero (const SVector& a)
 {
     return a.m_x != 0.0f && a.m_y != 0.0f && a.m_z != 0.0f;
+}
+
+//=================================================================================
+inline SVector RandomUnitVectorInHemisphere (const SVector& v)
+{
+    // from http://math.stackexchange.com/questions/1163260/random-directions-on-hemisphere-oriented-by-an-arbitrary-vector
+    SVector ret;
+
+    do {
+        float d;
+        do
+        {
+            ret.m_x = RandomFloat() * 2.0f - 1.0f;
+            ret.m_y = RandomFloat() * 2.0f - 1.0f;
+            ret.m_z = RandomFloat() * 2.0f - 1.0f;
+            d = Length(ret);
+        } while (d > 1);
+
+        ret /= d;
+    }
+    while (Dot(ret, v) <= 0.0f);
+
+    return ret;
 }

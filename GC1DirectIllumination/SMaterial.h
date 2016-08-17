@@ -22,6 +22,6 @@ struct SMaterial
 
     SVector m_diffuse;
     SVector m_emissive;
-    SVector m_reflection;
+    SVector m_reflection;   // TODO: get rid of, when we have BRDF with impulse!
     bool    m_blocksLight;  // TODO: get rid of, when we get rid of point lights
 };
