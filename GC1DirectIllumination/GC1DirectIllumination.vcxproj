@@ -147,7 +147,6 @@
     <ClInclude Include="SCollisionInfo.h" />
     <ClInclude Include="SImageData.h" />
     <ClInclude Include="SMaterial.h" />
-    <ClInclude Include="SPointLight.h" />
     <ClInclude Include="STimer.h" />
     <ClInclude Include="SSphere.h" />
     <ClInclude Include="STriangle.h" />

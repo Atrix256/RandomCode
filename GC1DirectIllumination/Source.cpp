@@ -12,7 +12,6 @@
 #include "STriangle.h"
 #include "SMaterial.h"
 #include "SImageData.h"
-#include "SPointLight.h"
 #include "Utils.h"
 #include "STimer.h"
 #include "Random.h"
@@ -22,11 +21,11 @@
 //=================================================================================
 
 // image size
-static const size_t c_imageWidth = 1024;
-static const size_t c_imageHeight = 1024;
+static const size_t c_imageWidth = 512;
+static const size_t c_imageHeight = 512;
 
 // sampling
-static const size_t c_samplesPerPixel = 2000;
+static const size_t c_samplesPerPixel = 100;
 static const bool c_jitterSamples = true && (c_samplesPerPixel > 1);
 static const size_t c_maxBounces = 4;
 static const float c_brightness = 1.0f;
@@ -42,18 +41,18 @@ static const float c_cameraVerticalFOV = 60.0f * c_pi / 180.0f;
 
 // Materials
 auto c_materials = make_array(
-    SMaterial(SVector(0.9f, 0.1f, 0.1f), SVector(), SVector(), true),                     // matte red
-    SMaterial(SVector(0.1f, 0.9f, 0.1f), SVector(), SVector(), true),                     // matte green
-    SMaterial(SVector(0.1f, 0.1f, 0.9f), SVector(), SVector(), true),                     // matte blue
-    SMaterial(SVector(0.1f, 0.9f, 0.9f), SVector(), SVector(), true),                     // matte teal
-    SMaterial(SVector(0.9f, 0.1f, 0.9f), SVector(), SVector(), true),                     // matte magenta
-    SMaterial(SVector(0.9f, 0.9f, 0.1f), SVector(), SVector(), true),                     // matte yellow
-    SMaterial(SVector(0.9f, 0.9f, 0.9f), SVector(), SVector(), true),                     // matte white
-    SMaterial(SVector(0.01f, 0.01f, 0.01f), SVector(), SVector(1.0f, 1.0f, 1.0f), true),  // chrome
-    SMaterial(SVector(), SVector(0.9f, 0.1f, 0.1f), SVector(), false),                    // emissive red
-    SMaterial(SVector(), SVector(0.1f, 0.9f, 0.1f), SVector(), false),                    // emissive green
-    SMaterial(SVector(), SVector(0.1f, 0.1f, 0.9f), SVector(), false),                    // emissive blue
-    SMaterial(SVector(0.5f, 0.01f, 0.01f), SVector(), SVector(0.1f, 0.1f, 0.1f), true)    // walls
+    SMaterial(SVector(0.9f, 0.1f, 0.1f), SVector(), SVector()),                     // matte red
+    SMaterial(SVector(0.1f, 0.9f, 0.1f), SVector(), SVector()),                     // matte green
+    SMaterial(SVector(0.1f, 0.1f, 0.9f), SVector(), SVector()),                     // matte blue
+    SMaterial(SVector(0.1f, 0.9f, 0.9f), SVector(), SVector()),                     // matte teal
+    SMaterial(SVector(0.9f, 0.1f, 0.9f), SVector(), SVector()),                     // matte magenta
+    SMaterial(SVector(0.9f, 0.9f, 0.1f), SVector(), SVector()),                     // matte yellow
+    SMaterial(SVector(0.9f, 0.9f, 0.9f), SVector(), SVector()),                     // matte white
+    SMaterial(SVector(0.01f, 0.01f, 0.01f), SVector(), SVector(1.0f, 1.0f, 1.0f)),  // chrome
+    SMaterial(SVector(), SVector(0.9f, 0.1f, 0.1f), SVector()),                     // emissive red
+    SMaterial(SVector(), SVector(0.1f, 0.9f, 0.1f), SVector()),                     // emissive green
+    SMaterial(SVector(), SVector(0.1f, 0.1f, 0.9f), SVector()),                     // emissive blue
+    SMaterial(SVector(0.5f, 0.01f, 0.01f), SVector(), SVector(0.1f, 0.1f, 0.1f))    // walls
 );
 
 // Spheres
@@ -100,13 +99,6 @@ auto c_triangles = make_array(
     // box wall - behind
     STriangle(SVector(-c_boxSize, -c_boxSize, -c_boxSize), SVector( c_boxSize, -c_boxSize, -c_boxSize), SVector( c_boxSize,  c_boxSize, -c_boxSize), 11),
     STriangle(SVector(-c_boxSize, -c_boxSize, -c_boxSize), SVector(-c_boxSize,  c_boxSize, -c_boxSize), SVector( c_boxSize,  c_boxSize, -c_boxSize), 11)
-);
-
-// Lights
-auto c_pointLights = make_array(
-    SPointLight(SVector(0.5f, 0.1f, 0.0f), SVector(50.0f, 10.0f, 10.0f)),   // red
-    SPointLight(SVector(0.3f, -0.3f, 0.0f), SVector(10.0f, 50.0f, 10.0f)), // green
-    SPointLight(SVector(-0.3f, 0.1f, -1.0f), SVector(10.0f, 10.0f, 50.0f))  // blue
 );
 
 //=================================================================================
@@ -172,12 +164,12 @@ bool AnyIntersection (const SVector& a, const SVector& dir, float length, TObjec
     collisionInfo.m_maxCollisionTime = length;
     for (const SSphere& s : c_spheres)
     {
-        if (RayIntersects(a, dir, s, collisionInfo, ignoreObjectID))// && c_materials[(size_t)collisionInfo.m_materialID].m_blocksLight) // TODO: remove!
+        if (RayIntersects(a, dir, s, collisionInfo, ignoreObjectID))
             return true;
     }
     for (const STriangle& t : c_triangles)
     {
-        if (RayIntersects(a, dir, t, collisionInfo, ignoreObjectID))// && c_materials[(size_t)collisionInfo.m_materialID].m_blocksLight) // TODO: remove!
+        if (RayIntersects(a, dir, t, collisionInfo, ignoreObjectID))
             return true;
     }
 
@@ -207,7 +199,6 @@ SVector L_out (const SCollisionInfo& X, const SVector& outDir, size_t bouncesLef
     // start with emissive lighting
     SVector ret = material.m_emissive;
 
-#if 1
     SVector newRayDir = RandomUnitVectorInHemisphere(X.m_surfaceNormal);
 
     SCollisionInfo collisionInfo;
@@ -219,42 +210,6 @@ SVector L_out (const SCollisionInfo& X, const SVector& outDir, size_t bouncesLef
 
         ret += BRDF * L_out(collisionInfo, -newRayDir, bouncesLeft - 1);
     }
-
-
-
-
-    
-
-#else
-    // add direction illumination from each light
-    for (const SPointLight& pointLight : c_pointLights)
-    {
-        // get the normalized direction vector from surface to light, and the length
-        SVector dirToLight = pointLight.m_position - X.m_intersectionPoint;
-        float distToLight = Length(dirToLight);
-        dirToLight /= distToLight;
-
-        // if we can see from surface point to light, add the light in
-        if (!AnyIntersection(X.m_intersectionPoint, dirToLight, distToLight, X.m_objectID))
-        {
-            SVector biradiance = Biradiance(pointLight, X.m_intersectionPoint);
-            // TODO: scattering stuff, instead of just using diffuse and the dot product thing / test (he abs' the dot product...)
-            float dp = Dot(dirToLight, X.m_surfaceNormal);
-            if (dp > 0.0f)
-                ret += biradiance * material.m_diffuse * abs(dp);
-        }
-    }
-
-    // add reflection.
-    // Temp til I get BRDFs / BSDFs worked out.
-    if (NotZero(material.m_reflection))
-    {
-        SCollisionInfo collisionInfo;
-        SVector reflectVector = Reflect(-outDir, X.m_surfaceNormal);
-        if (ClosestIntersection(X.m_intersectionPoint, reflectVector, collisionInfo, X.m_objectID))
-            ret += material.m_reflection * L_out(collisionInfo, -reflectVector, bouncesLeft - 1);
-    }
-#endif
 
     return ret;
 }
@@ -406,22 +361,10 @@ int main (int argc, char **argv)
 
 NEXT:
 
-* make it recursive with a maximum bounce depth. bounce randomly in positive hemisphere.  May need scattering function, including impulse support!
-
-* importance sampling: https://inst.eecs.berkeley.edu/~cs294-13/fa09/lectures/scribe-lecture5.pdf
-
-* get importance sampling working, to get reflection working for scattering / BRDF
-
-* then get rid of point lights and just use emissive objects instead?
- * how does light falloff over distance work in a path tracer?
- * i think it'll just work because fewer samples will hit the light source
-
-* at home there is a weird vertical line when doing 1 sample per pixel and no jitter.
- * see if it happens at work too
- * there's a horizontal one too when the camera is only looking down z axis
- * goes away when we stop testing against triangles.  Only in ClosestIntersection, the other one can check!
-
 GRAPHICS FEATURES:
+* smallpt handles glass vs mirrors vs diffuse surfaces differently
+ * https://drive.google.com/file/d/0B8g97JkuSSBwUENiWTJXeGtTOHFmSm51UC01YWtCZw/view
+* implement roughness somehow
 * try mixing direct illumination with monte carlo like this: https://www.shadertoy.com/view/4tl3z4
 * better source of random numbers than rand
 * scattering function
@@ -430,7 +373,7 @@ GRAPHICS FEATURES:
 * dont forget to tone map to get from whatever floating point values back to 0..1 before going to u8
  * saturate towards white!
 * bloom (post process)
-* other primitive types
+* other primitive types?
 * CSG
 * refraction
 * beer's law / internal reflection stuff
@@ -441,12 +384,12 @@ GRAPHICS FEATURES:
 * subsurface scattering
 * bokeh
 * depth of field
-* motion blur
+* motion blur (monte carlo sample in time, not just in space)
 * load and render meshes
 * textures
 * bump mapping
 ? look up "volumetric path tracing"?  https://en.wikipedia.org/wiki/Volumetric_path_tracing
-* area lights and image based lighting
+* area lights and image based lighting? this may just work, by having emissive surfaces / textures.
 * chromatic abberation etc (may need to do frequency sampling!!)
 * adaptive rendering? render at low res, then progressively higher res? look into how that works.
 * red / blue 3d glasses mode
@@ -454,11 +397,25 @@ GRAPHICS FEATURES:
 ? linearly transformed cosines?
 * ggx and spherical harmonics
 * ccvt sampling and other stuff from "rolling the dice" siggraph talk
+* russian roullette
+ * only do if depth > 5
+ * roll a random number.  If number > max color component of surface, return emissive color (or black if not allowing emissive)
+* could look at smallpt line by line for parity
+ * https://drive.google.com/file/d/0B8g97JkuSSBwUENiWTJXeGtTOHFmSm51UC01YWtCZw/view
+* spatial acceleration structure could be helpful perhaps, especially when more objects added
+* get importance sampling working, to get reflection working for scattering / BRDF
+* importance sampling: https://inst.eecs.berkeley.edu/~cs294-13/fa09/lectures/scribe-lecture5.pdf
+* make it so you can render multiple frames and it puts them together into a video
 
 SCENE:
 * add a skybox?
 
 OTHER:
+* at home there is a weird vertical line when doing 1 sample per pixel and no jitter.
+ * see if it happens at work too
+ * there's a horizontal one too when the camera is only looking down z axis
+ * goes away when we stop testing against triangles.  Only in ClosestIntersection, the other one can check!
+* maybe make collision tests not tell you if the collision was from inside or not. dot product of ray vs normal can tell you that, for things that care to know.
 * make filename be based on resolution, samples and bounce count?
 * make it print out resolution, samples, bounce count, primitive count in the window as it's processing
 * make it print an estimated time remaining of render based on percentage done and how long it took to get there?

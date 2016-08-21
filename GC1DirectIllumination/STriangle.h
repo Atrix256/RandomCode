@@ -14,11 +14,17 @@ struct STriangle
         , m_objectID(GenerateObjectID())
         , m_materialID((TMaterialID)materialID)
     {
+        SVector e_1 = m_B - m_A;
+        SVector e_2 = m_C - m_A;
+
+        m_normal = Cross(e_1, e_2);
+        Normalize(m_normal);
     }
 
     SVector     m_A;
     SVector     m_B;
     SVector     m_C;
+    SVector     m_normal;
     TObjectID   m_objectID;
     TMaterialID m_materialID;
 };
@@ -39,15 +45,6 @@ inline bool RayIntersects (const SVector& rayPos, const SVector& rayDir, const S
     SVector e_1 = triangle.m_B - triangle.m_A;
     SVector e_2 = triangle.m_C - triangle.m_A;
 
-    // Face normal
-    SVector n = Cross(e_1,e_2);
-    Normalize(n);
-
-    // flip normal around if we hit it from the back
-    bool fromInside = Dot(n, rayDir) > 0.0f;
-    if (fromInside)
-        n *= -1.0f;
-
     const SVector& q = Cross(rayDir,e_2);
     const float a = Dot(e_1, q);
     const SVector& s = (rayPos - triangle.m_A) / a;
@@ -66,12 +63,18 @@ inline bool RayIntersects (const SVector& rayPos, const SVector& rayDir, const S
     if (info.m_maxCollisionTime >= 0.0 && t > info.m_maxCollisionTime)
         return false;
 
+    // make sure normal is facing opposite of ray direction.
+    // this is for if we are hitting the object from the inside / back side.
+    SVector normal =
+        Dot(triangle.m_normal, rayDir) < 0.0f
+            ? triangle.m_normal
+            : -triangle.m_normal;
+
     info.SuccessfulHit(
         triangle.m_objectID,
         triangle.m_materialID,
-        fromInside,
         rayPos + rayDir * t,
-        n,
+        normal,
         t
     );
 

@@ -30,9 +30,6 @@
     <ClInclude Include="SVector.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="SPointLight.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
     <ClInclude Include="Utils.h">
       <Filter>Source Files</Filter>
     </ClInclude>

@@ -66,10 +66,14 @@ inline bool RayIntersects (const SVector& rayPos, const SVector& rayDir, const S
     SVector normal = (rayPos + rayDir * collisionTime) - sphere.m_position;
     Normalize(normal);
 
+    // make sure normal is facing opposite of ray direction.
+    // this is for if we are hitting the object from the inside / back side.
+    if (Dot(normal, rayDir) > 0.0f)
+        normal *= -1.0f;
+
     info.SuccessfulHit(
         sphere.m_objectID,
         sphere.m_materialID,
-        fromInside,
         rayPos + rayDir * collisionTime,
         normal,
         collisionTime

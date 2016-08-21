@@ -9,13 +9,11 @@ struct SCollisionInfo
         : m_objectID(c_invalidObjectID)
         , m_materialID(c_invalidMaterialID)
         , m_maxCollisionTime(-1.0f)
-        , m_fromInside(false)
     {
     }
 
     TObjectID   m_objectID;
     TMaterialID m_materialID;
-    bool        m_fromInside;
     SVector     m_intersectionPoint;
     SVector     m_surfaceNormal;
 
@@ -26,7 +24,6 @@ struct SCollisionInfo
     void SuccessfulHit(
         TObjectID objectID,
         TMaterialID materialID,
-        bool fromInside,
         SVector intersectionPoint,
         SVector surfaceNormal,
         float intersectionTime
@@ -34,7 +31,6 @@ struct SCollisionInfo
     {
         m_objectID = objectID;
         m_materialID = materialID;
-        m_fromInside = fromInside;
         m_intersectionPoint = intersectionPoint;
         m_surfaceNormal = surfaceNormal;
         m_maxCollisionTime = intersectionTime;
