@@ -28,13 +28,12 @@ static const size_t c_imageHeight = 512;
 static const size_t c_samplesPerPixel = 100;
 static const bool c_jitterSamples = true && (c_samplesPerPixel > 1);
 static const size_t c_maxBounces = 4;
-static const float c_brightness = 1.0f;
 
 // threading toggle
 static const bool c_forceSingleThreaded = false;
 
 // camera - assumes no roll, and that (0,1,0) is up
-static const SVector c_cameraPos = { 0.1f, 0.1f, -4.0f };
+static const SVector c_cameraPos = { 0.1f, 0.1f, -10.0f };
 static const SVector c_cameraAt = { 0.0f, 0.0f, 0.0f };
 static const float c_nearDist = 0.1f;
 static const float c_cameraVerticalFOV = 60.0f * c_pi / 180.0f;
@@ -48,10 +47,11 @@ static const float c_cameraVerticalFOV = 60.0f * c_pi / 180.0f;
     MATERIAL(MatteMagenta  , SVector(0.9f, 0.1f, 0.9f), SVector(), SVector()) \
     MATERIAL(MatteYellow   , SVector(0.9f, 0.9f, 0.1f), SVector(), SVector()) \
     MATERIAL(Chrome        , SVector(0.01f, 0.01f, 0.01f), SVector(), SVector(1.0f, 1.0f, 1.0f)) \
-    MATERIAL(EmissiveRed   , SVector(), SVector(0.9f, 0.1f, 0.1f), SVector()) \
-    MATERIAL(EmissiveGreen , SVector(), SVector(0.1f, 0.9f, 0.1f), SVector()) \
-    MATERIAL(EmissiveBlue  , SVector(), SVector(0.1f, 0.1f, 0.9f), SVector()) \
-    MATERIAL(Walls         , SVector(0.5f, 0.01f, 0.01f), SVector(), SVector(0.1f, 0.1f, 0.1f)) \
+    MATERIAL(EmissiveRed   , SVector(), SVector(0.9f, 0.3f, 0.3f), SVector()) \
+    MATERIAL(EmissiveGreen , SVector(), SVector(0.3f, 0.9f, 0.3f), SVector()) \
+    MATERIAL(EmissiveBlue  , SVector(), SVector(0.3f, 0.3f, 0.9f), SVector()) \
+    MATERIAL(EmissiveWhite , SVector(), SVector(1.0f, 1.0f, 1.0f), SVector()) \
+    MATERIAL(Walls         , SVector(0.5f, 0.5f, 0.5f), SVector(), SVector(0.1f, 0.1f, 0.1f)) \
 
 #include "MakeMaterials.h"
 
@@ -64,9 +64,9 @@ auto c_spheres = make_array(
     SSphere(SVector(0.0f, 2.0f, 2.0f), 0.5f, TMaterialID::MatteTeal),
     SSphere(SVector(0.0f,-2.0f, 2.0f), 0.5f, TMaterialID::MatteMagenta),
 
-    SSphere(SVector(0.5f, 0.1f, 0.0f), 0.03f, TMaterialID::EmissiveRed),     // red light
-    SSphere(SVector(0.3f, -0.3f, 0.0f), 0.03f, TMaterialID::EmissiveGreen),   // green light
-    SSphere(SVector(-0.3f, 0.1f, -1.0f), 0.03f, TMaterialID::EmissiveBlue)   // blue light
+    SSphere(SVector(0.5f, 0.1f, 0.0f), 0.03f, TMaterialID::EmissiveWhite),     // red light
+    SSphere(SVector(0.3f, -0.3f, 0.0f), 0.03f, TMaterialID::EmissiveWhite),   // green light
+    SSphere(SVector(-0.3f, 0.1f, -1.0f), 0.03f, TMaterialID::EmissiveWhite)   // blue light
 );
 
 const float c_boxSize = 5.0f;
@@ -94,11 +94,11 @@ auto c_triangles = make_array(
 
     // box wall - top
     STriangle(SVector(-c_boxSize,  c_boxSize,  c_boxSize), SVector(-c_boxSize,  c_boxSize, -c_boxSize), SVector( c_boxSize,  c_boxSize, -c_boxSize), TMaterialID::Walls),
-    STriangle(SVector(-c_boxSize,  c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize, -c_boxSize), TMaterialID::Walls),
+    STriangle(SVector(-c_boxSize,  c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize, -c_boxSize), TMaterialID::Walls)
 
     // box wall - behind
-    STriangle(SVector(-c_boxSize, -c_boxSize, -c_boxSize), SVector( c_boxSize, -c_boxSize, -c_boxSize), SVector( c_boxSize,  c_boxSize, -c_boxSize), TMaterialID::Walls),
-    STriangle(SVector(-c_boxSize, -c_boxSize, -c_boxSize), SVector(-c_boxSize,  c_boxSize, -c_boxSize), SVector( c_boxSize,  c_boxSize, -c_boxSize), TMaterialID::Walls)
+    //STriangle(SVector(-c_boxSize, -c_boxSize, -c_boxSize), SVector( c_boxSize, -c_boxSize, -c_boxSize), SVector( c_boxSize,  c_boxSize, -c_boxSize), TMaterialID::Walls),
+    //STriangle(SVector(-c_boxSize, -c_boxSize, -c_boxSize), SVector(-c_boxSize,  c_boxSize, -c_boxSize), SVector( c_boxSize,  c_boxSize, -c_boxSize), TMaterialID::Walls)
 );
 
 //=================================================================================
@@ -155,7 +155,7 @@ static const float c_windowRight = tan(c_cameraHorizFOV / 2.0f) * c_nearDist;
 static const SVector c_cameraRight = CameraRight();
 static const SVector c_cameraUp = CameraUp();
 static const SVector c_cameraFwd = CameraFwd();
-static const float c_brightnessAdjust = c_brightness / (float)c_samplesPerPixel;
+static const float c_brightnessAdjust = 1.0f / (float)c_samplesPerPixel;
 
 //=================================================================================
 bool AnyIntersection (const SVector& a, const SVector& dir, float length, TObjectID ignoreObjectID = c_invalidObjectID)
@@ -245,20 +245,7 @@ void RenderPixel(float u, float v, SVector& pixel)
 }
 
 //=================================================================================
-void ReportProgress (size_t index, size_t max)
-{
-    static int lastProgress = -1;
-    int progress = int(100.0f * float(index) / float(max));
-
-    if (progress == lastProgress)
-        return;
-
-    lastProgress = progress;
-    printf("\r%i%%", progress);
-}
-
-//=================================================================================
-void ThreadFunc (SImageDataRGBF32& image)
+void ThreadFunc (SImageDataRGBF32& image, STimer& timer)
 {
     static std::atomic<size_t> g_currentPixelIndex(-1);
 
@@ -304,12 +291,8 @@ void ThreadFunc (SImageDataRGBF32& image)
 
         // first thread reports progress, show what percent we are at
         if (firstThread)
-            ReportProgress(pixelIndex, image.m_pixels.size());
+            timer.ReportProgress(pixelIndex, image.m_pixels.size());
     }
-
-    // first thread reports progress, show 100%
-    if (firstThread)
-        ReportProgress(1, 1);
 }
  
 //=================================================================================
@@ -321,18 +304,18 @@ int main (int argc, char **argv)
 
     // Render to the image
     {
-        STimer Timer;
+        STimer Timer("Render Time");
 
         // spin up some threads to do work, and wait for them to be finished.
         size_t numThreads = c_forceSingleThreaded ? 1 : std::thread::hardware_concurrency();
-        printf("Spinning up %i threads to make a %i x %i image\r\n", numThreads, c_imageWidth, c_imageHeight);
+        printf("Spinning up %i threads to make a %i x %i image.\n", numThreads, c_imageWidth, c_imageHeight);
+        printf("%i samples per pixel, %i max bounces.\n", c_samplesPerPixel, c_maxBounces);
         std::vector<std::thread> threads;
         threads.resize(numThreads);
         for (std::thread& t : threads)
-            t = std::thread(ThreadFunc, std::ref(image_RGB_F32));
+            t = std::thread(ThreadFunc, std::ref(image_RGB_F32), std::ref(Timer));
         for (std::thread& t : threads)
             t.join();
-        printf("\nRender Time = ");
     }
 
     // Convert from RGB floating point to BGR u8
@@ -416,25 +399,26 @@ OTHER:
  * see if it happens at work too
  * there's a horizontal one too when the camera is only looking down z axis
  * goes away when we stop testing against triangles.  Only in ClosestIntersection, the other one can check!
-* maybe make collision tests not tell you if the collision was from inside or not. dot product of ray vs normal can tell you that, for things that care to know.
 * make filename be based on resolution, samples and bounce count?
 * make it print out resolution, samples, bounce count, primitive count in the window as it's processing
 * make it print an estimated time remaining of render based on percentage done and how long it took to get there?
 * try to make it so you give a thread an entire row to do.  May be faster?
-* show a percentage done.  Could increment a uint64 each time you do a sample. use that as a percentage.
-* Implement RandomUnitVectorInHemisphere better
 * do TODO's in code files
 * visualize # of raybounces, instead of colors, for complexity analysis?
  * maybe defines or settings to do this?
  * also visualize normals and reflection bounces or something?
-* maybe a get material by ID function?
-* make it display progress in a window as it goes?
- * might need to double buffer or something
- * make it so when you click on a pixel, you can step through it to see what it's doing
+* make a window that shows the progress as it goes.
+ * a button to take a screenshot
+ * show # of samples etc in top of window
+ * maybe click on a pixel to re-render it for debugging purposes
 * make it so you can animate things & camera over time at a specified frame rate.  write each frame to disk. combine with ffmpeg to make videos!
-* maybe a blog post?
 * make width / height be command line options?
 * aspect ratio support is weird. it stretches images in a funny way.  may be correct?
 * profile with sleepy to see where the time is going!
+
+! blog posts on all this info
+ * basic path tracing / rendering equation
+ * advanced features like russian roulette and such
+ * specific features
 
 */
