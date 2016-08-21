@@ -22,14 +22,14 @@
 //=================================================================================
 
 // image size
-static const size_t c_imageWidth = 100;
-static const size_t c_imageHeight = 100;
+static const size_t c_imageWidth = 1024;
+static const size_t c_imageHeight = 1024;
 
 // sampling
-static const size_t c_samplesPerPixel = 20000;
+static const size_t c_samplesPerPixel = 2000;
 static const bool c_jitterSamples = true && (c_samplesPerPixel > 1);
 static const size_t c_maxBounces = 4;
-static const float c_brightness = 20.0f;
+static const float c_brightness = 1.0f;
 
 // threading toggle
 static const bool c_forceSingleThreaded = false;
@@ -290,12 +290,26 @@ void RenderPixel(float u, float v, SVector& pixel)
 }
 
 //=================================================================================
+void ReportProgress (size_t index, size_t max)
+{
+    static int lastProgress = -1;
+    int progress = int(100.0f * float(index) / float(max));
+
+    if (progress == lastProgress)
+        return;
+
+    lastProgress = progress;
+    printf("\r%i%%", progress);
+}
+
+//=================================================================================
 void ThreadFunc (SImageDataRGBF32& image)
 {
     static std::atomic<size_t> g_currentPixelIndex(-1);
 
     // render individual pixels across multiple threads until we run out of pixels to do
     size_t pixelIndex = ++g_currentPixelIndex;
+    bool firstThread = pixelIndex == 0;
     while (pixelIndex < image.m_pixels.size())
     {
         // get the current pixel's UV and actual memory location
@@ -332,7 +346,15 @@ void ThreadFunc (SImageDataRGBF32& image)
 
         // move to next pixel
         pixelIndex = ++g_currentPixelIndex;
+
+        // first thread reports progress, show what percent we are at
+        if (firstThread)
+            ReportProgress(pixelIndex, image.m_pixels.size());
     }
+
+    // first thread reports progress, show 100%
+    if (firstThread)
+        ReportProgress(1, 1);
 }
  
 //=================================================================================
@@ -355,7 +377,7 @@ int main (int argc, char **argv)
             t = std::thread(ThreadFunc, std::ref(image_RGB_F32));
         for (std::thread& t : threads)
             t.join();
-        printf("Render Time = ");
+        printf("\nRender Time = ");
     }
 
     // Convert from RGB floating point to BGR u8
@@ -400,6 +422,7 @@ NEXT:
  * goes away when we stop testing against triangles.  Only in ClosestIntersection, the other one can check!
 
 GRAPHICS FEATURES:
+* try mixing direct illumination with monte carlo like this: https://www.shadertoy.com/view/4tl3z4
 * better source of random numbers than rand
 * scattering function
 * importance sampling
@@ -436,6 +459,10 @@ SCENE:
 * add a skybox?
 
 OTHER:
+* make filename be based on resolution, samples and bounce count?
+* make it print out resolution, samples, bounce count, primitive count in the window as it's processing
+* make it print an estimated time remaining of render based on percentage done and how long it took to get there?
+* try to make it so you give a thread an entire row to do.  May be faster?
 * show a percentage done.  Could increment a uint64 each time you do a sample. use that as a percentage.
 * Implement RandomUnitVectorInHemisphere better
 * do TODO's in code files
@@ -453,6 +480,6 @@ OTHER:
 * maybe a blog post?
 * make width / height be command line options?
 * aspect ratio support is weird. it stretches images in a funny way.  may be correct?
-
+* profile with sleepy to see where the time is going!
 
 */

@@ -173,6 +173,7 @@ inline bool NotZero (const SVector& a)
 //=================================================================================
 inline SVector RandomUnitVectorInHemisphere (const SVector& v)
 {
+    /*
     // from http://math.stackexchange.com/questions/1163260/random-directions-on-hemisphere-oriented-by-an-arbitrary-vector
     SVector ret;
 
@@ -189,6 +190,20 @@ inline SVector RandomUnitVectorInHemisphere (const SVector& v)
         ret /= d;
     }
     while (Dot(ret, v) <= 0.0f);
+
+    return ret;
+    */
+
+    float theta0 = RandomFloat() * 2.0f * c_pi;
+    float theta1 = acosf(1.0f - 2.0f * RandomFloat());
+
+    SVector ret;
+    ret.m_x = sin(theta0) * sin(theta1);
+    ret.m_y = sin(theta0) * cos(theta1);
+    ret.m_z = sin(theta1);
+
+    if (Dot(ret, v) < 0.0f)
+        ret *= -1;
 
     return ret;
 }
