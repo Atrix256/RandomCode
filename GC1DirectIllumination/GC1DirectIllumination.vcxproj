@@ -142,6 +142,7 @@
     <ClCompile Include="Source.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="MakeMaterials.h" />
     <ClInclude Include="ObjectID.h" />
     <ClInclude Include="Random.h" />
     <ClInclude Include="SCollisionInfo.h" />

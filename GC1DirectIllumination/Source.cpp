@@ -39,66 +39,66 @@ static const SVector c_cameraAt = { 0.0f, 0.0f, 0.0f };
 static const float c_nearDist = 0.1f;
 static const float c_cameraVerticalFOV = 60.0f * c_pi / 180.0f;
 
-// Materials
-auto c_materials = make_array(
-    SMaterial(SVector(0.9f, 0.1f, 0.1f), SVector(), SVector()),                     // matte red
-    SMaterial(SVector(0.1f, 0.9f, 0.1f), SVector(), SVector()),                     // matte green
-    SMaterial(SVector(0.1f, 0.1f, 0.9f), SVector(), SVector()),                     // matte blue
-    SMaterial(SVector(0.1f, 0.9f, 0.9f), SVector(), SVector()),                     // matte teal
-    SMaterial(SVector(0.9f, 0.1f, 0.9f), SVector(), SVector()),                     // matte magenta
-    SMaterial(SVector(0.9f, 0.9f, 0.1f), SVector(), SVector()),                     // matte yellow
-    SMaterial(SVector(0.9f, 0.9f, 0.9f), SVector(), SVector()),                     // matte white
-    SMaterial(SVector(0.01f, 0.01f, 0.01f), SVector(), SVector(1.0f, 1.0f, 1.0f)),  // chrome
-    SMaterial(SVector(), SVector(0.9f, 0.1f, 0.1f), SVector()),                     // emissive red
-    SMaterial(SVector(), SVector(0.1f, 0.9f, 0.1f), SVector()),                     // emissive green
-    SMaterial(SVector(), SVector(0.1f, 0.1f, 0.9f), SVector()),                     // emissive blue
-    SMaterial(SVector(0.5f, 0.01f, 0.01f), SVector(), SVector(0.1f, 0.1f, 0.1f))    // walls
-);
+// Materials - name, diffuse, emissive, reflective
+#define MATERIALLIST() \
+    MATERIAL(MatteRed      , SVector(0.9f, 0.1f, 0.1f), SVector(), SVector()) \
+    MATERIAL(MatteGreen    , SVector(0.1f, 0.9f, 0.1f), SVector(), SVector()) \
+    MATERIAL(MatteBlue     , SVector(0.1f, 0.1f, 0.9f), SVector(), SVector()) \
+    MATERIAL(MatteTeal     , SVector(0.1f, 0.9f, 0.9f), SVector(), SVector()) \
+    MATERIAL(MatteMagenta  , SVector(0.9f, 0.1f, 0.9f), SVector(), SVector()) \
+    MATERIAL(MatteYellow   , SVector(0.9f, 0.9f, 0.1f), SVector(), SVector()) \
+    MATERIAL(Chrome        , SVector(0.01f, 0.01f, 0.01f), SVector(), SVector(1.0f, 1.0f, 1.0f)) \
+    MATERIAL(EmissiveRed   , SVector(), SVector(0.9f, 0.1f, 0.1f), SVector()) \
+    MATERIAL(EmissiveGreen , SVector(), SVector(0.1f, 0.9f, 0.1f), SVector()) \
+    MATERIAL(EmissiveBlue  , SVector(), SVector(0.1f, 0.1f, 0.9f), SVector()) \
+    MATERIAL(Walls         , SVector(0.5f, 0.01f, 0.01f), SVector(), SVector(0.1f, 0.1f, 0.1f)) \
+
+#include "MakeMaterials.h"
 
 // Spheres
 auto c_spheres = make_array(
-    SSphere(SVector(-2.0f, 0.0f, 4.0f), 2.0f, 5),
-    SSphere(SVector(0.0f, 0.0f, 2.0f), 0.5f, 0),
-    SSphere(SVector(-2.0f, 0.0f, 2.0f), 0.5f, 1),
-    SSphere(SVector(2.0f, 0.0f, 2.0f), 0.5f, 2),
-    SSphere(SVector(0.0f, 2.0f, 2.0f), 0.5f, 3),
-    SSphere(SVector(0.0f,-2.0f, 2.0f), 0.5f, 4),
+    SSphere(SVector(-2.0f, 0.0f, 4.0f), 2.0f, TMaterialID::MatteYellow),
+    SSphere(SVector(0.0f, 0.0f, 2.0f), 0.5f, TMaterialID::MatteRed),
+    SSphere(SVector(-2.0f, 0.0f, 2.0f), 0.5f, TMaterialID::MatteGreen),
+    SSphere(SVector(2.0f, 0.0f, 2.0f), 0.5f, TMaterialID::MatteBlue),
+    SSphere(SVector(0.0f, 2.0f, 2.0f), 0.5f, TMaterialID::MatteTeal),
+    SSphere(SVector(0.0f,-2.0f, 2.0f), 0.5f, TMaterialID::MatteMagenta),
 
-    SSphere(SVector(0.5f, 0.1f, 0.0f), 0.03f, 8),     // red light
-    SSphere(SVector(0.3f, -0.3f, 0.0f), 0.03f, 9),   // green light
-    SSphere(SVector(-0.3f, 0.1f, -1.0f), 0.03f, 10)   // blue light
+    SSphere(SVector(0.5f, 0.1f, 0.0f), 0.03f, TMaterialID::EmissiveRed),     // red light
+    SSphere(SVector(0.3f, -0.3f, 0.0f), 0.03f, TMaterialID::EmissiveGreen),   // green light
+    SSphere(SVector(-0.3f, 0.1f, -1.0f), 0.03f, TMaterialID::EmissiveBlue)   // blue light
 );
 
 const float c_boxSize = 5.0f;
 
 // Triangles
 auto c_triangles = make_array(
-    STriangle(SVector(1.5f, 1.0f, 1.25f), SVector(1.5f, 0.0f, 1.75f), SVector(0.5f, 0.0f, 2.25f), 5),
-    STriangle(SVector(0.5f, 0.25f, 3.5f), SVector(1.5f, 0.25f, 3.0f), SVector(1.5f, 1.25f, 2.5f), 5),
+    STriangle(SVector(1.5f, 1.0f, 1.25f), SVector(1.5f, 0.0f, 1.75f), SVector(0.5f, 0.0f, 2.25f), TMaterialID::MatteYellow),
+    STriangle(SVector(0.5f, 0.25f, 3.5f), SVector(1.5f, 0.25f, 3.0f), SVector(1.5f, 1.25f, 2.5f), TMaterialID::MatteYellow),
 
     // box wall - in front
-    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize,  c_boxSize), 11),
-    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector(-c_boxSize,  c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize,  c_boxSize), 11),
+    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize,  c_boxSize), TMaterialID::Walls),
+    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector(-c_boxSize,  c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize,  c_boxSize), TMaterialID::Walls),
 
     // box wall - left
-    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector(-c_boxSize, -c_boxSize, -c_boxSize), SVector(-c_boxSize, c_boxSize, -c_boxSize), 11),
-    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector(-c_boxSize,  c_boxSize,  c_boxSize), SVector(-c_boxSize, c_boxSize, -c_boxSize), 11),
+    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector(-c_boxSize, -c_boxSize, -c_boxSize), SVector(-c_boxSize, c_boxSize, -c_boxSize), TMaterialID::Walls),
+    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector(-c_boxSize,  c_boxSize,  c_boxSize), SVector(-c_boxSize, c_boxSize, -c_boxSize), TMaterialID::Walls),
 
     // box wall - right
-    STriangle(SVector( c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize, -c_boxSize, -c_boxSize), SVector( c_boxSize, c_boxSize, -c_boxSize), 11),
-    STriangle(SVector( c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize,  c_boxSize), SVector( c_boxSize, c_boxSize, -c_boxSize), 11),
+    STriangle(SVector( c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize, -c_boxSize, -c_boxSize), SVector( c_boxSize, c_boxSize, -c_boxSize), TMaterialID::Walls),
+    STriangle(SVector( c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize,  c_boxSize), SVector( c_boxSize, c_boxSize, -c_boxSize), TMaterialID::Walls),
 
     // box wall - bottom
-    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector(-c_boxSize, -c_boxSize, -c_boxSize), SVector( c_boxSize, -c_boxSize, -c_boxSize), 11),
-    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize, -c_boxSize, -c_boxSize), 11),
+    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector(-c_boxSize, -c_boxSize, -c_boxSize), SVector( c_boxSize, -c_boxSize, -c_boxSize), TMaterialID::Walls),
+    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize, -c_boxSize, -c_boxSize), TMaterialID::Walls),
 
     // box wall - top
-    STriangle(SVector(-c_boxSize,  c_boxSize,  c_boxSize), SVector(-c_boxSize,  c_boxSize, -c_boxSize), SVector( c_boxSize,  c_boxSize, -c_boxSize), 11),
-    STriangle(SVector(-c_boxSize,  c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize, -c_boxSize), 11),
+    STriangle(SVector(-c_boxSize,  c_boxSize,  c_boxSize), SVector(-c_boxSize,  c_boxSize, -c_boxSize), SVector( c_boxSize,  c_boxSize, -c_boxSize), TMaterialID::Walls),
+    STriangle(SVector(-c_boxSize,  c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize, -c_boxSize), TMaterialID::Walls),
 
     // box wall - behind
-    STriangle(SVector(-c_boxSize, -c_boxSize, -c_boxSize), SVector( c_boxSize, -c_boxSize, -c_boxSize), SVector( c_boxSize,  c_boxSize, -c_boxSize), 11),
-    STriangle(SVector(-c_boxSize, -c_boxSize, -c_boxSize), SVector(-c_boxSize,  c_boxSize, -c_boxSize), SVector( c_boxSize,  c_boxSize, -c_boxSize), 11)
+    STriangle(SVector(-c_boxSize, -c_boxSize, -c_boxSize), SVector( c_boxSize, -c_boxSize, -c_boxSize), SVector( c_boxSize,  c_boxSize, -c_boxSize), TMaterialID::Walls),
+    STriangle(SVector(-c_boxSize, -c_boxSize, -c_boxSize), SVector(-c_boxSize,  c_boxSize, -c_boxSize), SVector( c_boxSize,  c_boxSize, -c_boxSize), TMaterialID::Walls)
 );
 
 //=================================================================================
@@ -361,6 +361,7 @@ int main (int argc, char **argv)
 
 NEXT:
 
+
 GRAPHICS FEATURES:
 * smallpt handles glass vs mirrors vs diffuse surfaces differently
  * https://drive.google.com/file/d/0B8g97JkuSSBwUENiWTJXeGtTOHFmSm51UC01YWtCZw/view
@@ -426,9 +427,6 @@ OTHER:
 * visualize # of raybounces, instead of colors, for complexity analysis?
  * maybe defines or settings to do this?
  * also visualize normals and reflection bounces or something?
-* make it so you can give some kind of identifier to materials, that generates an enum for use in object definitions.  Likely need to make materials into a macro list thing then!
- * then, can make the material id passed to objects be an enum class for strong enforcement!
- * could also maybe have a #define to toggle that makes a sphere for each point light?
 * maybe a get material by ID function?
 * make it display progress in a window as it goes?
  * might need to double buffer or something

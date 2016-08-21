@@ -7,12 +7,12 @@
 //=================================================================================
 struct STriangle
 {
-    STriangle (SVector A, SVector B, SVector C, size_t materialID)
+    STriangle (SVector A, SVector B, SVector C, TMaterialID materialID)
         : m_A(A)
         , m_B(B)
         , m_C(C)
         , m_objectID(GenerateObjectID())
-        , m_materialID((TMaterialID)materialID)
+        , m_materialID(materialID)
     {
         SVector e_1 = m_B - m_A;
         SVector e_2 = m_C - m_A;

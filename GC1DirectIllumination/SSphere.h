@@ -7,11 +7,11 @@
 //=================================================================================
 struct SSphere
 {
-    SSphere(SVector position, float radius, size_t materialID)
+    SSphere(SVector position, float radius, TMaterialID materialID)
         : m_position(position)
         , m_radius(radius)
         , m_objectID(GenerateObjectID())
-        , m_materialID((TMaterialID)materialID)
+        , m_materialID(materialID)
     {
     }
 

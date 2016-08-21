@@ -7,7 +7,7 @@ struct SCollisionInfo
 {
     SCollisionInfo()
         : m_objectID(c_invalidObjectID)
-        , m_materialID(c_invalidMaterialID)
+        , m_materialID()
         , m_maxCollisionTime(-1.0f)
     {
     }

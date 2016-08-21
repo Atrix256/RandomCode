@@ -4,10 +4,7 @@
 
 #pragma once
 
-enum class TMaterialID : size_t { };
-
-//=================================================================================
-static const TMaterialID c_invalidMaterialID = (TMaterialID)-1;
+enum class TMaterialID : size_t;
 
 //=================================================================================
 struct SMaterial

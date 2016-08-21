@@ -42,5 +42,8 @@
     <ClInclude Include="STriangle.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="MakeMaterials.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
