@@ -40,18 +40,18 @@ static const float c_cameraVerticalFOV = 60.0f * c_pi / 180.0f;
 
 // Materials - name, diffuse, emissive, reflective
 #define MATERIALLIST() \
-    MATERIAL(MatteRed      , SVector(0.9f, 0.1f, 0.1f), SVector(), SVector()) \
-    MATERIAL(MatteGreen    , SVector(0.1f, 0.9f, 0.1f), SVector(), SVector()) \
-    MATERIAL(MatteBlue     , SVector(0.1f, 0.1f, 0.9f), SVector(), SVector()) \
-    MATERIAL(MatteTeal     , SVector(0.1f, 0.9f, 0.9f), SVector(), SVector()) \
-    MATERIAL(MatteMagenta  , SVector(0.9f, 0.1f, 0.9f), SVector(), SVector()) \
-    MATERIAL(MatteYellow   , SVector(0.9f, 0.9f, 0.1f), SVector(), SVector()) \
-    MATERIAL(Chrome        , SVector(0.01f, 0.01f, 0.01f), SVector(), SVector(1.0f, 1.0f, 1.0f)) \
-    MATERIAL(EmissiveRed   , SVector(), SVector(0.9f, 0.3f, 0.3f), SVector()) \
-    MATERIAL(EmissiveGreen , SVector(), SVector(0.3f, 0.9f, 0.3f), SVector()) \
-    MATERIAL(EmissiveBlue  , SVector(), SVector(0.3f, 0.3f, 0.9f), SVector()) \
-    MATERIAL(EmissiveWhite , SVector(), SVector(1.0f, 1.0f, 1.0f), SVector()) \
-    MATERIAL(Walls         , SVector(0.5f, 0.5f, 0.5f), SVector(), SVector(0.1f, 0.1f, 0.1f)) \
+    MATERIAL(MatteRed      , SVector(0.9f, 0.1f, 0.1f), SVector(), SVector(), EBRDF::diffuse) \
+    MATERIAL(MatteGreen    , SVector(0.1f, 0.9f, 0.1f), SVector(), SVector(), EBRDF::diffuse) \
+    MATERIAL(MatteBlue     , SVector(0.1f, 0.1f, 0.9f), SVector(), SVector(), EBRDF::diffuse) \
+    MATERIAL(MatteTeal     , SVector(0.1f, 0.9f, 0.9f), SVector(), SVector(), EBRDF::diffuse) \
+    MATERIAL(MatteMagenta  , SVector(0.9f, 0.1f, 0.9f), SVector(), SVector(), EBRDF::diffuse) \
+    MATERIAL(MatteYellow   , SVector(0.9f, 0.9f, 0.1f), SVector(), SVector(), EBRDF::refract) \
+    MATERIAL(Chrome        , SVector(0.01f, 0.01f, 0.01f), SVector(), SVector(1.0f, 1.0f, 1.0f), EBRDF::reflect) \
+    MATERIAL(EmissiveRed   , SVector(), SVector(0.9f, 0.3f, 0.3f), SVector(), EBRDF::diffuse) \
+    MATERIAL(EmissiveGreen , SVector(), SVector(0.3f, 0.9f, 0.3f), SVector(), EBRDF::diffuse) \
+    MATERIAL(EmissiveBlue  , SVector(), SVector(0.3f, 0.3f, 0.9f), SVector(), EBRDF::diffuse) \
+    MATERIAL(EmissiveWhite , SVector(), SVector(1.0f, 1.0f, 1.0f), SVector(), EBRDF::diffuse) \
+    MATERIAL(Walls         , SVector(0.5f, 0.5f, 0.5f), SVector(), SVector(0.1f, 0.1f, 0.1f), EBRDF::diffuse) \
 
 #include "MakeMaterials.h"
 
@@ -343,7 +343,14 @@ int main (int argc, char **argv)
 /*
 
 NEXT:
+* get BRDFs working
+ * for now, just choose BDRF type (reflect, refract, diffuse)
+ * then combine them after they are working
 
+ BRDF stuff:
+ * get pulses working for reflect / refract
+ * and whatever else part of the brdf?
+ * roughness?
 
 GRAPHICS FEATURES:
 * smallpt handles glass vs mirrors vs diffuse surfaces differently

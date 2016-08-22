@@ -1,13 +1,13 @@
-#define MATERIAL(name, diffuse, emissive, reflective) , SMaterial(diffuse, emissive, reflective)
+#define MATERIAL(name, diffuse, emissive, reflective, brdf) , SMaterial(diffuse, emissive, reflective, brdf)
     
 auto c_materials = make_array(
-    SMaterial(SVector(1.0f, 0.0f, 1.0f), SVector(), SVector())  // the default "error" material
+    SMaterial(SVector(1.0f, 0.0f, 1.0f), SVector(), SVector(), EBRDF::diffuse)  // the default "error" material
     MATERIALLIST()
 );
 
 #undef MATERIAL
 
-#define MATERIAL(name, diffuse, emissive, reflective) name,
+#define MATERIAL(name, diffuse, emissive, reflective, brdf) name,
     
 enum class TMaterialID : size_t {
     Error = 0,
