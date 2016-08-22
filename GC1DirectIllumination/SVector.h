@@ -165,6 +165,24 @@ inline SVector Reflect (const SVector& incident, const SVector& normal)
 }
 
 //=================================================================================
+inline SVector Refract (const SVector& incident, const SVector& normal, float ratio)
+{
+    // from https://www.opengl.org/sdk/docs/man/html/refract.xhtml
+    /*
+        k = 1.0 - eta * eta * (1.0 - dot(N, I) * dot(N, I));
+        if (k < 0.0)
+            R = genType(0.0);       // or genDType(0.0)
+        else
+            R = eta * I - (eta * dot(N, I) + sqrt(k)) * N;
+    */
+    float k = 1.0f - ratio * ratio * (1.0f - Dot(normal, incident) * Dot(normal, incident));
+    if (k < 0.0f) // TODO: assert or something? it's weird that it returns a 0 vector!
+        return SVector();
+    else
+        return ratio * incident - (ratio * Dot(normal, incident) + sqrt(k)) * normal;
+}
+
+//=================================================================================
 inline bool NotZero (const SVector& a)
 {
     return a.m_x != 0.0f && a.m_y != 0.0f && a.m_z != 0.0f;
@@ -206,4 +224,14 @@ inline SVector RandomUnitVectorInHemisphere (const SVector& v)
         ret *= -1;
 
     return ret;
+}
+
+//=================================================================================
+inline float MaxComponentValue (const SVector& s)
+{
+    return (s.m_x > s.m_y && s.m_x > s.m_z)
+            ? s.m_x
+            : s.m_y > s.m_z
+                ? s.m_y
+                : s.m_z;
 }

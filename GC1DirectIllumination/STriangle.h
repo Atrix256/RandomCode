@@ -65,16 +65,20 @@ inline bool RayIntersects (const SVector& rayPos, const SVector& rayDir, const S
 
     // make sure normal is facing opposite of ray direction.
     // this is for if we are hitting the object from the inside / back side.
-    SVector normal =
-        Dot(triangle.m_normal, rayDir) < 0.0f
-            ? triangle.m_normal
-            : -triangle.m_normal;
+    bool fromInside = false;
+    SVector normal = triangle.m_normal;
+    if (Dot(triangle.m_normal, rayDir) > 0.0f)
+    {
+        normal *= -1.0f;
+        fromInside = true;
+    }
 
     info.SuccessfulHit(
         triangle.m_objectID,
         triangle.m_materialID,
         rayPos + rayDir * t,
         normal,
+        fromInside,
         t
     );
 

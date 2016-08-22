@@ -76,6 +76,7 @@ inline bool RayIntersects (const SVector& rayPos, const SVector& rayDir, const S
         sphere.m_materialID,
         rayPos + rayDir * collisionTime,
         normal,
+        fromInside,
         collisionTime
     );
     return true;

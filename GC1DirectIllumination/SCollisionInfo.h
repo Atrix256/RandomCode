@@ -9,6 +9,7 @@ struct SCollisionInfo
         : m_objectID(c_invalidObjectID)
         , m_materialID()
         , m_maxCollisionTime(-1.0f)
+        , m_fromInside(false)
     {
     }
 
@@ -16,6 +17,7 @@ struct SCollisionInfo
     TMaterialID m_materialID;
     SVector     m_intersectionPoint;
     SVector     m_surfaceNormal;
+    bool        m_fromInside;
 
     // NOTE: you can set this to a positive value to limit a search by distance.
     // If there was a hit, this will be the time that it hit it at.
@@ -26,6 +28,7 @@ struct SCollisionInfo
         TMaterialID materialID,
         SVector intersectionPoint,
         SVector surfaceNormal,
+        bool fromInside,
         float intersectionTime
     )
     {
@@ -33,6 +36,7 @@ struct SCollisionInfo
         m_materialID = materialID;
         m_intersectionPoint = intersectionPoint;
         m_surfaceNormal = surfaceNormal;
+        m_fromInside = fromInside;
         m_maxCollisionTime = intersectionTime;
     }
 };

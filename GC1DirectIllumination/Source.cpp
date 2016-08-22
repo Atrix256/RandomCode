@@ -21,43 +21,46 @@
 //=================================================================================
 
 // image size
-static const size_t c_imageWidth = 512;
-static const size_t c_imageHeight = 512;
+static const size_t c_imageWidth = 1024;
+static const size_t c_imageHeight = 1024;
 
 // sampling
 static const size_t c_samplesPerPixel = 100;
 static const bool c_jitterSamples = true && (c_samplesPerPixel > 1);
-static const size_t c_maxBounces = 4;
+static const size_t c_maxBounces = 8;
+static const size_t c_russianRouletteStartBounce = 4;
 
 // threading toggle
 static const bool c_forceSingleThreaded = false;
 
 // camera - assumes no roll, and that (0,1,0) is up
-static const SVector c_cameraPos = { 0.1f, 0.1f, -10.0f };
+static const SVector c_cameraPos = { -3.0f, 2.0f, -10.0f };
 static const SVector c_cameraAt = { 0.0f, 0.0f, 0.0f };
 static const float c_nearDist = 0.1f;
 static const float c_cameraVerticalFOV = 60.0f * c_pi / 180.0f;
 
-// Materials - name, diffuse, emissive, reflective
+// Materials - name, diffuse, emissive, reflective, refractive, refractionIndex, brdf
 #define MATERIALLIST() \
-    MATERIAL(MatteRed      , SVector(0.9f, 0.1f, 0.1f), SVector(), SVector(), EBRDF::diffuse) \
-    MATERIAL(MatteGreen    , SVector(0.1f, 0.9f, 0.1f), SVector(), SVector(), EBRDF::diffuse) \
-    MATERIAL(MatteBlue     , SVector(0.1f, 0.1f, 0.9f), SVector(), SVector(), EBRDF::diffuse) \
-    MATERIAL(MatteTeal     , SVector(0.1f, 0.9f, 0.9f), SVector(), SVector(), EBRDF::diffuse) \
-    MATERIAL(MatteMagenta  , SVector(0.9f, 0.1f, 0.9f), SVector(), SVector(), EBRDF::diffuse) \
-    MATERIAL(MatteYellow   , SVector(0.9f, 0.9f, 0.1f), SVector(), SVector(), EBRDF::refract) \
-    MATERIAL(Chrome        , SVector(0.01f, 0.01f, 0.01f), SVector(), SVector(1.0f, 1.0f, 1.0f), EBRDF::reflect) \
-    MATERIAL(EmissiveRed   , SVector(), SVector(0.9f, 0.3f, 0.3f), SVector(), EBRDF::diffuse) \
-    MATERIAL(EmissiveGreen , SVector(), SVector(0.3f, 0.9f, 0.3f), SVector(), EBRDF::diffuse) \
-    MATERIAL(EmissiveBlue  , SVector(), SVector(0.3f, 0.3f, 0.9f), SVector(), EBRDF::diffuse) \
-    MATERIAL(EmissiveWhite , SVector(), SVector(1.0f, 1.0f, 1.0f), SVector(), EBRDF::diffuse) \
-    MATERIAL(Walls         , SVector(0.5f, 0.5f, 0.5f), SVector(), SVector(0.1f, 0.1f, 0.1f), EBRDF::diffuse) \
+    MATERIAL(MatteRed      , SVector(0.9f, 0.1f, 0.1f), SVector(), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(MatteGreen    , SVector(0.1f, 0.9f, 0.1f), SVector(), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(MatteBlue     , SVector(0.1f, 0.1f, 0.9f), SVector(), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(MatteTeal     , SVector(0.1f, 0.9f, 0.9f), SVector(), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(MatteMagenta  , SVector(0.9f, 0.1f, 0.9f), SVector(), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(MatteYellow   , SVector(0.9f, 0.9f, 0.1f), SVector(), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(Chrome        , SVector(0.01f, 0.01f, 0.01f), SVector(), SVector(1.0f, 1.0f, 1.0f), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(EmissiveRed   , SVector(), SVector(0.9f, 0.3f, 0.3f), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(EmissiveGreen , SVector(), SVector(0.3f, 0.9f, 0.3f), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(EmissiveBlue  , SVector(), SVector(0.3f, 0.3f, 0.9f), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(EmissiveWhite , SVector(), SVector(1.0f, 1.0f, 1.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(Walls         , SVector(0.5f, 0.5f, 0.5f), SVector(), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(Water         , SVector(), SVector(), SVector(), SVector(1.0f, 1.0f, 1.0f), 1.1f /*1.3f*/, EBRDF::standard) \
 
 #include "MakeMaterials.h"
 
 // Spheres
 auto c_spheres = make_array(
-    SSphere(SVector(-2.0f, 0.0f, 4.0f), 2.0f, TMaterialID::MatteYellow),
+    SSphere(SVector(-2.0f, 0.0f, 4.0f), 2.0f, TMaterialID::Chrome),
+    SSphere(SVector(-1.5f, 1.0f, -2.0f), 1.0f, TMaterialID::Water),
     SSphere(SVector(0.0f, 0.0f, 2.0f), 0.5f, TMaterialID::MatteRed),
     SSphere(SVector(-2.0f, 0.0f, 2.0f), 0.5f, TMaterialID::MatteGreen),
     SSphere(SVector(2.0f, 0.0f, 2.0f), 0.5f, TMaterialID::MatteBlue),
@@ -156,6 +159,7 @@ static const SVector c_cameraRight = CameraRight();
 static const SVector c_cameraUp = CameraUp();
 static const SVector c_cameraFwd = CameraFwd();
 static const float c_brightnessAdjust = 1.0f / (float)c_samplesPerPixel;
+static const size_t c_RRBounceLeftBegin = c_maxBounces > c_russianRouletteStartBounce ? c_maxBounces - c_russianRouletteStartBounce : 0;
 
 //=================================================================================
 bool AnyIntersection (const SVector& a, const SVector& dir, float length, TObjectID ignoreObjectID = c_invalidObjectID)
@@ -188,7 +192,22 @@ bool ClosestIntersection (const SVector& rayPos, const SVector& rayDir, SCollisi
 }
 
 //=================================================================================
-SVector L_out (const SCollisionInfo& X, const SVector& outDir, size_t bouncesLeft)
+inline bool PassesRussianRoulette (const SVector& v, size_t bouncesLeft)
+{
+    // if the vector is 0, it fails Russian roulette test always
+    if (!NotZero(v))
+        return false;
+
+    // otherwise, only test if we are past the point of when Russian roulette should start
+    if (bouncesLeft > c_RRBounceLeftBegin)
+        return true;
+
+    // else leave it to chance based on the magnitude of the largest component of the vector
+    return RandomFloat() <= MaxComponentValue(v);
+}
+
+//=================================================================================
+SVector L_out(const SCollisionInfo& X, const SVector& outDir, size_t bouncesLeft)
 {
     // if no bounces left, return black / darkness
     if (bouncesLeft == 0)
@@ -199,18 +218,53 @@ SVector L_out (const SCollisionInfo& X, const SVector& outDir, size_t bouncesLef
     // start with emissive lighting
     SVector ret = material.m_emissive;
 
-    SVector newRayDir = RandomUnitVectorInHemisphere(X.m_surfaceNormal);
+    // Add in BRDF pulses.
+    // Pulses are strong sampling points which on the BRDF which would be basically impossible to hit with monte carlo.
 
-    SCollisionInfo collisionInfo;
-    if (ClosestIntersection(X.m_intersectionPoint, newRayDir, collisionInfo, X.m_objectID))
+    // add in reflection BRDF pulse.  
+    if (PassesRussianRoulette(material.m_reflection, bouncesLeft))
     {
-        float cos_theta = Dot(newRayDir, X.m_surfaceNormal);
-
-        SVector BRDF = 2.0f * material.m_diffuse * cos_theta; // TODO: name it reflectance, not diffuse!
-
-        ret += BRDF * L_out(collisionInfo, -newRayDir, bouncesLeft - 1);
+        SVector reflectDir = Reflect(-outDir, X.m_surfaceNormal);
+        SCollisionInfo collisionInfo;
+        if (ClosestIntersection(X.m_intersectionPoint, reflectDir, collisionInfo, X.m_objectID))
+        {
+            float cos_theta = Dot(reflectDir, X.m_surfaceNormal);
+            SVector BRDF = 2.0f * material.m_reflection * cos_theta;
+            ret += BRDF * L_out(collisionInfo, -reflectDir, bouncesLeft - 1);
+        }
     }
 
+    // add in refraction BRDF pulse.
+    if (PassesRussianRoulette(material.m_refraction, bouncesLeft))
+    {
+        // make our refraction index ratio.
+        // air has a refractive index of just over 1.0, and vacum has 1.0.
+        float ratio = X.m_fromInside ? material.m_refractionIndex / 1.0f : 1.0f / material.m_refractionIndex;
+        SVector refractDir = Refract(-outDir, X.m_surfaceNormal, ratio);
+        SCollisionInfo collisionInfo;
+
+        // We need to push the ray out a little bit, instead of telling it to ignore this object for the intersection
+        // test, because we may hit the same object again legitimately!
+        if (ClosestIntersection(X.m_intersectionPoint + refractDir * 0.001f, refractDir, collisionInfo))
+        {
+            float cos_theta = Dot(refractDir, X.m_surfaceNormal);
+            SVector BRDF = 2.0f * material.m_refraction * cos_theta;
+            ret += BRDF * L_out(collisionInfo, -refractDir, bouncesLeft - 1);
+        }
+    }
+
+    // add in random samples for global illumination etc
+    if (PassesRussianRoulette(material.m_diffuse, bouncesLeft))
+    {
+        SVector newRayDir = RandomUnitVectorInHemisphere(X.m_surfaceNormal);
+        SCollisionInfo collisionInfo;
+        if (ClosestIntersection(X.m_intersectionPoint, newRayDir, collisionInfo, X.m_objectID))
+        {
+            float cos_theta = Dot(newRayDir, X.m_surfaceNormal);
+            SVector BRDF = 2.0f * material.m_diffuse * cos_theta;
+            ret += BRDF * L_out(collisionInfo, -newRayDir, bouncesLeft - 1);
+        }
+    }
     return ret;
 }
 
@@ -347,12 +401,24 @@ NEXT:
  * for now, just choose BDRF type (reflect, refract, diffuse)
  * then combine them after they are working
 
+* related to refraction:
+ * Total internal reflection
+ * fresnel
+
+* Objects inside of transparent objects are problematic, need to fix.
+  * not sure why!
+
  BRDF stuff:
- * get pulses working for reflect / refract
+ * generalize reflect / refract pulses, or leave alone?
  * and whatever else part of the brdf?
  * roughness?
 
 GRAPHICS FEATURES:
+* are you handling BRDF pulses correctly? seems like reflect / refract maybe shouldn't be on par with diffuse.
+* maybe make a cube type?  could replace the room walls with a cube then even!
+* make it so you can do uniform samples instead of random samples, to have a graphical comparison of results.
+ * Should make it obvious why monte carlo is the better way
+* fresnel: graphics codex talks about fresnel in material section
 * smallpt handles glass vs mirrors vs diffuse surfaces differently
  * https://drive.google.com/file/d/0B8g97JkuSSBwUENiWTJXeGtTOHFmSm51UC01YWtCZw/view
 * implement roughness somehow
@@ -388,9 +454,6 @@ GRAPHICS FEATURES:
 ? linearly transformed cosines?
 * ggx and spherical harmonics
 * ccvt sampling and other stuff from "rolling the dice" siggraph talk
-* russian roullette
- * only do if depth > 5
- * roll a random number.  If number > max color component of surface, return emissive color (or black if not allowing emissive)
 * could look at smallpt line by line for parity
  * https://drive.google.com/file/d/0B8g97JkuSSBwUENiWTJXeGtTOHFmSm51UC01YWtCZw/view
 * spatial acceleration structure could be helpful perhaps, especially when more objects added
