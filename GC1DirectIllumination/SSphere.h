@@ -43,7 +43,7 @@ inline bool RayIntersects (const SVector& rayPos, const SVector& rayDir, const S
     float discr = b * b - c;
 
     //a negative discriminant corresponds to ray missing sphere
-    if (discr < 0.0)
+    if (discr <= 0.0)
         return false;
 
     //not inside til proven otherwise

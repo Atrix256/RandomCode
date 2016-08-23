@@ -47,6 +47,10 @@ inline bool RayIntersects (const SVector& rayPos, const SVector& rayDir, const S
 
     const SVector& q = Cross(rayDir,e_2);
     const float a = Dot(e_1, q);
+
+    if (abs(a) == 0.0f)
+        return false;
+
     const SVector& s = (rayPos - triangle.m_A) / a;
     const SVector& r = Cross(s,e_1);
     SVector b; // NOTE: barycentric coords!

@@ -199,7 +199,7 @@ inline bool PassesRussianRoulette (const SVector& v, size_t bouncesLeft)
         return false;
 
     // otherwise, only test if we are past the point of when Russian roulette should start
-    if (bouncesLeft > c_RRBounceLeftBegin)
+    if (bouncesLeft >= c_RRBounceLeftBegin)
         return true;
 
     // else leave it to chance based on the magnitude of the largest component of the vector
@@ -281,7 +281,7 @@ SVector L_in (const SVector& X, const SVector& dir)
 }
 
 //=================================================================================
-void RenderPixel(float u, float v, SVector& pixel)
+void RenderPixel (float u, float v, SVector& pixel)
 {
     // make (u,v) go from [-1,1] instead of [0,1]
     u = u * 2.0f - 1.0f;
@@ -465,10 +465,6 @@ SCENE:
 * add a skybox?
 
 OTHER:
-* at home there is a weird vertical line when doing 1 sample per pixel and no jitter.
- * see if it happens at work too
- * there's a horizontal one too when the camera is only looking down z axis
- * goes away when we stop testing against triangles.  Only in ClosestIntersection, the other one can check!
 * make filename be based on resolution, samples and bounce count?
 * make it print out resolution, samples, bounce count, primitive count in the window as it's processing
 * make it print an estimated time remaining of render based on percentage done and how long it took to get there?
