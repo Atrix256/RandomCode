@@ -24,11 +24,13 @@
 static const size_t c_imageWidth = 1024;
 static const size_t c_imageHeight = 1024;
 
+// preview update rate
+static const size_t c_redrawFPS = 30;
+
 // sampling
-static const size_t c_samplesPerPixel = 100;
-static const bool c_jitterSamples = true && (c_samplesPerPixel > 1);
-static const size_t c_maxBounces = 8;
-static const size_t c_russianRouletteStartBounce = 4;
+static const bool c_jitterSamples = true;
+static const size_t c_maxBounces = 25;
+static const size_t c_russianRouletteStartBounce = 5;
 
 // threading toggle
 static const bool c_forceSingleThreaded = false;
@@ -158,7 +160,6 @@ static const float c_windowRight = tan(c_cameraHorizFOV / 2.0f) * c_nearDist;
 static const SVector c_cameraRight = CameraRight();
 static const SVector c_cameraUp = CameraUp();
 static const SVector c_cameraFwd = CameraFwd();
-static const float c_brightnessAdjust = 1.0f / (float)c_samplesPerPixel;
 static const size_t c_RRBounceLeftBegin = c_maxBounces > c_russianRouletteStartBounce ? c_maxBounces - c_russianRouletteStartBounce : 0;
 
 std::atomic<bool> g_wantsExit(false);
@@ -305,46 +306,43 @@ void RenderPixel (float u, float v, SVector& pixel)
 }
 
 //=================================================================================
-void ThreadFunc (STimer& timer)
+void ThreadFunc(STimer& timer)
 {
+    // TODO: g_currentPixelIndex should get a row of pixels at a time instead of single pixel, i think
+
     static std::atomic<size_t> g_currentPixelIndex(-1);
 
     // render individual pixels across multiple threads until we run out of pixels to do
     size_t pixelIndex = ++g_currentPixelIndex;
     bool firstThread = pixelIndex == 0;
-    while (pixelIndex < g_image_RGB_F32.m_pixels.size() && !g_wantsExit.load())
+    while (!g_wantsExit.load())
     {
+        size_t sampleCount = 1 + pixelIndex / g_image_RGB_F32.m_pixels.size();
+
         // get the current pixel's UV and actual memory location
-        size_t x = pixelIndex % g_image_RGB_F32.m_width;
-        size_t y = pixelIndex / g_image_RGB_F32.m_height;
+        size_t x = (pixelIndex % g_image_RGB_F32.m_pixels.size()) % g_image_RGB_F32.m_width;
+        size_t y = (pixelIndex % g_image_RGB_F32.m_pixels.size()) / g_image_RGB_F32.m_height;
         float xPercent = (float)x / (float)g_image_RGB_F32.m_width;
         float yPercent = (float)y / (float)g_image_RGB_F32.m_height;
-        RGB_F32& pixel = g_image_RGB_F32.m_pixels[pixelIndex];
+        RGB_F32& pixel = g_image_RGB_F32.m_pixels[pixelIndex % g_image_RGB_F32.m_pixels.size()];
 
-        // render the current pixel by averaging (possibly) multiple (possibly) jittered samples.
-        // jitter by +/- half a pixel.
-        for (size_t i = 0; i < c_samplesPerPixel; ++i)
+        // calculate +/- half a pixel jitter, for anti aliasing
+        float jitterX = 0.0f;
+        float jitterY = 0.0f;
+        if (c_jitterSamples)
         {
-            float jitterX = 0.0f;
-            float jitterY = 0.0f;
-            if (c_jitterSamples)
-            {
-                jitterX = (RandomFloat() - 0.5f) / (float)g_image_RGB_F32.m_width;
-                jitterY = (RandomFloat() - 0.5f) / (float)g_image_RGB_F32.m_height;
-            }
-
-            SVector out;
-            RenderPixel(xPercent + jitterX, yPercent + jitterY, out);
-
-            pixel[0] += out.m_x * c_brightnessAdjust;
-            pixel[1] += out.m_y * c_brightnessAdjust;
-            pixel[2] += out.m_z * c_brightnessAdjust;
+            jitterX = (RandomFloat() - 0.5f) / (float)g_image_RGB_F32.m_width;
+            jitterY = (RandomFloat() - 0.5f) / (float)g_image_RGB_F32.m_height;
         }
 
-        // apply SRGB correction
-        pixel[0] = powf(pixel[0], 1.0f / 2.2f);
-        pixel[1] = powf(pixel[1], 1.0f / 2.2f);
-        pixel[2] = powf(pixel[2], 1.0f / 2.2f);
+        // render a pixel sample
+        SVector out;
+        RenderPixel(xPercent + jitterX, yPercent + jitterY, out);
+
+        // add the sample to this pixel using incremental averaging
+        pixel[0] += (out.m_x - pixel[0]) / float(sampleCount);
+        pixel[1] += (out.m_y - pixel[1]) / float(sampleCount);
+        pixel[2] += (out.m_z - pixel[2]) / float(sampleCount);
 
         // move to next pixel
         pixelIndex = ++g_currentPixelIndex;
@@ -365,9 +363,16 @@ void CaptureImage (SImageDataBGRU8& dest, const SImageDataRGBF32& src)
         BGR_U8 *destPixel = (BGR_U8*)&dest.m_pixels[y*dest.m_pitch];
         for (size_t x = 0; x < c_imageWidth; ++x)
         {
-            (*destPixel)[0] = uint8(Clamp((*srcPixel)[2] * 255.0f, 0.0f, 255.0f));
-            (*destPixel)[1] = uint8(Clamp((*srcPixel)[1] * 255.0f, 0.0f, 255.0f));
-            (*destPixel)[2] = uint8(Clamp((*srcPixel)[0] * 255.0f, 0.0f, 255.0f));
+            // apply SRGB correction
+            RGB_F32 correctedPixel;
+            correctedPixel[0] = powf((*srcPixel)[0], 1.0f / 2.2f);
+            correctedPixel[1] = powf((*srcPixel)[1], 1.0f / 2.2f);
+            correctedPixel[2] = powf((*srcPixel)[2], 1.0f / 2.2f);
+
+            // convert from float to uint8
+            (*destPixel)[0] = uint8(Clamp(correctedPixel[2] * 255.0f, 0.0f, 255.0f));
+            (*destPixel)[1] = uint8(Clamp(correctedPixel[1] * 255.0f, 0.0f, 255.0f));
+            (*destPixel)[2] = uint8(Clamp(correctedPixel[0] * 255.0f, 0.0f, 255.0f));
             ++srcPixel;
             ++destPixel;
         }
@@ -375,126 +380,108 @@ void CaptureImage (SImageDataBGRU8& dest, const SImageDataRGBF32& src)
 }
 
 //=================================================================================
+HBITMAP CaptureImageAsBitmap (const SImageDataRGBF32& src)
+{
+    HDC dc = GetDC(nullptr);
+
+    BITMAPINFO header;
+    header.bmiHeader.biSize = sizeof(header);
+    header.bmiHeader.biWidth = (LONG)src.m_width;
+    header.bmiHeader.biHeight = (LONG)src.m_height;  // negative height = upper left origin
+    header.bmiHeader.biPlanes = 1;
+    header.bmiHeader.biBitCount = 32;
+    header.bmiHeader.biCompression = BI_RGB;
+    header.bmiHeader.biSizeImage = 0;
+    header.bmiHeader.biXPelsPerMeter = 0;
+    header.bmiHeader.biYPelsPerMeter = 0;
+    header.bmiHeader.biClrUsed = 0;
+    header.bmiHeader.biClrImportant = 0;
+
+    uint8 *destPixels = nullptr;
+    HBITMAP hbmp = CreateDIBSection(dc, &header, DIB_RGB_COLORS, (void**)&destPixels, NULL, 0);
+    if (hbmp)
+    {
+        for (size_t y = 0; y < c_imageHeight; ++y)
+        {
+            const RGB_F32 *srcPixel = &src.m_pixels[y*src.m_width];
+            uint8 *destPixel = &destPixels[y*src.m_width*4];
+            for (size_t x = 0; x < c_imageWidth; ++x)
+            {
+                // apply SRGB correction
+                RGB_F32 correctedPixel;
+                correctedPixel[0] = powf((*srcPixel)[0], 1.0f / 2.2f);
+                correctedPixel[1] = powf((*srcPixel)[1], 1.0f / 2.2f);
+                correctedPixel[2] = powf((*srcPixel)[2], 1.0f / 2.2f);
+
+                // convert to uint8
+                destPixel[0] = uint8(Clamp(correctedPixel[2] * 255.0f, 0.0f, 255.0f));
+                destPixel[1] = uint8(Clamp(correctedPixel[1] * 255.0f, 0.0f, 255.0f));
+                destPixel[2] = uint8(Clamp(correctedPixel[0] * 255.0f, 0.0f, 255.0f));
+                destPixel[3] = 255;
+                ++srcPixel;
+                destPixel += 4;;
+            }
+        }
+    }
+
+    ReleaseDC(nullptr, dc);
+    return hbmp;
+}
+
+//=================================================================================
+void TakeScreenshot ()
+{
+    // Convert from RGB floating point to BGR u8
+    SImageDataBGRU8 image_BGR_U8(c_imageWidth, c_imageHeight);
+    CaptureImage(image_BGR_U8, g_image_RGB_F32);
+
+    // find a unique filename
+    int index = 1;
+    char filename[1024];
+    strcpy(filename, "screenshot.bmp");
+    FILE *file = fopen(filename, "rb");
+    while (file)
+    {
+        fclose(file);
+        sprintf(filename, "screenshot%i.bmp", index);
+        ++index;
+        file = fopen(filename, "rb");
+    }
+
+    // save the screenshot
+    SaveImage(filename, image_BGR_U8);
+}
+
+//=================================================================================
 LRESULT __stdcall WindowProcedure (HWND window, unsigned int msg, WPARAM wp, LPARAM lp)
 {
-    static HBITMAP hbitmap = (HBITMAP)LoadImageA(nullptr, "out_3000.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
-
-    // to avoid re-allocating an image buffer every WM_PAINT!
-    static SImageDataBGRU8 image_BGR_U8(c_imageWidth, c_imageHeight);
+    static HBITMAP hbitmap = nullptr;
 
     // handle the message
     switch (msg)
     {
+        case WM_KEYDOWN:
+        {
+            switch (wp)
+            {
+                case 'S': TakeScreenshot(); return 0;
+                default: return DefWindowProc(window, msg, wp, lp);
+            }
+        }
         case WM_TIMER:
         {
             // delete the old bitmap
             DeleteObject(hbitmap);
 
             // capture the current image
-            CaptureImage(image_BGR_U8, g_image_RGB_F32);
+            hbitmap = CaptureImageAsBitmap(g_image_RGB_F32);
 
-            /*
-            // make bitmap
-            BITMAPINFOHEADER bmih;
-            bmih.biSize = sizeof(BITMAPINFOHEADER);
-            bmih.biWidth = c_imageWidth;
-            bmih.biHeight = c_imageHeight;
-            bmih.biPlanes = 1;
-            bmih.biBitCount = 24;
-            bmih.biCompression = BI_RGB;
-            bmih.biSizeImage = 0;
-            bmih.biXPelsPerMeter = 10;
-            bmih.biYPelsPerMeter = 10;
-            bmih.biClrUsed = 0;
-            bmih.biClrImportant = 0;
-
-            BITMAPINFO dbmi;
-            ZeroMemory(&dbmi, sizeof(dbmi));
-            dbmi.bmiHeader = bmih;
-            dbmi.bmiColors->rgbBlue = 0;
-            dbmi.bmiColors->rgbGreen = 0;
-            dbmi.bmiColors->rgbRed = 0;
-            dbmi.bmiColors->rgbReserved = 0;
-
-            HDC temphdc = ::GetDC(window);
-            HBITMAP hbmp = CreateDIBitmap(temphdc, &bmih, CBM_INIT, &image_BGR_U8.m_pixels[0], &dbmi, DIB_RGB_COLORS);
-            ::ReleaseDC(NULL, temphdc);
-            */
-
-            HDC hdc = GetDC(window);
-
-            BITMAPINFO info;
-            info.bmiHeader.biSize = sizeof(info.bmiHeader);
-            info.bmiHeader.biWidth = c_imageWidth;
-            info.bmiHeader.biHeight = c_imageHeight;
-            info.bmiHeader.biPlanes = 1;
-            info.bmiHeader.biBitCount = 24;
-            info.bmiHeader.biCompression = BI_RGB;
-            info.bmiHeader.biSizeImage = 0;
-            info.bmiHeader.biClrUsed = 0;
-            info.bmiHeader.biClrImportant = 0;
-
-            hbitmap = CreateCompatibleBitmap(hdc, c_imageWidth, c_imageHeight);
-            SetDIBits(hdc, hbitmap, 0, c_imageHeight, &image_BGR_U8.m_pixels[0], &info, DIB_RGB_COLORS);
-
-            // TODO: problem is that for some reason it's 32 bits per pixel? maybe alpha is 0...
-            // TODO: SImageData's SaveImage function actually makes bitmap headers similar to the above, maybe do that and then convert?
-
-            ReleaseDC(window, hdc);
-
-            RedrawWindow(window, nullptr, nullptr, RDW_INTERNALPAINT);
+            // redraw
+            InvalidateRect(window, nullptr, false);
             return DefWindowProc(window, msg, wp, lp);
         }
         case WM_PAINT:
         {
-            /*
-            SImageDataBGRU8 image_BGR_U8(c_imageWidth, c_imageHeight);
-            CaptureImage(image_BGR_U8, g_image_RGB_F32);
-            //SaveImage("outthread.bmp", image_BGR_U8);
-            // TODO: make a bitmap and render it to the window
-            // This looks promising: http://www.cplusplus.com/forum/windows/27187/
-            // also this: http://stackoverflow.com/questions/1748470/how-to-draw-image-on-a-window
-
-            PAINTSTRUCT ps;
-            HDC hdc = BeginPaint(window, &ps);
-
-            //HDC hdc = GetDC(window); // TODO: release?
-
-            BITMAPINFO info;
-            info.bmiHeader.biSize = sizeof(info.bmiHeader);
-            info.bmiHeader.biWidth = c_imageWidth;
-            info.bmiHeader.biHeight = c_imageHeight;
-            info.bmiHeader.biPlanes = 1;
-            info.bmiHeader.biBitCount = 24; // 24 bits per pixel - one unsigned char for each pixel
-            info.bmiHeader.biCompression = BI_RGB;
-            info.bmiHeader.biSizeImage = 0;
-            info.bmiHeader.biClrUsed = 0;
-            info.bmiHeader.biClrImportant = 0;
-            HDC cDC = CreateCompatibleDC(hdc); // this is the GetDC (hwnd) where hwnd is the
-            // handle of the window I want to write to
-            HBITMAP hbmp = CreateCompatibleBitmap(hdc, c_imageWidth, c_imageHeight);
-            SetDIBits(hdc, hbmp, 0, c_imageHeight, &image_BGR_U8.m_pixels[0], &info, DIB_RGB_COLORS);
-
-
-
-            hbmp = (HBITMAP)SelectObject(cDC, hbmp);
-            BitBlt(hdc, 0, 0, c_imageWidth, c_imageHeight, cDC, 0, 0, SRCCOPY);
-            DeleteObject(SelectObject(cDC, hbmp));
-            DeleteDC(cDC);
-
-            //ReleaseDC(window, hdc);
-
-            EndPaint(window, &ps);
-
-
-            DeleteObject(hbmp);
-            */
-
-            
-
-
-
-
             // draw bitmap
             PAINTSTRUCT 	ps;
             HDC 			hdc;
@@ -519,6 +506,7 @@ LRESULT __stdcall WindowProcedure (HWND window, unsigned int msg, WPARAM wp, LPA
         }
         case WM_CLOSE:
         {
+            DeleteObject(hbitmap);
             g_wantsExit = true;
             return 0;
         }
@@ -544,7 +532,7 @@ void WindowFunc ()
         if(window)
         {
             // start a timer, for us to get the latest rendered image
-            SetTimer(window, 0, 1000, nullptr);
+            SetTimer(window, 0, 1000/c_redrawFPS, nullptr);
 
             ShowWindow( window, SW_SHOWDEFAULT ) ;
             MSG msg ;
@@ -557,16 +545,16 @@ void WindowFunc ()
 //=================================================================================
 int main (int argc, char **argv)
 {
-    // Render to the image
+    // Render the image
     {
         STimer Timer("Render Time");
 
         // spin up some threads to do work, and wait for them to be finished.
-        size_t numThreads = std::thread::hardware_concurrency() - 1;  // TODO: try not subtracting 1? i wonder what will happen... may make window less responsive?
+        size_t numThreads = std::thread::hardware_concurrency();
         if (c_forceSingleThreaded || numThreads < 1)
             numThreads = 1;
         printf("Spinning up %i threads to make a %i x %i image.\n", numThreads, c_imageWidth, c_imageHeight);
-        printf("%i samples per pixel, %i max bounces.\n", c_samplesPerPixel, c_maxBounces);
+        printf("%i samples per pixel, %i max bounces.\n", 1, c_maxBounces);
         std::vector<std::thread> threads;
         threads.resize(numThreads);
         for (std::thread& t : threads)
@@ -576,31 +564,23 @@ int main (int argc, char **argv)
         for (std::thread& t : threads)
             t.join();
     }
-
-    // Convert from RGB floating point to BGR u8
-    SImageDataBGRU8 image_BGR_U8(c_imageWidth, c_imageHeight);
-    CaptureImage(image_BGR_U8, g_image_RGB_F32);
-
-    // save the image
-    SaveImage("out.bmp", image_BGR_U8);
-    WaitForEnter();
     return 0;
 }
 
 /*
 
 NOW:
-* make a window that shows the image as it's being made
-* don't exit the app til the window is closed
-* make a button to save a screenshot
-* update the image at some rate
-* make the window title show data? (number of samples?)
- * console window probably needs to be reworked too
-* maybe have one thread handle the window creation / updating?
- * not sure how single threaded would work in that scenario though.
+
+* the screen looks way darker than what comes out in the screenshots.  Look into why (gamma issue?)
+* make a button to pause rendering, make sure render times take the pausing into account
+* make the window title show data? (number of samples? length of render time)
+ * console window probably needs to be reworked too. that output isn't really needed
 * have the window thread report progress, instead of the first render thread!
 * we somehow need the threads to have the threads keep iterating over the pixels over and over
 * move window stuff into it's own file?
+
+? maybe make a win32 app and move this code in?
+ * should just be a project diff on checkin
 
 NEXT:
 * get BRDFs working
