@@ -377,17 +377,125 @@ void CaptureImage (SImageDataBGRU8& dest, const SImageDataRGBF32& src)
 //=================================================================================
 LRESULT __stdcall WindowProcedure (HWND window, unsigned int msg, WPARAM wp, LPARAM lp)
 {
+    static HBITMAP hbitmap = (HBITMAP)LoadImageA(nullptr, "out_3000.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+    static SImageDataBGRU8 image_BGR_U8(c_imageWidth, c_imageHeight);
     switch (msg)
     {
         case WM_TIMER:
         {
+            /*
+            DeleteObject(hbitmap);
+
+            // capture image
+            
+            CaptureImage(image_BGR_U8, g_image_RGB_F32);
+
+            // remake bitmap
+            BITMAPINFOHEADER bmih;
+            bmih.biSize = sizeof(BITMAPINFOHEADER);
+            bmih.biWidth = c_imageWidth;
+            bmih.biHeight = c_imageHeight;
+            bmih.biPlanes = 1;
+            bmih.biBitCount = 24;
+            bmih.biCompression = BI_RGB;
+            bmih.biSizeImage = 0;
+            bmih.biXPelsPerMeter = 10;
+            bmih.biYPelsPerMeter = 10;
+            bmih.biClrUsed = 0;
+            bmih.biClrImportant = 0;
+
+            BITMAPINFO dbmi;
+            ZeroMemory(&dbmi, sizeof(dbmi));
+            dbmi.bmiHeader = bmih;
+            dbmi.bmiColors->rgbBlue = 0;
+            dbmi.bmiColors->rgbGreen = 0;
+            dbmi.bmiColors->rgbRed = 0;
+            dbmi.bmiColors->rgbReserved = 0;
+
+            HDC temphdc = ::GetDC(NULL);
+
+            HBITMAP hbmp = CreateDIBitmap(temphdc, &bmih, CBM_INIT, &image_BGR_U8.m_pixels[0], &dbmi, DIB_RGB_COLORS);
+            ::ReleaseDC(NULL, temphdc);
+            */
+
+            RedrawWindow(window, nullptr, nullptr, RDW_INTERNALPAINT);
+            return DefWindowProc(window, msg, wp, lp);
+        }
+        case WM_PAINT:
+        {
+            /*
             SImageDataBGRU8 image_BGR_U8(c_imageWidth, c_imageHeight);
             CaptureImage(image_BGR_U8, g_image_RGB_F32);
-            SaveImage("outthread.bmp", image_BGR_U8);
+            //SaveImage("outthread.bmp", image_BGR_U8);
             // TODO: make a bitmap and render it to the window
             // This looks promising: http://www.cplusplus.com/forum/windows/27187/
             // also this: http://stackoverflow.com/questions/1748470/how-to-draw-image-on-a-window
-            return DefWindowProc(window, msg, wp, lp);
+
+            PAINTSTRUCT ps;
+            HDC hdc = BeginPaint(window, &ps);
+
+            //HDC hdc = GetDC(window); // TODO: release?
+
+            BITMAPINFO info;
+            info.bmiHeader.biSize = sizeof(info.bmiHeader);
+            info.bmiHeader.biWidth = c_imageWidth;
+            info.bmiHeader.biHeight = c_imageHeight;
+            info.bmiHeader.biPlanes = 1;
+            info.bmiHeader.biBitCount = 24; // 24 bits per pixel - one unsigned char for each pixel
+            info.bmiHeader.biCompression = BI_RGB;
+            info.bmiHeader.biSizeImage = 0;
+            info.bmiHeader.biClrUsed = 0;
+            info.bmiHeader.biClrImportant = 0;
+            HDC cDC = CreateCompatibleDC(hdc); // this is the GetDC (hwnd) where hwnd is the
+            // handle of the window I want to write to
+            HBITMAP hbmp = CreateCompatibleBitmap(hdc, c_imageWidth, c_imageHeight);
+            SetDIBits(hdc, hbmp, 0, c_imageHeight, &image_BGR_U8.m_pixels[0], &info, DIB_RGB_COLORS);
+
+
+
+            hbmp = (HBITMAP)SelectObject(cDC, hbmp);
+            BitBlt(hdc, 0, 0, c_imageWidth, c_imageHeight, cDC, 0, 0, SRCCOPY);
+            DeleteObject(SelectObject(cDC, hbmp));
+            DeleteDC(cDC);
+
+            //ReleaseDC(window, hdc);
+
+            EndPaint(window, &ps);
+
+
+            DeleteObject(hbmp);
+            */
+
+            // TODO: maybe make image_BGR_U8 static so it doesn't keep reallocating
+            // TODO: profile window thread and see if it can be improved
+
+            
+
+
+
+
+            // draw bitmap
+
+            PAINTSTRUCT 	ps;
+            HDC 			hdc;
+            BITMAP 			bitmap;
+            HDC 			hdcMem;
+            HGDIOBJ 		oldBitmap;
+
+            hdc = BeginPaint(window, &ps);
+
+            hdcMem = CreateCompatibleDC(hdc);
+            oldBitmap = SelectObject(hdcMem, hbitmap);
+
+            GetObject(hbitmap, sizeof(bitmap), &bitmap);
+            BitBlt(hdc, 0, 0, bitmap.bmWidth, bitmap.bmHeight, hdcMem, 0, 0, SRCCOPY);
+
+            SelectObject(hdcMem, oldBitmap);
+            DeleteDC(hdcMem);
+
+            EndPaint(window, &ps);
+
+            return 0;
         }
         case WM_CLOSE:
         {
@@ -472,6 +580,7 @@ NOW:
  * not sure how single threaded would work in that scenario though.
 * have the window thread report progress, instead of the first render thread!
 * we somehow need the threads to have the threads keep iterating over the pixels over and over
+* move window stuff into it's own file?
 
 NEXT:
 * get BRDFs working
