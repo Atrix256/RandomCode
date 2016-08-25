@@ -378,19 +378,23 @@ void CaptureImage (SImageDataBGRU8& dest, const SImageDataRGBF32& src)
 LRESULT __stdcall WindowProcedure (HWND window, unsigned int msg, WPARAM wp, LPARAM lp)
 {
     static HBITMAP hbitmap = (HBITMAP)LoadImageA(nullptr, "out_3000.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+
+    // to avoid re-allocating an image buffer every WM_PAINT!
     static SImageDataBGRU8 image_BGR_U8(c_imageWidth, c_imageHeight);
+
+    // handle the message
     switch (msg)
     {
         case WM_TIMER:
         {
-            /*
+            // delete the old bitmap
             DeleteObject(hbitmap);
 
-            // capture image
-            
+            // capture the current image
             CaptureImage(image_BGR_U8, g_image_RGB_F32);
 
-            // remake bitmap
+            /*
+            // make bitmap
             BITMAPINFOHEADER bmih;
             bmih.biSize = sizeof(BITMAPINFOHEADER);
             bmih.biWidth = c_imageWidth;
@@ -412,11 +416,31 @@ LRESULT __stdcall WindowProcedure (HWND window, unsigned int msg, WPARAM wp, LPA
             dbmi.bmiColors->rgbRed = 0;
             dbmi.bmiColors->rgbReserved = 0;
 
-            HDC temphdc = ::GetDC(NULL);
-
+            HDC temphdc = ::GetDC(window);
             HBITMAP hbmp = CreateDIBitmap(temphdc, &bmih, CBM_INIT, &image_BGR_U8.m_pixels[0], &dbmi, DIB_RGB_COLORS);
             ::ReleaseDC(NULL, temphdc);
             */
+
+            HDC hdc = GetDC(window);
+
+            BITMAPINFO info;
+            info.bmiHeader.biSize = sizeof(info.bmiHeader);
+            info.bmiHeader.biWidth = c_imageWidth;
+            info.bmiHeader.biHeight = c_imageHeight;
+            info.bmiHeader.biPlanes = 1;
+            info.bmiHeader.biBitCount = 24;
+            info.bmiHeader.biCompression = BI_RGB;
+            info.bmiHeader.biSizeImage = 0;
+            info.bmiHeader.biClrUsed = 0;
+            info.bmiHeader.biClrImportant = 0;
+
+            hbitmap = CreateCompatibleBitmap(hdc, c_imageWidth, c_imageHeight);
+            SetDIBits(hdc, hbitmap, 0, c_imageHeight, &image_BGR_U8.m_pixels[0], &info, DIB_RGB_COLORS);
+
+            // TODO: problem is that for some reason it's 32 bits per pixel? maybe alpha is 0...
+            // TODO: SImageData's SaveImage function actually makes bitmap headers similar to the above, maybe do that and then convert?
+
+            ReleaseDC(window, hdc);
 
             RedrawWindow(window, nullptr, nullptr, RDW_INTERNALPAINT);
             return DefWindowProc(window, msg, wp, lp);
@@ -466,16 +490,12 @@ LRESULT __stdcall WindowProcedure (HWND window, unsigned int msg, WPARAM wp, LPA
             DeleteObject(hbmp);
             */
 
-            // TODO: maybe make image_BGR_U8 static so it doesn't keep reallocating
-            // TODO: profile window thread and see if it can be improved
-
             
 
 
 
 
             // draw bitmap
-
             PAINTSTRUCT 	ps;
             HDC 			hdc;
             BITMAP 			bitmap;
