@@ -161,6 +161,12 @@ static const SVector c_cameraFwd = CameraFwd();
 static const float c_brightnessAdjust = 1.0f / (float)c_samplesPerPixel;
 static const size_t c_RRBounceLeftBegin = c_maxBounces > c_russianRouletteStartBounce ? c_maxBounces - c_russianRouletteStartBounce : 0;
 
+std::atomic<bool> g_wantsExit(false);
+
+// make an RGB f32 texture.
+// lower left of image is (0,0).
+static SImageDataRGBF32 g_image_RGB_F32(c_imageWidth, c_imageHeight);
+
 //=================================================================================
 bool AnyIntersection (const SVector& a, const SVector& dir, float length, TObjectID ignoreObjectID = c_invalidObjectID)
 {
@@ -299,21 +305,21 @@ void RenderPixel (float u, float v, SVector& pixel)
 }
 
 //=================================================================================
-void ThreadFunc (SImageDataRGBF32& image, STimer& timer)
+void ThreadFunc (STimer& timer)
 {
     static std::atomic<size_t> g_currentPixelIndex(-1);
 
     // render individual pixels across multiple threads until we run out of pixels to do
     size_t pixelIndex = ++g_currentPixelIndex;
     bool firstThread = pixelIndex == 0;
-    while (pixelIndex < image.m_pixels.size())
+    while (pixelIndex < g_image_RGB_F32.m_pixels.size() && !g_wantsExit.load())
     {
         // get the current pixel's UV and actual memory location
-        size_t x = pixelIndex % image.m_width;
-        size_t y = pixelIndex / image.m_height;
-        float xPercent = (float)x / (float)image.m_width;
-        float yPercent = (float)y / (float)image.m_height;
-        RGB_F32& pixel = image.m_pixels[pixelIndex];
+        size_t x = pixelIndex % g_image_RGB_F32.m_width;
+        size_t y = pixelIndex / g_image_RGB_F32.m_height;
+        float xPercent = (float)x / (float)g_image_RGB_F32.m_width;
+        float yPercent = (float)y / (float)g_image_RGB_F32.m_height;
+        RGB_F32& pixel = g_image_RGB_F32.m_pixels[pixelIndex];
 
         // render the current pixel by averaging (possibly) multiple (possibly) jittered samples.
         // jitter by +/- half a pixel.
@@ -323,8 +329,8 @@ void ThreadFunc (SImageDataRGBF32& image, STimer& timer)
             float jitterY = 0.0f;
             if (c_jitterSamples)
             {
-                jitterX = (RandomFloat() - 0.5f) / (float)image.m_width;
-                jitterY = (RandomFloat() - 0.5f) / (float)image.m_height;
+                jitterX = (RandomFloat() - 0.5f) / (float)g_image_RGB_F32.m_width;
+                jitterY = (RandomFloat() - 0.5f) / (float)g_image_RGB_F32.m_height;
             }
 
             SVector out;
@@ -345,48 +351,107 @@ void ThreadFunc (SImageDataRGBF32& image, STimer& timer)
 
         // first thread reports progress, show what percent we are at
         if (firstThread)
-            timer.ReportProgress(pixelIndex, image.m_pixels.size());
+            timer.ReportProgress(pixelIndex, g_image_RGB_F32.m_pixels.size());
     }
 }
- 
+
+
+//=================================================================================
+void CaptureImage (SImageDataBGRU8& dest, const SImageDataRGBF32& src)
+{
+    for (size_t y = 0; y < c_imageHeight; ++y)
+    {
+        const RGB_F32 *srcPixel = &src.m_pixels[y*src.m_width];
+        BGR_U8 *destPixel = (BGR_U8*)&dest.m_pixels[y*dest.m_pitch];
+        for (size_t x = 0; x < c_imageWidth; ++x)
+        {
+            (*destPixel)[0] = uint8(Clamp((*srcPixel)[2] * 255.0f, 0.0f, 255.0f));
+            (*destPixel)[1] = uint8(Clamp((*srcPixel)[1] * 255.0f, 0.0f, 255.0f));
+            (*destPixel)[2] = uint8(Clamp((*srcPixel)[0] * 255.0f, 0.0f, 255.0f));
+            ++srcPixel;
+            ++destPixel;
+        }
+    }
+}
+
+//=================================================================================
+LRESULT __stdcall WindowProcedure (HWND window, unsigned int msg, WPARAM wp, LPARAM lp)
+{
+    switch (msg)
+    {
+        case WM_TIMER:
+        {
+            SImageDataBGRU8 image_BGR_U8(c_imageWidth, c_imageHeight);
+            CaptureImage(image_BGR_U8, g_image_RGB_F32);
+            SaveImage("outthread.bmp", image_BGR_U8);
+            // TODO: make a bitmap and render it to the window
+            // This looks promising: http://www.cplusplus.com/forum/windows/27187/
+            // also this: http://stackoverflow.com/questions/1748470/how-to-draw-image-on-a-window
+            return DefWindowProc(window, msg, wp, lp);
+        }
+        case WM_CLOSE:
+        {
+            g_wantsExit = true;
+            return 0;
+        }
+        default:
+        {
+            return DefWindowProc(window, msg, wp, lp);
+        }
+    }
+}
+
+//=================================================================================
+void WindowFunc ()
+{
+    WNDCLASSEX wndclass = { sizeof(WNDCLASSEX), CS_DBLCLKS, WindowProcedure,
+                            0, 0, GetModuleHandle(0), LoadIcon(0,IDI_APPLICATION),
+                            LoadCursor(0,IDC_ARROW), HBRUSH(COLOR_WINDOW+1),
+                            0, L"myclass", LoadIcon(0,IDI_APPLICATION) } ;
+    if( RegisterClassEx(&wndclass) )
+    {
+        HWND window = CreateWindowEx( 0, L"myclass", L"title",
+            (WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU), CW_USEDEFAULT, CW_USEDEFAULT,
+                    c_imageWidth, c_imageHeight, 0, 0, GetModuleHandle(0), 0 ) ;
+        if(window)
+        {
+            // start a timer, for us to get the latest rendered image
+            SetTimer(window, 0, 1000, nullptr);
+
+            ShowWindow( window, SW_SHOWDEFAULT ) ;
+            MSG msg ;
+            while( GetMessage( &msg, 0, 0, 0 ) && !g_wantsExit.load())
+                DispatchMessage(&msg) ;
+        }
+    }
+}
+
 //=================================================================================
 int main (int argc, char **argv)
 {
-    // make an RGB f32 texture.
-    // lower left of image is (0,0).
-    SImageDataRGBF32 image_RGB_F32(c_imageWidth, c_imageHeight);
-
     // Render to the image
     {
         STimer Timer("Render Time");
 
         // spin up some threads to do work, and wait for them to be finished.
-        size_t numThreads = c_forceSingleThreaded ? 1 : std::thread::hardware_concurrency();
+        size_t numThreads = std::thread::hardware_concurrency() - 1;  // TODO: try not subtracting 1? i wonder what will happen... may make window less responsive?
+        if (c_forceSingleThreaded || numThreads < 1)
+            numThreads = 1;
         printf("Spinning up %i threads to make a %i x %i image.\n", numThreads, c_imageWidth, c_imageHeight);
         printf("%i samples per pixel, %i max bounces.\n", c_samplesPerPixel, c_maxBounces);
         std::vector<std::thread> threads;
         threads.resize(numThreads);
         for (std::thread& t : threads)
-            t = std::thread(ThreadFunc, std::ref(image_RGB_F32), std::ref(Timer));
+            t = std::thread(ThreadFunc, std::ref(Timer));
+        std::thread windowThread(WindowFunc);
+        windowThread.join();
         for (std::thread& t : threads)
             t.join();
     }
 
     // Convert from RGB floating point to BGR u8
     SImageDataBGRU8 image_BGR_U8(c_imageWidth, c_imageHeight);
-    for (size_t y = 0; y < c_imageHeight; ++y)
-    {
-        RGB_F32 *src = &image_RGB_F32.m_pixels[y*image_RGB_F32.m_width];
-        BGR_U8 *dest = (BGR_U8*)&image_BGR_U8.m_pixels[y*image_BGR_U8.m_pitch];
-        for (size_t x = 0; x < c_imageWidth; ++x)
-        {
-            (*dest)[0] = uint8(Clamp((*src)[2] * 255.0f, 0.0f, 255.0f));
-            (*dest)[1] = uint8(Clamp((*src)[1] * 255.0f, 0.0f, 255.0f));
-            (*dest)[2] = uint8(Clamp((*src)[0] * 255.0f, 0.0f, 255.0f));
-            ++src;
-            ++dest;
-        }
-    }
+    CaptureImage(image_BGR_U8, g_image_RGB_F32);
 
     // save the image
     SaveImage("out.bmp", image_BGR_U8);
@@ -395,6 +460,18 @@ int main (int argc, char **argv)
 }
 
 /*
+
+NOW:
+* make a window that shows the image as it's being made
+* don't exit the app til the window is closed
+* make a button to save a screenshot
+* update the image at some rate
+* make the window title show data? (number of samples?)
+ * console window probably needs to be reworked too
+* maybe have one thread handle the window creation / updating?
+ * not sure how single threaded would work in that scenario though.
+* have the window thread report progress, instead of the first render thread!
+* we somehow need the threads to have the threads keep iterating over the pixels over and over
 
 NEXT:
 * get BRDFs working
