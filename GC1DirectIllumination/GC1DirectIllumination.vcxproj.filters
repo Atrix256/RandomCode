@@ -45,5 +45,8 @@
     <ClInclude Include="MakeMaterials.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="SPlane.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

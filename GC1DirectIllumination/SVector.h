@@ -189,20 +189,44 @@ inline bool NotZero (const SVector& a)
 }
 
 //=================================================================================
-inline SVector RandomUnitVectorInHemisphere (const SVector& v)
+inline SVector UniformSampleHemisphere (const SVector& normal)
 {
-    float theta0 = RandomFloat(0, 2.0f * c_pi);
-    float theta1 = RandomFloat(0, 2.0f * c_pi);// acosf(RandomFloat(-1.0f, 1.0f));
+    // from smallpt: http://www.kevinbeason.com/smallpt/
 
-    SVector ret;
-    ret.m_x = sin(theta0) * sin(theta1);
-    ret.m_y = sin(theta0) * cos(theta1);
-    ret.m_z = sin(theta1);
+    float r1 = 2.0f * c_pi *RandomFloat();
+    float r2 = RandomFloat();
+    float r2s = sqrt(r2);
 
-    if (Dot(ret, v) < 0.0f)
-        ret *= -1;
+    SVector w = normal;
+    SVector u;
+    if (fabs(w.m_x) > 0.1f)
+        u = Cross(SVector(0.0f, 1.0f, 0.0f), w);
+    else
+        u = Cross(SVector(1.0f, 0.0f, 0.0f), w);
 
-    return ret;
+    Normalize(u);
+    SVector v = Cross(w,u);
+    SVector d = (u*cos(r1)*r2s + v*sin(r1)*r2s + w*sqrt(1 - r2));
+    Normalize(d);
+
+    return d;
+}
+
+//=================================================================================
+inline SVector CosineSampleHemisphere (float u1, float u2)
+{
+    /*
+    // from: http://www.rorydriscoll.com/2009/01/07/better-sampling/
+    // TODO: this is in tangent space, so need to return it in global space.
+    const float r = Sqrt(u1);
+    const float theta = 2 * kPi * u2;
+
+    const float x = r * Cos(theta);
+    const float y = r * Sin(theta);
+
+    return Vector3(x, y, Sqrt(Max(0.0f, 1 - u1)));
+    */
+    return SVector();
 }
 
 //=================================================================================

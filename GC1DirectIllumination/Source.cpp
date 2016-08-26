@@ -9,6 +9,7 @@
 
 #include "SVector.h"
 #include "SSphere.h"
+#include "SPlane.h"
 #include "STriangle.h"
 #include "SMaterial.h"
 #include "SImageData.h"
@@ -31,6 +32,7 @@ static const size_t c_redrawFPS = 30;
 static const bool c_jitterSamples = true;
 static const size_t c_maxBounces = 5;
 static const size_t c_russianRouletteStartBounce = 5;
+static const size_t c_stratifyPixel = 8;
 
 // camera - assumes no roll, and that (0,1,0) is up
 static const SVector c_cameraPos = { -3.0f, 3.0f, -10.0f };
@@ -40,6 +42,7 @@ static const float c_cameraVerticalFOV = 60.0f * c_pi / 180.0f;
 
 // Materials - name, diffuse, emissive, reflective, refractive, refractionIndex, brdf
 #define MATERIALLIST() \
+    MATERIAL(Black          , SVector(), SVector(), SVector(), SVector(), 1.0f, EBRDF::standard) \
     MATERIAL(MatteRed       , SVector(0.9f, 0.1f, 0.1f), SVector(), SVector(), SVector(), 1.0f, EBRDF::standard) \
     MATERIAL(MatteGreen     , SVector(0.1f, 0.9f, 0.1f), SVector(), SVector(), SVector(), 1.0f, EBRDF::standard) \
     MATERIAL(MatteBlue      , SVector(0.1f, 0.1f, 0.9f), SVector(), SVector(), SVector(), 1.0f, EBRDF::standard) \
@@ -47,13 +50,13 @@ static const float c_cameraVerticalFOV = 60.0f * c_pi / 180.0f;
     MATERIAL(MatteMagenta   , SVector(0.9f, 0.1f, 0.9f), SVector(), SVector(), SVector(), 1.0f, EBRDF::standard) \
     MATERIAL(MatteYellow    , SVector(0.9f, 0.9f, 0.1f), SVector(), SVector(), SVector(), 1.0f, EBRDF::standard) \
     MATERIAL(MatteWhite     , SVector(0.9f, 0.9f, 0.9f), SVector(), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(EmissiveRed    , SVector(), SVector(1.0f, 0.0f, 0.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(EmissiveGreen  , SVector(), SVector(0.0f, 1.0f, 0.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(EmissiveBlue   , SVector(), SVector(0.0f, 0.0f, 1.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(EmissiveTeal   , SVector(), SVector(0.0f, 1.0f, 1.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(EmissiveMagenta, SVector(), SVector(1.0f, 0.0f, 1.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(EmissiveYellow , SVector(), SVector(1.0f, 1.0f, 0.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(EmissiveWhite  , SVector(), SVector(1.0f, 1.0f, 1.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(EmissiveRed    , SVector(), SVector(10.0f,  0.0f,  0.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(EmissiveGreen  , SVector(), SVector( 0.0f, 10.0f,  0.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(EmissiveBlue   , SVector(), SVector( 0.0f,  0.0f, 10.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(EmissiveTeal   , SVector(), SVector( 0.0f, 10.0f, 10.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(EmissiveMagenta, SVector(), SVector(10.0f,  0.0f, 10.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(EmissiveYellow , SVector(), SVector(10.0f, 10.0f,  0.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(EmissiveWhite  , SVector(), SVector(10.0f, 10.0f, 10.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
     MATERIAL(ShinyRed       , SVector(0.9f, 0.1f, 0.1f), SVector(), SVector(0.2f, 0.2f, 0.2f), SVector(), 1.0f, EBRDF::standard) \
     MATERIAL(ShinyGreen     , SVector(0.1f, 0.9f, 0.1f), SVector(), SVector(0.2f, 0.2f, 0.2f), SVector(), 1.0f, EBRDF::standard) \
     MATERIAL(ShinyBlue      , SVector(0.1f, 0.1f, 0.9f), SVector(), SVector(0.2f, 0.2f, 0.2f), SVector(), 1.0f, EBRDF::standard) \
@@ -79,38 +82,29 @@ auto c_spheres = make_array(
     SSphere(SVector(-2.0f, -3.0f,  4.0f), 2.0f, TMaterialID::ShinyTeal),
     SSphere(SVector( 0.3f, -3.5f,  0.5f), 1.5f, TMaterialID::ShinyMagenta),
     SSphere(SVector( 2.0f, -4.0f, -2.0f), 1.0f, TMaterialID::ShinyYellow),
-    SSphere(SVector( 3.5f, -4.5f,  2.6f), 0.5f, TMaterialID::EmissiveRed),
-    SSphere(SVector(-3.0f, -1.0f,  1.5f), 0.5f, TMaterialID::EmissiveWhite)
+    SSphere(SVector(-3.5f, -2.5f, -2.0f), 1.0f, TMaterialID::Water),
+    SSphere(SVector(-3.0f,  5.0f, -3.0f), 0.5f, TMaterialID::EmissiveWhite),
+    SSphere(SVector( 3.0f,  5.0f, -3.0f), 0.5f, TMaterialID::EmissiveRed),
+    SSphere(SVector( 3.0f,  5.0f,  3.0f), 0.5f, TMaterialID::EmissiveBlue),
+    SSphere(SVector(-3.0f,  5.0f,  3.0f), 0.5f, TMaterialID::EmissiveGreen)
 );
 
 const float c_boxSize = 5.0f;
 
+// Planes
+auto c_planes = make_array(
+    // box walls : front, back, left, right, bottom, top
+    SPlane(SVector( 0.0,  0.0, -1.0), c_boxSize, TMaterialID::MatteBlue),
+    SPlane(SVector( 0.0,  0.0,  1.0),     11.0f, TMaterialID::Black),
+    SPlane(SVector( 1.0,  0.0,  0.0), c_boxSize, TMaterialID::MatteRed),
+    SPlane(SVector(-1.0,  0.0,  0.0), c_boxSize, TMaterialID::MatteGreen),
+    SPlane(SVector( 0.0,  1.0,  0.0), c_boxSize, TMaterialID::ShinyYellow),
+    SPlane(SVector( 0.0, -1.0,  0.0), c_boxSize, TMaterialID::MatteTeal)
+);
+
 // Triangles
 auto c_triangles = make_array(
-
-    // box wall - in front
-    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize,  c_boxSize), TMaterialID::MatteBlue),
-    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector(-c_boxSize,  c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize,  c_boxSize), TMaterialID::MatteBlue),
-
-    // box wall - left
-    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector(-c_boxSize, -c_boxSize, -c_boxSize), SVector(-c_boxSize, c_boxSize, -c_boxSize), TMaterialID::MatteRed),
-    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector(-c_boxSize,  c_boxSize,  c_boxSize), SVector(-c_boxSize, c_boxSize, -c_boxSize), TMaterialID::MatteRed),
-
-    // box wall - right
-    STriangle(SVector( c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize, -c_boxSize, -c_boxSize), SVector( c_boxSize, c_boxSize, -c_boxSize), TMaterialID::MatteGreen),
-    STriangle(SVector( c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize,  c_boxSize), SVector( c_boxSize, c_boxSize, -c_boxSize), TMaterialID::MatteGreen),
-
-    // box wall - bottom
-    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector(-c_boxSize, -c_boxSize, -c_boxSize), SVector( c_boxSize, -c_boxSize, -c_boxSize), TMaterialID::ShinyYellow),
-    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize, -c_boxSize, -c_boxSize), TMaterialID::ShinyYellow),
-
-    // box wall - top
-    STriangle(SVector(-c_boxSize,  c_boxSize,  c_boxSize), SVector(-c_boxSize,  c_boxSize, -c_boxSize), SVector( c_boxSize,  c_boxSize, -c_boxSize), TMaterialID::MatteTeal),
-    STriangle(SVector(-c_boxSize,  c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize, -c_boxSize), TMaterialID::MatteTeal)
-
-    // box wall - behind
-    //STriangle(SVector(-c_boxSize, -c_boxSize, -c_boxSize), SVector( c_boxSize, -c_boxSize, -c_boxSize), SVector( c_boxSize,  c_boxSize, -c_boxSize), TMaterialID::Walls),
-    //STriangle(SVector(-c_boxSize, -c_boxSize, -c_boxSize), SVector(-c_boxSize,  c_boxSize, -c_boxSize), SVector( c_boxSize,  c_boxSize, -c_boxSize), TMaterialID::Walls)
+    STriangle(SVector(1.5f, 1.0f, 1.25f), SVector(1.5f, 0.0f, 1.75f), SVector(0.5f, 0.0f, 2.25f), TMaterialID::MatteYellow)
 );
 
 //=================================================================================
@@ -190,6 +184,11 @@ bool AnyIntersection (const SVector& a, const SVector& dir, float length, TObjec
         if (RayIntersects(a, dir, s, collisionInfo, ignoreObjectID))
             return true;
     }
+    for (const SPlane& p : c_planes)
+    {
+        if (RayIntersects(a, dir, p, collisionInfo, ignoreObjectID))
+            return true;
+    }
     for (const STriangle& t : c_triangles)
     {
         if (RayIntersects(a, dir, t, collisionInfo, ignoreObjectID))
@@ -205,6 +204,8 @@ bool ClosestIntersection (const SVector& rayPos, const SVector& rayDir, SCollisi
     bool ret = false;
     for (const SSphere& s : c_spheres)
         ret |= RayIntersects(rayPos, rayDir, s, collisionInfo, ignoreObjectID);
+    for (const SPlane& p: c_planes)
+        ret |= RayIntersects(rayPos, rayDir, p, collisionInfo, ignoreObjectID);
     for (const STriangle& t : c_triangles)
         ret |= RayIntersects(rayPos, rayDir, t, collisionInfo, ignoreObjectID);
     return ret;
@@ -275,7 +276,7 @@ SVector L_out(const SCollisionInfo& X, const SVector& outDir, size_t bouncesLeft
     // add in random samples for global illumination etc
     if (PassesRussianRoulette(material.m_diffuse, bouncesLeft))
     {
-        SVector newRayDir = RandomUnitVectorInHemisphere(X.m_surfaceNormal);
+        SVector newRayDir = UniformSampleHemisphere(X.m_surfaceNormal);
         SCollisionInfo collisionInfo;
         if (ClosestIntersection(X.m_intersectionPoint, newRayDir, collisionInfo, X.m_objectID))
         {
@@ -342,10 +343,20 @@ void ThreadFunc()
         // calculate +/- half a pixel jitter, for anti aliasing
         float jitterX = 0.0f;
         float jitterY = 0.0f;
-        if (c_jitterSamples)
+        if (false)//c_jitterSamples)
         {
-            jitterX = (RandomFloat(-0.5f, 0.5f)) / (float)g_image_RGB_F32.m_width;
-            jitterY = (RandomFloat(-0.5f, 0.5f)) / (float)g_image_RGB_F32.m_height;
+            // stratify the jittering to be within a specific cell of a grid
+            int index = ((pixelIndex * 101) % (c_stratifyPixel*c_stratifyPixel));
+            int indexX = index % c_stratifyPixel;
+            int indexY = index / c_stratifyPixel;
+
+            float minX = float(indexX / float(c_stratifyPixel));
+            float maxX = minX + 1.0f / float(c_stratifyPixel);
+            float minY = float(indexY / float(c_stratifyPixel));
+            float maxY = minY + 1.0f / float(c_stratifyPixel);
+
+            jitterX = (RandomFloat()-0.5f) / (float)g_image_RGB_F32.m_width;
+            jitterY = (RandomFloat()-0.5f) / (float)g_image_RGB_F32.m_height;
         }
 
         // render a pixel sample
@@ -358,7 +369,7 @@ void ThreadFunc()
         pixel[2] += (out.m_z - pixel[2]) / float(sampleCount);
 
         // sleep this thread if we are supposed to
-        while (threadId >= g_numThreadsActive)
+        while (threadId >= g_numThreadsActive && !g_wantsExit.load())
             Sleep(100);
 
         // move to next pixel
@@ -541,6 +552,10 @@ LRESULT __stdcall WindowProcedure (HWND window, unsigned int msg, WPARAM wp, LPA
 
             return 0;
         }
+        case WM_MBUTTONDOWN:
+        {
+            return DefWindowProc(window, msg, wp, lp);
+        }
         case WM_CLOSE:
         {
             DeleteObject(hbitmap);
@@ -606,8 +621,10 @@ int CALLBACK WinMain(
 
 NOW:
 
-* there are weird artifacts on the x and y axis near the lights.  not sure what the deal is.  ray vs sphere test might be bad?
- ? is it from RandomUnitVectorInHemisphere?
+? why is the image so noisy?
+ * you may be doing something wrong with probability distribution stuff.  maybe that's why things are so noisy?
+
+* figure out cosine weighted sampling, it's supposed to make it converge faster
 
 NEXT:
 * get BRDFs working
