@@ -21,8 +21,8 @@
 //=================================================================================
 
 // image size
-static const size_t c_imageWidth = 1024;
-static const size_t c_imageHeight = 1024;
+static const size_t c_imageWidth = 512;
+static const size_t c_imageHeight = 512;
 
 // preview update rate
 static const size_t c_redrawFPS = 30;
@@ -32,8 +32,8 @@ static const bool c_jitterSamples = true;
 static const size_t c_maxBounces = 25;
 static const size_t c_russianRouletteStartBounce = 5;
 
-// threading toggle
-static const bool c_forceSingleThreaded = false;
+// threading
+static const size_t c_maxThreads = 7;
 
 // camera - assumes no roll, and that (0,1,0) is up
 static const SVector c_cameraPos = { -3.0f, 2.0f, -10.0f };
@@ -43,35 +43,67 @@ static const float c_cameraVerticalFOV = 60.0f * c_pi / 180.0f;
 
 // Materials - name, diffuse, emissive, reflective, refractive, refractionIndex, brdf
 #define MATERIALLIST() \
-    MATERIAL(MatteRed      , SVector(0.9f, 0.1f, 0.1f), SVector(), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(MatteGreen    , SVector(0.1f, 0.9f, 0.1f), SVector(), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(MatteBlue     , SVector(0.1f, 0.1f, 0.9f), SVector(), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(MatteTeal     , SVector(0.1f, 0.9f, 0.9f), SVector(), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(MatteMagenta  , SVector(0.9f, 0.1f, 0.9f), SVector(), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(MatteYellow   , SVector(0.9f, 0.9f, 0.1f), SVector(), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(Chrome        , SVector(0.01f, 0.01f, 0.01f), SVector(), SVector(1.0f, 1.0f, 1.0f), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(EmissiveRed   , SVector(), SVector(0.9f, 0.3f, 0.3f), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(EmissiveGreen , SVector(), SVector(0.3f, 0.9f, 0.3f), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(EmissiveBlue  , SVector(), SVector(0.3f, 0.3f, 0.9f), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(EmissiveWhite , SVector(), SVector(1.0f, 1.0f, 1.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(Walls         , SVector(0.5f, 0.5f, 0.5f), SVector(), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(Water         , SVector(), SVector(), SVector(), SVector(1.0f, 1.0f, 1.0f), 1.1f /*1.3f*/, EBRDF::standard) \
+    MATERIAL(MatteRed       , SVector(0.9f, 0.1f, 0.1f), SVector(), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(MatteGreen     , SVector(0.1f, 0.9f, 0.1f), SVector(), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(MatteBlue      , SVector(0.1f, 0.1f, 0.9f), SVector(), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(MatteTeal      , SVector(0.1f, 0.9f, 0.9f), SVector(), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(MatteMagenta   , SVector(0.9f, 0.1f, 0.9f), SVector(), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(MatteYellow    , SVector(0.9f, 0.9f, 0.1f), SVector(), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(MatteWhite     , SVector(0.9f, 0.9f, 0.9f), SVector(), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(EmissiveRed    , SVector(), SVector(1.0f, 0.0f, 0.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(EmissiveGreen  , SVector(), SVector(0.0f, 1.0f, 0.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(EmissiveBlue   , SVector(), SVector(0.0f, 0.0f, 1.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(EmissiveTeal   , SVector(), SVector(0.0f, 1.0f, 1.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(EmissiveMagenta, SVector(), SVector(1.0f, 0.0f, 1.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(EmissiveYellow , SVector(), SVector(1.0f, 1.0f, 0.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(EmissiveWhite  , SVector(), SVector(1.0f, 1.0f, 1.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(ShinyRed       , SVector(0.9f, 0.1f, 0.1f), SVector(), SVector(0.2f, 0.2f, 0.2f), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(ShinyGreen     , SVector(0.1f, 0.9f, 0.1f), SVector(), SVector(0.2f, 0.2f, 0.2f), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(ShinyBlue      , SVector(0.1f, 0.1f, 0.9f), SVector(), SVector(0.2f, 0.2f, 0.2f), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(ShinyTeal      , SVector(0.1f, 0.9f, 0.9f), SVector(), SVector(0.2f, 0.2f, 0.2f), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(ShinyMagenta   , SVector(0.9f, 0.1f, 0.9f), SVector(), SVector(0.2f, 0.2f, 0.2f), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(ShinyYellow    , SVector(0.9f, 0.9f, 0.1f), SVector(), SVector(0.2f, 0.2f, 0.2f), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(ShinyWhite     , SVector(0.9f, 0.9f, 0.9f), SVector(), SVector(0.2f, 0.2f, 0.2f), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(ShinyGrey      , SVector(0.1f, 0.1f, 0.1f), SVector(), SVector(0.2f, 0.2f, 0.2f), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(GlowRed        , SVector(0.1f, 0.1f, 0.1f), SVector(0.01f, 0.0f, 0.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(GlowGreen      , SVector(0.1f, 0.1f, 0.1f), SVector(0.0f, 0.2f, 0.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(GlowBlue       , SVector(0.1f, 0.1f, 0.1f), SVector(0.0f, 0.0f, 2.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(GlowTeal       , SVector(0.1f, 0.1f, 0.1f), SVector(0.0f, 2.0f, 2.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(GlowMagenta    , SVector(0.1f, 0.1f, 0.1f), SVector(2.0f, 0.0f, 2.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(GlowYellow     , SVector(0.1f, 0.1f, 0.1f), SVector(2.0f, 2.0f, 0.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(GlowWhite      , SVector(0.1f, 0.1f, 0.1f), SVector(2.0f, 2.0f, 2.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(Water          , SVector(), SVector(), SVector(0.1f, 0.1f, 0.1f), SVector(1.0f, 1.0f, 1.0f), 1.3f, EBRDF::standard) \
+    MATERIAL(Chrome         , SVector(0.01f, 0.01f, 0.01f), SVector(), SVector(1.0f, 1.0f, 1.0f), SVector(), 1.0f, EBRDF::standard) \
 
 #include "MakeMaterials.h"
 
 // Spheres
 auto c_spheres = make_array(
-    SSphere(SVector(-2.0f, 0.0f, 4.0f), 2.0f, TMaterialID::Chrome),
-    SSphere(SVector(-1.5f, 1.0f, -2.0f), 1.0f, TMaterialID::Water),
-    SSphere(SVector(0.0f, 0.0f, 2.0f), 0.5f, TMaterialID::MatteRed),
+    SSphere(SVector(-2.0f, -3.0f,  4.0f), 2.0f, TMaterialID::ShinyTeal),
+    SSphere(SVector( 0.3f, -3.5f,  0.5f), 1.5f, TMaterialID::ShinyMagenta),
+    SSphere(SVector( 2.0f, -4.0f, -2.0f), 1.0f, TMaterialID::ShinyYellow),
+    SSphere(SVector(-3.0f, -4.5f,  1.5f), 0.5f, TMaterialID::Water),
+
+    //SSphere(SVector(3.8f, -3.8f, 3.8f), 1.0f, TMaterialID::Water),
+
+    //SSphere(SVector(0.0f, 0.0f, 1.0f), -4.0f, TMaterialID::Water),
+    /*SSphere(SVector(0.0f, 0.0f, 2.0f), 0.5f, TMaterialID::MatteRed),
     SSphere(SVector(-2.0f, 0.0f, 2.0f), 0.5f, TMaterialID::MatteGreen),
     SSphere(SVector(2.0f, 0.0f, 2.0f), 0.5f, TMaterialID::MatteBlue),
     SSphere(SVector(0.0f, 2.0f, 2.0f), 0.5f, TMaterialID::MatteTeal),
     SSphere(SVector(0.0f,-2.0f, 2.0f), 0.5f, TMaterialID::MatteMagenta),
+    */
 
-    SSphere(SVector(0.5f, 0.1f, 0.0f), 0.03f, TMaterialID::EmissiveWhite),     // red light
-    SSphere(SVector(0.3f, -0.3f, 0.0f), 0.03f, TMaterialID::EmissiveWhite),   // green light
-    SSphere(SVector(-0.3f, 0.1f, -1.0f), 0.03f, TMaterialID::EmissiveWhite)   // blue light
+    //SSphere(SVector(-4.0f,  1.5f,  0.0f), 0.03f, TMaterialID::EmissiveRed),     // red light
+    //SSphere(SVector( 4.0f, -1.5f,  0.0f), 0.03f, TMaterialID::EmissiveGreen),   // green light
+    //SSphere(SVector( 2.0f,  4.0f, -1.0f), 0.03f, TMaterialID::EmissiveBlue),   // blue light
+
+    SSphere(SVector(-3.0f, 4.5f, -3.0f), 0.5f, TMaterialID::EmissiveBlue),
+    SSphere(SVector(-3.0f, 4.5f,  3.0f), 0.5f, TMaterialID::EmissiveGreen),
+    SSphere(SVector( 3.0f, 4.5f, -3.0f), 0.5f, TMaterialID::EmissiveRed),
+    SSphere(SVector( 3.0f, 4.5f,  3.0f), 0.5f, TMaterialID::EmissiveWhite)
+
+    //SSphere(SVector(0.0f, 0.0f, 0.0f), 12.0f, TMaterialID::ShinyGrey)
 );
 
 const float c_boxSize = 5.0f;
@@ -79,27 +111,26 @@ const float c_boxSize = 5.0f;
 // Triangles
 auto c_triangles = make_array(
     STriangle(SVector(1.5f, 1.0f, 1.25f), SVector(1.5f, 0.0f, 1.75f), SVector(0.5f, 0.0f, 2.25f), TMaterialID::MatteYellow),
-    STriangle(SVector(0.5f, 0.25f, 3.5f), SVector(1.5f, 0.25f, 3.0f), SVector(1.5f, 1.25f, 2.5f), TMaterialID::MatteYellow),
 
     // box wall - in front
-    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize,  c_boxSize), TMaterialID::Walls),
-    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector(-c_boxSize,  c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize,  c_boxSize), TMaterialID::Walls),
+    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize,  c_boxSize), TMaterialID::MatteBlue),
+    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector(-c_boxSize,  c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize,  c_boxSize), TMaterialID::MatteBlue),
 
     // box wall - left
-    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector(-c_boxSize, -c_boxSize, -c_boxSize), SVector(-c_boxSize, c_boxSize, -c_boxSize), TMaterialID::Walls),
-    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector(-c_boxSize,  c_boxSize,  c_boxSize), SVector(-c_boxSize, c_boxSize, -c_boxSize), TMaterialID::Walls),
+    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector(-c_boxSize, -c_boxSize, -c_boxSize), SVector(-c_boxSize, c_boxSize, -c_boxSize), TMaterialID::MatteRed),
+    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector(-c_boxSize,  c_boxSize,  c_boxSize), SVector(-c_boxSize, c_boxSize, -c_boxSize), TMaterialID::MatteRed),
 
     // box wall - right
-    STriangle(SVector( c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize, -c_boxSize, -c_boxSize), SVector( c_boxSize, c_boxSize, -c_boxSize), TMaterialID::Walls),
-    STriangle(SVector( c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize,  c_boxSize), SVector( c_boxSize, c_boxSize, -c_boxSize), TMaterialID::Walls),
+    STriangle(SVector( c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize, -c_boxSize, -c_boxSize), SVector( c_boxSize, c_boxSize, -c_boxSize), TMaterialID::MatteGreen),
+    STriangle(SVector( c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize,  c_boxSize), SVector( c_boxSize, c_boxSize, -c_boxSize), TMaterialID::MatteGreen),
 
     // box wall - bottom
-    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector(-c_boxSize, -c_boxSize, -c_boxSize), SVector( c_boxSize, -c_boxSize, -c_boxSize), TMaterialID::Walls),
-    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize, -c_boxSize, -c_boxSize), TMaterialID::Walls),
+    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector(-c_boxSize, -c_boxSize, -c_boxSize), SVector( c_boxSize, -c_boxSize, -c_boxSize), TMaterialID::MatteYellow),
+    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize, -c_boxSize, -c_boxSize), TMaterialID::MatteYellow),
 
     // box wall - top
-    STriangle(SVector(-c_boxSize,  c_boxSize,  c_boxSize), SVector(-c_boxSize,  c_boxSize, -c_boxSize), SVector( c_boxSize,  c_boxSize, -c_boxSize), TMaterialID::Walls),
-    STriangle(SVector(-c_boxSize,  c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize, -c_boxSize), TMaterialID::Walls)
+    STriangle(SVector(-c_boxSize,  c_boxSize,  c_boxSize), SVector(-c_boxSize,  c_boxSize, -c_boxSize), SVector( c_boxSize,  c_boxSize, -c_boxSize), TMaterialID::MatteTeal),
+    STriangle(SVector(-c_boxSize,  c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize, -c_boxSize), TMaterialID::MatteTeal)
 
     // box wall - behind
     //STriangle(SVector(-c_boxSize, -c_boxSize, -c_boxSize), SVector( c_boxSize, -c_boxSize, -c_boxSize), SVector( c_boxSize,  c_boxSize, -c_boxSize), TMaterialID::Walls),
@@ -163,6 +194,8 @@ static const SVector c_cameraFwd = CameraFwd();
 static const size_t c_RRBounceLeftBegin = c_maxBounces > c_russianRouletteStartBounce ? c_maxBounces - c_russianRouletteStartBounce : 0;
 
 std::atomic<bool> g_wantsExit(false);
+
+static std::atomic<size_t> g_currentPixelIndex(-1);
 
 // make an RGB f32 texture.
 // lower left of image is (0,0).
@@ -310,8 +343,6 @@ void ThreadFunc(STimer& timer)
 {
     // TODO: g_currentPixelIndex should get a row of pixels at a time instead of single pixel, i think
 
-    static std::atomic<size_t> g_currentPixelIndex(-1);
-
     // render individual pixels across multiple threads until we run out of pixels to do
     size_t pixelIndex = ++g_currentPixelIndex;
     bool firstThread = pixelIndex == 0;
@@ -331,8 +362,8 @@ void ThreadFunc(STimer& timer)
         float jitterY = 0.0f;
         if (c_jitterSamples)
         {
-            jitterX = (RandomFloat() - 0.5f) / (float)g_image_RGB_F32.m_width;
-            jitterY = (RandomFloat() - 0.5f) / (float)g_image_RGB_F32.m_height;
+            jitterX = (RandomFloat(-0.5f, 0.5f)) / (float)g_image_RGB_F32.m_width;
+            jitterY = (RandomFloat(-0.5f, 0.5f)) / (float)g_image_RGB_F32.m_height;
         }
 
         // render a pixel sample
@@ -347,9 +378,10 @@ void ThreadFunc(STimer& timer)
         // move to next pixel
         pixelIndex = ++g_currentPixelIndex;
 
+        // TODO: get rid of, or repurpose, STimer
         // first thread reports progress, show what percent we are at
-        if (firstThread)
-            timer.ReportProgress(pixelIndex, g_image_RGB_F32.m_pixels.size());
+        //if (firstThread)
+            //timer.ReportProgress(pixelIndex, g_image_RGB_F32.m_pixels.size());
     }
 }
 
@@ -456,6 +488,7 @@ void TakeScreenshot ()
 LRESULT __stdcall WindowProcedure (HWND window, unsigned int msg, WPARAM wp, LPARAM lp)
 {
     static HBITMAP hbitmap = nullptr;
+    static size_t numTicks = 0;
 
     // handle the message
     switch (msg)
@@ -464,12 +497,35 @@ LRESULT __stdcall WindowProcedure (HWND window, unsigned int msg, WPARAM wp, LPA
         {
             switch (wp)
             {
+                case VK_ESCAPE: DeleteObject(hbitmap); g_wantsExit = true; return 0;
                 case 'S': TakeScreenshot(); return 0;
                 default: return DefWindowProc(window, msg, wp, lp);
             }
         }
         case WM_TIMER:
         {
+            // advance how many ticks we've seen
+            ++numTicks;
+            
+            // calculate our time
+            size_t secondsTotal = numTicks / c_redrawFPS;
+            size_t hours = secondsTotal / (60 * 60);
+            secondsTotal = secondsTotal % (60 * 60);
+            size_t minutes = secondsTotal / 60;
+            secondsTotal = secondsTotal % 60;
+            size_t seconds = secondsTotal;
+
+            // calculate our sample count
+            size_t sampleCount = g_currentPixelIndex.load() / g_image_RGB_F32.m_pixels.size();
+
+            // calculate samples per second
+            float samplesPerSecond = float(sampleCount) * float(c_redrawFPS) / float(numTicks);
+
+            // update the window title
+            char buffer[1024];
+            sprintf(buffer, "%i samples, %i:%s%i:%s%i, %0.0f samples per second", sampleCount, hours, minutes < 10 ? "0" : "", minutes, seconds < 10 ? "0" : "", seconds, samplesPerSecond);
+            SetWindowTextA(window, buffer);
+
             // delete the old bitmap
             DeleteObject(hbitmap);
 
@@ -551,10 +607,10 @@ int main (int argc, char **argv)
 
         // spin up some threads to do work, and wait for them to be finished.
         size_t numThreads = std::thread::hardware_concurrency();
-        if (c_forceSingleThreaded || numThreads < 1)
-            numThreads = 1;
+        if (numThreads > c_maxThreads)
+            numThreads = c_maxThreads;
         printf("Spinning up %i threads to make a %i x %i image.\n", numThreads, c_imageWidth, c_imageHeight);
-        printf("%i samples per pixel, %i max bounces.\n", 1, c_maxBounces);
+        printf("%i max bounces.\n", c_maxBounces);
         std::vector<std::thread> threads;
         threads.resize(numThreads);
         for (std::thread& t : threads)
@@ -667,6 +723,7 @@ OTHER:
 * make width / height be command line options?
 * aspect ratio support is weird. it stretches images in a funny way.  may be correct?
 * profile with sleepy to see where the time is going!
+* make reported time more reliable, not based on WM_TIMER calls!
 
 ! blog posts on all this info
  * basic path tracing / rendering equation
