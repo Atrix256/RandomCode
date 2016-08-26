@@ -29,11 +29,8 @@ static const size_t c_redrawFPS = 30;
 
 // sampling
 static const bool c_jitterSamples = true;
-static const size_t c_maxBounces = 25;
+static const size_t c_maxBounces = 5;
 static const size_t c_russianRouletteStartBounce = 5;
-
-// threading
-static const size_t c_maxThreads = 7;
 
 // camera - assumes no roll, and that (0,1,0) is up
 static const SVector c_cameraPos = { -3.0f, 2.0f, -10.0f };
@@ -82,7 +79,7 @@ auto c_spheres = make_array(
     SSphere(SVector(-2.0f, -3.0f,  4.0f), 2.0f, TMaterialID::ShinyTeal),
     SSphere(SVector( 0.3f, -3.5f,  0.5f), 1.5f, TMaterialID::ShinyMagenta),
     SSphere(SVector( 2.0f, -4.0f, -2.0f), 1.0f, TMaterialID::ShinyYellow),
-    SSphere(SVector(-3.0f, -4.5f,  1.5f), 0.5f, TMaterialID::Water),
+    SSphere(SVector(-3.0f, -1.0f,  1.5f), 0.5f, TMaterialID::EmissiveWhite)
 
     //SSphere(SVector(3.8f, -3.8f, 3.8f), 1.0f, TMaterialID::Water),
 
@@ -98,10 +95,10 @@ auto c_spheres = make_array(
     //SSphere(SVector( 4.0f, -1.5f,  0.0f), 0.03f, TMaterialID::EmissiveGreen),   // green light
     //SSphere(SVector( 2.0f,  4.0f, -1.0f), 0.03f, TMaterialID::EmissiveBlue),   // blue light
 
-    SSphere(SVector(-3.0f, 4.5f, -3.0f), 0.5f, TMaterialID::EmissiveBlue),
-    SSphere(SVector(-3.0f, 4.5f,  3.0f), 0.5f, TMaterialID::EmissiveGreen),
-    SSphere(SVector( 3.0f, 4.5f, -3.0f), 0.5f, TMaterialID::EmissiveRed),
-    SSphere(SVector( 3.0f, 4.5f,  3.0f), 0.5f, TMaterialID::EmissiveWhite)
+    //SSphere(SVector(-3.0f, 4.5f, -3.0f), 0.5f, TMaterialID::EmissiveBlue),
+    //SSphere(SVector(-3.0f, 4.5f,  3.0f), 0.5f, TMaterialID::EmissiveGreen),
+    //SSphere(SVector( 3.0f, 4.5f, -3.0f), 0.5f, TMaterialID::EmissiveRed),
+    //SSphere(SVector( 3.0f, 4.5f,  3.0f), 0.5f, TMaterialID::EmissiveWhite)
 
     //SSphere(SVector(0.0f, 0.0f, 0.0f), 12.0f, TMaterialID::ShinyGrey)
 );
@@ -110,27 +107,27 @@ const float c_boxSize = 5.0f;
 
 // Triangles
 auto c_triangles = make_array(
-    STriangle(SVector(1.5f, 1.0f, 1.25f), SVector(1.5f, 0.0f, 1.75f), SVector(0.5f, 0.0f, 2.25f), TMaterialID::MatteYellow),
+    //STriangle(SVector(1.5f, 1.0f, 1.25f), SVector(1.5f, 0.0f, 1.75f), SVector(0.5f, 0.0f, 2.25f), TMaterialID::MatteYellow),
 
     // box wall - in front
-    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize,  c_boxSize), TMaterialID::MatteBlue),
-    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector(-c_boxSize,  c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize,  c_boxSize), TMaterialID::MatteBlue),
+    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize,  c_boxSize), TMaterialID::ShinyBlue),
+    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector(-c_boxSize,  c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize,  c_boxSize), TMaterialID::ShinyBlue),
 
     // box wall - left
-    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector(-c_boxSize, -c_boxSize, -c_boxSize), SVector(-c_boxSize, c_boxSize, -c_boxSize), TMaterialID::MatteRed),
-    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector(-c_boxSize,  c_boxSize,  c_boxSize), SVector(-c_boxSize, c_boxSize, -c_boxSize), TMaterialID::MatteRed),
+    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector(-c_boxSize, -c_boxSize, -c_boxSize), SVector(-c_boxSize, c_boxSize, -c_boxSize), TMaterialID::ShinyRed),
+    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector(-c_boxSize,  c_boxSize,  c_boxSize), SVector(-c_boxSize, c_boxSize, -c_boxSize), TMaterialID::ShinyRed),
 
     // box wall - right
-    STriangle(SVector( c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize, -c_boxSize, -c_boxSize), SVector( c_boxSize, c_boxSize, -c_boxSize), TMaterialID::MatteGreen),
-    STriangle(SVector( c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize,  c_boxSize), SVector( c_boxSize, c_boxSize, -c_boxSize), TMaterialID::MatteGreen),
+    STriangle(SVector( c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize, -c_boxSize, -c_boxSize), SVector( c_boxSize, c_boxSize, -c_boxSize), TMaterialID::ShinyGreen),
+    STriangle(SVector( c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize,  c_boxSize), SVector( c_boxSize, c_boxSize, -c_boxSize), TMaterialID::ShinyGreen),
 
     // box wall - bottom
-    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector(-c_boxSize, -c_boxSize, -c_boxSize), SVector( c_boxSize, -c_boxSize, -c_boxSize), TMaterialID::MatteYellow),
-    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize, -c_boxSize, -c_boxSize), TMaterialID::MatteYellow),
+    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector(-c_boxSize, -c_boxSize, -c_boxSize), SVector( c_boxSize, -c_boxSize, -c_boxSize), TMaterialID::ShinyYellow),
+    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize, -c_boxSize, -c_boxSize), TMaterialID::ShinyYellow),
 
     // box wall - top
-    STriangle(SVector(-c_boxSize,  c_boxSize,  c_boxSize), SVector(-c_boxSize,  c_boxSize, -c_boxSize), SVector( c_boxSize,  c_boxSize, -c_boxSize), TMaterialID::MatteTeal),
-    STriangle(SVector(-c_boxSize,  c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize, -c_boxSize), TMaterialID::MatteTeal)
+    STriangle(SVector(-c_boxSize,  c_boxSize,  c_boxSize), SVector(-c_boxSize,  c_boxSize, -c_boxSize), SVector( c_boxSize,  c_boxSize, -c_boxSize), TMaterialID::ShinyTeal),
+    STriangle(SVector(-c_boxSize,  c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize, -c_boxSize), TMaterialID::ShinyTeal)
 
     // box wall - behind
     //STriangle(SVector(-c_boxSize, -c_boxSize, -c_boxSize), SVector( c_boxSize, -c_boxSize, -c_boxSize), SVector( c_boxSize,  c_boxSize, -c_boxSize), TMaterialID::Walls),
@@ -192,6 +189,9 @@ static const SVector c_cameraRight = CameraRight();
 static const SVector c_cameraUp = CameraUp();
 static const SVector c_cameraFwd = CameraFwd();
 static const size_t c_RRBounceLeftBegin = c_maxBounces > c_russianRouletteStartBounce ? c_maxBounces - c_russianRouletteStartBounce : 0;
+
+static const size_t c_numThreads = std::thread::hardware_concurrency();
+static size_t g_numThreadsActive = c_numThreads;
 
 std::atomic<bool> g_wantsExit(false);
 
@@ -339,8 +339,11 @@ void RenderPixel (float u, float v, SVector& pixel)
 }
 
 //=================================================================================
-void ThreadFunc(STimer& timer)
+void ThreadFunc()
 {
+    static std::atomic<size_t> nextThreadId(-1);
+    size_t threadId = ++nextThreadId;
+
     // TODO: g_currentPixelIndex should get a row of pixels at a time instead of single pixel, i think
 
     // render individual pixels across multiple threads until we run out of pixels to do
@@ -375,13 +378,12 @@ void ThreadFunc(STimer& timer)
         pixel[1] += (out.m_y - pixel[1]) / float(sampleCount);
         pixel[2] += (out.m_z - pixel[2]) / float(sampleCount);
 
+        // sleep this thread if we are supposed to
+        while (threadId >= g_numThreadsActive)
+            Sleep(100);
+
         // move to next pixel
         pixelIndex = ++g_currentPixelIndex;
-
-        // TODO: get rid of, or repurpose, STimer
-        // first thread reports progress, show what percent we are at
-        //if (firstThread)
-            //timer.ReportProgress(pixelIndex, g_image_RGB_F32.m_pixels.size());
     }
 }
 
@@ -419,7 +421,7 @@ HBITMAP CaptureImageAsBitmap (const SImageDataRGBF32& src)
     BITMAPINFO header;
     header.bmiHeader.biSize = sizeof(header);
     header.bmiHeader.biWidth = (LONG)src.m_width;
-    header.bmiHeader.biHeight = (LONG)src.m_height;  // negative height = upper left origin
+    header.bmiHeader.biHeight = (LONG)src.m_height;
     header.bmiHeader.biPlanes = 1;
     header.bmiHeader.biBitCount = 32;
     header.bmiHeader.biCompression = BI_RGB;
@@ -488,7 +490,7 @@ void TakeScreenshot ()
 LRESULT __stdcall WindowProcedure (HWND window, unsigned int msg, WPARAM wp, LPARAM lp)
 {
     static HBITMAP hbitmap = nullptr;
-    static size_t numTicks = 0;
+    static STimer timer;
 
     // handle the message
     switch (msg)
@@ -497,18 +499,18 @@ LRESULT __stdcall WindowProcedure (HWND window, unsigned int msg, WPARAM wp, LPA
         {
             switch (wp)
             {
+                case VK_DOWN: g_numThreadsActive = g_numThreadsActive > 0 ? --g_numThreadsActive : 0; return 0;
+                case VK_UP: g_numThreadsActive = g_numThreadsActive < c_numThreads ? ++g_numThreadsActive : c_numThreads; return 0;
                 case VK_ESCAPE: DeleteObject(hbitmap); g_wantsExit = true; return 0;
                 case 'S': TakeScreenshot(); return 0;
                 default: return DefWindowProc(window, msg, wp, lp);
             }
         }
         case WM_TIMER:
-        {
-            // advance how many ticks we've seen
-            ++numTicks;
-            
+        {            
             // calculate our time
-            size_t secondsTotal = numTicks / c_redrawFPS;
+            size_t secondsElapsed = timer.ElapsedSeconds();
+            size_t secondsTotal = secondsElapsed;
             size_t hours = secondsTotal / (60 * 60);
             secondsTotal = secondsTotal % (60 * 60);
             size_t minutes = secondsTotal / 60;
@@ -519,11 +521,11 @@ LRESULT __stdcall WindowProcedure (HWND window, unsigned int msg, WPARAM wp, LPA
             size_t sampleCount = g_currentPixelIndex.load() / g_image_RGB_F32.m_pixels.size();
 
             // calculate samples per second
-            float samplesPerSecond = float(sampleCount) * float(c_redrawFPS) / float(numTicks);
+            float samplesPerSecond = float(sampleCount) / float(secondsElapsed);
 
             // update the window title
             char buffer[1024];
-            sprintf(buffer, "%i samples, %i:%s%i:%s%i, %0.0f samples per second", sampleCount, hours, minutes < 10 ? "0" : "", minutes, seconds < 10 ? "0" : "", seconds, samplesPerSecond);
+            sprintf(buffer, "%i samples, %i:%s%i:%s%i, %0.0f samples per second, %i/%i threads, %ix%i", sampleCount, hours, minutes < 10 ? "0" : "", minutes, seconds < 10 ? "0" : "", seconds, samplesPerSecond, g_numThreadsActive, c_numThreads, c_imageWidth, c_imageHeight);
             SetWindowTextA(window, buffer);
 
             // delete the old bitmap
@@ -601,42 +603,29 @@ void WindowFunc ()
 //=================================================================================
 int main (int argc, char **argv)
 {
-    // Render the image
-    {
-        STimer Timer("Render Time");
-
-        // spin up some threads to do work, and wait for them to be finished.
-        size_t numThreads = std::thread::hardware_concurrency();
-        if (numThreads > c_maxThreads)
-            numThreads = c_maxThreads;
-        printf("Spinning up %i threads to make a %i x %i image.\n", numThreads, c_imageWidth, c_imageHeight);
-        printf("%i max bounces.\n", c_maxBounces);
-        std::vector<std::thread> threads;
-        threads.resize(numThreads);
-        for (std::thread& t : threads)
-            t = std::thread(ThreadFunc, std::ref(Timer));
-        std::thread windowThread(WindowFunc);
-        windowThread.join();
-        for (std::thread& t : threads)
-            t.join();
-    }
+    // spin up some threads to do the work, and wait for them to be finished.
+    std::vector<std::thread> threads;
+    threads.resize(c_numThreads);
+    for (std::thread& t : threads)
+        t = std::thread(ThreadFunc);
+    std::thread windowThread(WindowFunc);
+    windowThread.join();
+    for (std::thread& t : threads)
+        t.join();
     return 0;
 }
 
 /*
 
 NOW:
-
-* the screen looks way darker than what comes out in the screenshots.  Look into why (gamma issue?)
-* make a button to pause rendering, make sure render times take the pausing into account
-* make the window title show data? (number of samples? length of render time)
- * console window probably needs to be reworked too. that output isn't really needed
-* have the window thread report progress, instead of the first render thread!
-* we somehow need the threads to have the threads keep iterating over the pixels over and over
+* console window probably needs to be reworked. that output isn't really needed
 * move window stuff into it's own file?
 
 ? maybe make a win32 app and move this code in?
  * should just be a project diff on checkin
+
+* there are weird artifacts on the x and y axis near the lights.  not sure what the deal is.  ray vs sphere test might be bad?
+ ? is it from RandomUnitVectorInHemisphere?
 
 NEXT:
 * get BRDFs working
@@ -665,18 +654,16 @@ GRAPHICS FEATURES:
  * https://drive.google.com/file/d/0B8g97JkuSSBwUENiWTJXeGtTOHFmSm51UC01YWtCZw/view
 * implement roughness somehow
 * try mixing direct illumination with monte carlo like this: https://www.shadertoy.com/view/4tl3z4
-* better source of random numbers than rand
 * scattering function
 * importance sampling
-* ! multiple importance sampling
+* multiple importance sampling
 * dont forget to tone map to get from whatever floating point values back to 0..1 before going to u8
  * saturate towards white!
 * bloom (post process)
-* other primitive types?
 * CSG
 * refraction
 * beer's law / internal reflection stuff
-* participating media (fog)
+* participating media (fog) - maybe have fog volumes? i dunno.
 * blue noise sampling?
  * try different jittering patterns
  * could even try blue noise dithered thing!
@@ -688,11 +675,10 @@ GRAPHICS FEATURES:
 * textures
 * bump mapping
 ? look up "volumetric path tracing"?  https://en.wikipedia.org/wiki/Volumetric_path_tracing
-* area lights and image based lighting? this may just work, by having emissive surfaces / textures.
+* area lights and image based lighting? this should just work, by having emissive surfaces / textures.
 * chromatic abberation etc (may need to do frequency sampling!!)
 * adaptive rendering? render at low res, then progressively higher res? look into how that works.
 * red / blue 3d glasses mode
-? how to address color banding? or is there even banding?
 ? linearly transformed cosines?
 * ggx and spherical harmonics
 * ccvt sampling and other stuff from "rolling the dice" siggraph talk
@@ -707,23 +693,15 @@ SCENE:
 * add a skybox?
 
 OTHER:
-* make filename be based on resolution, samples and bounce count?
-* make it print out resolution, samples, bounce count, primitive count in the window as it's processing
-* make it print an estimated time remaining of render based on percentage done and how long it took to get there?
 * try to make it so you give a thread an entire row to do.  May be faster?
 * do TODO's in code files
 * visualize # of raybounces, instead of colors, for complexity analysis?
  * maybe defines or settings to do this?
  * also visualize normals and reflection bounces or something?
-* make a window that shows the progress as it goes.
- * a button to take a screenshot
- * show # of samples etc in top of window
- * maybe click on a pixel to re-render it for debugging purposes
 * make it so you can animate things & camera over time at a specified frame rate.  write each frame to disk. combine with ffmpeg to make videos!
-* make width / height be command line options?
 * aspect ratio support is weird. it stretches images in a funny way.  may be correct?
 * profile with sleepy to see where the time is going!
-* make reported time more reliable, not based on WM_TIMER calls!
+* make reported time more reliable, not based on WM_TIMER calls
 
 ! blog posts on all this info
  * basic path tracing / rendering equation

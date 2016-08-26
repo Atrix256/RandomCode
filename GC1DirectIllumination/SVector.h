@@ -192,7 +192,7 @@ inline bool NotZero (const SVector& a)
 inline SVector RandomUnitVectorInHemisphere (const SVector& v)
 {
     float theta0 = RandomFloat(0, 2.0f * c_pi);
-    float theta1 = acosf(RandomFloat(-1.0f, 1.0f));
+    float theta1 = RandomFloat(0, 2.0f * c_pi);// acosf(RandomFloat(-1.0f, 1.0f));
 
     SVector ret;
     ret.m_x = sin(theta0) * sin(theta1);
