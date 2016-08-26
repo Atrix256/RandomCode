@@ -27,12 +27,3 @@ inline float Clamp (float v, float min, float max)
     else
         return v;
 }
-
-//=================================================================================
-void WaitForEnter ()
-{
-    printf("Press Enter to quit");
-    fflush(stdin);
-    getchar();
-}
-  

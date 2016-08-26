@@ -33,8 +33,8 @@ static const size_t c_maxBounces = 5;
 static const size_t c_russianRouletteStartBounce = 5;
 
 // camera - assumes no roll, and that (0,1,0) is up
-static const SVector c_cameraPos = { -3.0f, 2.0f, -10.0f };
-static const SVector c_cameraAt = { 0.0f, 0.0f, 0.0f };
+static const SVector c_cameraPos = { -3.0f, 3.0f, -10.0f };
+static const SVector c_cameraAt = { 0.0f, -1.0f, 0.0f };
 static const float c_nearDist = 0.1f;
 static const float c_cameraVerticalFOV = 60.0f * c_pi / 180.0f;
 
@@ -79,55 +79,34 @@ auto c_spheres = make_array(
     SSphere(SVector(-2.0f, -3.0f,  4.0f), 2.0f, TMaterialID::ShinyTeal),
     SSphere(SVector( 0.3f, -3.5f,  0.5f), 1.5f, TMaterialID::ShinyMagenta),
     SSphere(SVector( 2.0f, -4.0f, -2.0f), 1.0f, TMaterialID::ShinyYellow),
+    SSphere(SVector( 3.5f, -4.5f,  2.6f), 0.5f, TMaterialID::EmissiveRed),
     SSphere(SVector(-3.0f, -1.0f,  1.5f), 0.5f, TMaterialID::EmissiveWhite)
-
-    //SSphere(SVector(3.8f, -3.8f, 3.8f), 1.0f, TMaterialID::Water),
-
-    //SSphere(SVector(0.0f, 0.0f, 1.0f), -4.0f, TMaterialID::Water),
-    /*SSphere(SVector(0.0f, 0.0f, 2.0f), 0.5f, TMaterialID::MatteRed),
-    SSphere(SVector(-2.0f, 0.0f, 2.0f), 0.5f, TMaterialID::MatteGreen),
-    SSphere(SVector(2.0f, 0.0f, 2.0f), 0.5f, TMaterialID::MatteBlue),
-    SSphere(SVector(0.0f, 2.0f, 2.0f), 0.5f, TMaterialID::MatteTeal),
-    SSphere(SVector(0.0f,-2.0f, 2.0f), 0.5f, TMaterialID::MatteMagenta),
-    */
-
-    //SSphere(SVector(-4.0f,  1.5f,  0.0f), 0.03f, TMaterialID::EmissiveRed),     // red light
-    //SSphere(SVector( 4.0f, -1.5f,  0.0f), 0.03f, TMaterialID::EmissiveGreen),   // green light
-    //SSphere(SVector( 2.0f,  4.0f, -1.0f), 0.03f, TMaterialID::EmissiveBlue),   // blue light
-
-    //SSphere(SVector(-3.0f, 4.5f, -3.0f), 0.5f, TMaterialID::EmissiveBlue),
-    //SSphere(SVector(-3.0f, 4.5f,  3.0f), 0.5f, TMaterialID::EmissiveGreen),
-    //SSphere(SVector( 3.0f, 4.5f, -3.0f), 0.5f, TMaterialID::EmissiveRed),
-    //SSphere(SVector( 3.0f, 4.5f,  3.0f), 0.5f, TMaterialID::EmissiveWhite)
-
-    //SSphere(SVector(0.0f, 0.0f, 0.0f), 12.0f, TMaterialID::ShinyGrey)
 );
 
 const float c_boxSize = 5.0f;
 
 // Triangles
 auto c_triangles = make_array(
-    //STriangle(SVector(1.5f, 1.0f, 1.25f), SVector(1.5f, 0.0f, 1.75f), SVector(0.5f, 0.0f, 2.25f), TMaterialID::MatteYellow),
 
     // box wall - in front
-    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize,  c_boxSize), TMaterialID::ShinyBlue),
-    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector(-c_boxSize,  c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize,  c_boxSize), TMaterialID::ShinyBlue),
+    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize,  c_boxSize), TMaterialID::MatteBlue),
+    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector(-c_boxSize,  c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize,  c_boxSize), TMaterialID::MatteBlue),
 
     // box wall - left
-    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector(-c_boxSize, -c_boxSize, -c_boxSize), SVector(-c_boxSize, c_boxSize, -c_boxSize), TMaterialID::ShinyRed),
-    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector(-c_boxSize,  c_boxSize,  c_boxSize), SVector(-c_boxSize, c_boxSize, -c_boxSize), TMaterialID::ShinyRed),
+    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector(-c_boxSize, -c_boxSize, -c_boxSize), SVector(-c_boxSize, c_boxSize, -c_boxSize), TMaterialID::MatteRed),
+    STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector(-c_boxSize,  c_boxSize,  c_boxSize), SVector(-c_boxSize, c_boxSize, -c_boxSize), TMaterialID::MatteRed),
 
     // box wall - right
-    STriangle(SVector( c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize, -c_boxSize, -c_boxSize), SVector( c_boxSize, c_boxSize, -c_boxSize), TMaterialID::ShinyGreen),
-    STriangle(SVector( c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize,  c_boxSize), SVector( c_boxSize, c_boxSize, -c_boxSize), TMaterialID::ShinyGreen),
+    STriangle(SVector( c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize, -c_boxSize, -c_boxSize), SVector( c_boxSize, c_boxSize, -c_boxSize), TMaterialID::MatteGreen),
+    STriangle(SVector( c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize,  c_boxSize), SVector( c_boxSize, c_boxSize, -c_boxSize), TMaterialID::MatteGreen),
 
     // box wall - bottom
     STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector(-c_boxSize, -c_boxSize, -c_boxSize), SVector( c_boxSize, -c_boxSize, -c_boxSize), TMaterialID::ShinyYellow),
     STriangle(SVector(-c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize, -c_boxSize,  c_boxSize), SVector( c_boxSize, -c_boxSize, -c_boxSize), TMaterialID::ShinyYellow),
 
     // box wall - top
-    STriangle(SVector(-c_boxSize,  c_boxSize,  c_boxSize), SVector(-c_boxSize,  c_boxSize, -c_boxSize), SVector( c_boxSize,  c_boxSize, -c_boxSize), TMaterialID::ShinyTeal),
-    STriangle(SVector(-c_boxSize,  c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize, -c_boxSize), TMaterialID::ShinyTeal)
+    STriangle(SVector(-c_boxSize,  c_boxSize,  c_boxSize), SVector(-c_boxSize,  c_boxSize, -c_boxSize), SVector( c_boxSize,  c_boxSize, -c_boxSize), TMaterialID::MatteTeal),
+    STriangle(SVector(-c_boxSize,  c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize,  c_boxSize), SVector( c_boxSize,  c_boxSize, -c_boxSize), TMaterialID::MatteTeal)
 
     // box wall - behind
     //STriangle(SVector(-c_boxSize, -c_boxSize, -c_boxSize), SVector( c_boxSize, -c_boxSize, -c_boxSize), SVector( c_boxSize,  c_boxSize, -c_boxSize), TMaterialID::Walls),
@@ -601,15 +580,23 @@ void WindowFunc ()
 }
 
 //=================================================================================
-int main (int argc, char **argv)
+int CALLBACK WinMain(
+  _In_ HINSTANCE hInstance,
+  _In_ HINSTANCE hPrevInstance,
+  _In_ LPSTR     lpCmdLine,
+  _In_ int       nCmdShow
+)
 {
-    // spin up some threads to do the work, and wait for them to be finished.
+    // spin up some threads to do the rendering
     std::vector<std::thread> threads;
     threads.resize(c_numThreads);
     for (std::thread& t : threads)
         t = std::thread(ThreadFunc);
-    std::thread windowThread(WindowFunc);
-    windowThread.join();
+
+    // keep our program going until it's closed
+    WindowFunc();
+
+    // wait for the threads to be done
     for (std::thread& t : threads)
         t.join();
     return 0;
@@ -618,11 +605,6 @@ int main (int argc, char **argv)
 /*
 
 NOW:
-* console window probably needs to be reworked. that output isn't really needed
-* move window stuff into it's own file?
-
-? maybe make a win32 app and move this code in?
- * should just be a project diff on checkin
 
 * there are weird artifacts on the x and y axis near the lights.  not sure what the deal is.  ray vs sphere test might be bad?
  ? is it from RandomUnitVectorInHemisphere?
@@ -701,7 +683,7 @@ OTHER:
 * make it so you can animate things & camera over time at a specified frame rate.  write each frame to disk. combine with ffmpeg to make videos!
 * aspect ratio support is weird. it stretches images in a funny way.  may be correct?
 * profile with sleepy to see where the time is going!
-* make reported time more reliable, not based on WM_TIMER calls
+* move window stuff into it's own file?
 
 ! blog posts on all this info
  * basic path tracing / rendering equation
