@@ -22,8 +22,8 @@
 //=================================================================================
 
 // image size
-static const size_t c_imageWidth = 512;
-static const size_t c_imageHeight = 512;
+static const size_t c_imageWidth = 1024;
+static const size_t c_imageHeight = 1024;
 
 // preview update rate
 static const size_t c_redrawFPS = 30;
