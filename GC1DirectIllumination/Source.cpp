@@ -22,17 +22,17 @@
 //=================================================================================
 
 // image size
-static const size_t c_imageWidth = 1024;
-static const size_t c_imageHeight = 1024;
+static const size_t c_imageWidth = 512;
+static const size_t c_imageHeight = 512;
 
 // preview update rate
 static const size_t c_redrawFPS = 30;
 
 // sampling
 static const bool c_jitterSamples = true;
-static const size_t c_maxBounces = 5;
+static const size_t c_maxBounces = 4;
 static const size_t c_russianRouletteStartBounce = 5;
-static const size_t c_stratifyPixel = 8;
+static const size_t c_stratifyPixel = 4;
 
 // camera - assumes no roll, and that (0,1,0) is up
 static const SVector c_cameraPos = { -3.0f, 3.0f, -10.0f };
@@ -81,7 +81,7 @@ static const float c_cameraVerticalFOV = 60.0f * c_pi / 180.0f;
 auto c_spheres = make_array(
     SSphere(SVector(-2.0f, -3.0f,  4.0f), 2.0f, TMaterialID::ShinyTeal),
     SSphere(SVector( 0.3f, -3.5f,  0.5f), 1.5f, TMaterialID::ShinyMagenta),
-    SSphere(SVector( 2.0f, -4.0f, -2.0f), 1.0f, TMaterialID::ShinyYellow),
+    SSphere(SVector( 2.0f, -4.0f, -2.0f), 1.0f, TMaterialID::ShinyBlue),
     SSphere(SVector(-3.5f, -2.5f, -2.0f), 1.0f, TMaterialID::Water),
     SSphere(SVector(-3.0f,  5.0f, -3.0f), 0.5f, TMaterialID::EmissiveWhite),
     SSphere(SVector( 3.0f,  5.0f, -3.0f), 0.5f, TMaterialID::EmissiveRed),
@@ -104,7 +104,7 @@ auto c_planes = make_array(
 
 // Triangles
 auto c_triangles = make_array(
-    STriangle(SVector(1.5f, 1.0f, 1.25f), SVector(1.5f, 0.0f, 1.75f), SVector(0.5f, 0.0f, 2.25f), TMaterialID::MatteYellow)
+    STriangle(SVector(4.0f, 2.0f, 2.5f), SVector(4.0f, 0.0f, 4.0f), SVector(1.0f, 0.0f, 4.5f), TMaterialID::ShinyRed)
 );
 
 //=================================================================================
@@ -249,7 +249,7 @@ SVector L_out(const SCollisionInfo& X, const SVector& outDir, size_t bouncesLeft
         if (ClosestIntersection(X.m_intersectionPoint, reflectDir, collisionInfo, X.m_objectID))
         {
             float cos_theta = Dot(reflectDir, X.m_surfaceNormal);
-            SVector BRDF = 2.0f * material.m_reflection * cos_theta;
+            SVector BRDF = material.m_reflection * cos_theta;
             ret += BRDF * L_out(collisionInfo, -reflectDir, bouncesLeft - 1);
         }
     }
@@ -268,7 +268,7 @@ SVector L_out(const SCollisionInfo& X, const SVector& outDir, size_t bouncesLeft
         if (ClosestIntersection(X.m_intersectionPoint + refractDir * 0.001f, refractDir, collisionInfo))
         {
             float cos_theta = Dot(refractDir, X.m_surfaceNormal);
-            SVector BRDF = 2.0f * material.m_refraction * cos_theta;
+            SVector BRDF = material.m_refraction * cos_theta;
             ret += BRDF * L_out(collisionInfo, -refractDir, bouncesLeft - 1);
         }
     }
@@ -276,13 +276,12 @@ SVector L_out(const SCollisionInfo& X, const SVector& outDir, size_t bouncesLeft
     // add in random samples for global illumination etc
     if (PassesRussianRoulette(material.m_diffuse, bouncesLeft))
     {
-        SVector newRayDir = UniformSampleHemisphere(X.m_surfaceNormal);
+        SVector newRayDir = CosineSampleHemisphere(X.m_surfaceNormal);
         SCollisionInfo collisionInfo;
         if (ClosestIntersection(X.m_intersectionPoint, newRayDir, collisionInfo, X.m_objectID))
         {
-            float cos_theta = Dot(newRayDir, X.m_surfaceNormal);
-            SVector BRDF = 2.0f * material.m_diffuse * cos_theta;
-            ret += BRDF * L_out(collisionInfo, -newRayDir, bouncesLeft - 1);
+            // no cosine multiplication, because we use cosine weighted samples
+            ret += material.m_diffuse * L_out(collisionInfo, -newRayDir, bouncesLeft - 1);
         }
     }
     return ret;
@@ -343,7 +342,7 @@ void ThreadFunc()
         // calculate +/- half a pixel jitter, for anti aliasing
         float jitterX = 0.0f;
         float jitterY = 0.0f;
-        if (false)//c_jitterSamples)
+        if (c_jitterSamples)
         {
             // stratify the jittering to be within a specific cell of a grid
             int index = ((pixelIndex * 101) % (c_stratifyPixel*c_stratifyPixel));
@@ -621,10 +620,10 @@ int CALLBACK WinMain(
 
 NOW:
 
-? why is the image so noisy?
- * you may be doing something wrong with probability distribution stuff.  maybe that's why things are so noisy?
+* could add a box primitive, which let you give a material per side.
+ * that'd convert the 6 planes into a single box
 
-* figure out cosine weighted sampling, it's supposed to make it converge faster
+* direct lighting should help convergence for matte surfaces https://www.shadertoy.com/view/4tl3z4
 
 NEXT:
 * get BRDFs working

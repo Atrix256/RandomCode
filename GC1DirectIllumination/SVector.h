@@ -189,7 +189,7 @@ inline bool NotZero (const SVector& a)
 }
 
 //=================================================================================
-inline SVector UniformSampleHemisphere (const SVector& normal)
+inline SVector CosineSampleHemisphere (const SVector& normal)
 {
     // from smallpt: http://www.kevinbeason.com/smallpt/
 
@@ -210,23 +210,6 @@ inline SVector UniformSampleHemisphere (const SVector& normal)
     Normalize(d);
 
     return d;
-}
-
-//=================================================================================
-inline SVector CosineSampleHemisphere (float u1, float u2)
-{
-    /*
-    // from: http://www.rorydriscoll.com/2009/01/07/better-sampling/
-    // TODO: this is in tangent space, so need to return it in global space.
-    const float r = Sqrt(u1);
-    const float theta = 2 * kPi * u2;
-
-    const float x = r * Cos(theta);
-    const float y = r * Sin(theta);
-
-    return Vector3(x, y, Sqrt(Max(0.0f, 1 - u1)));
-    */
-    return SVector();
 }
 
 //=================================================================================
