@@ -21,6 +21,29 @@ struct SVector
         , m_z(z)
     {}
 
+    // array type interface to vector components
+    inline const float& operator[] (int index) const
+    {
+        switch (index)
+        {
+            case 0: return m_x;
+            case 1: return m_y;
+            case 2: return m_z;
+            default: return m_x;
+        }
+    }
+
+    inline float& operator[] (int index)
+    {
+        switch (index)
+        {
+            case 0: return m_x;
+            case 1: return m_y;
+            case 2: return m_z;
+            default: return m_x;
+        }
+    }
+
     float m_x;
     float m_y;
     float m_z;

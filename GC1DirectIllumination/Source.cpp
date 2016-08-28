@@ -10,6 +10,7 @@
 #include "SVector.h"
 #include "SSphere.h"
 #include "SPlane.h"
+#include "SBox.h"
 #include "STriangle.h"
 #include "SMaterial.h"
 #include "SImageData.h"
@@ -30,13 +31,13 @@ static const size_t c_redrawFPS = 30;
 
 // sampling
 static const bool c_jitterSamples = true;
-static const size_t c_maxBounces = 4;
+static const size_t c_maxBounces = 10;
 static const size_t c_russianRouletteStartBounce = 5;
 static const size_t c_stratifyPixel = 4;
 
 // camera - assumes no roll, and that (0,1,0) is up
-static const SVector c_cameraPos = { -3.0f, 3.0f, -10.0f };
-static const SVector c_cameraAt = { 0.0f, -1.0f, 0.0f };
+static const SVector c_cameraPos = {-1.0f, 4.0f, -10.0f };
+static const SVector c_cameraAt = { 0.0f, 0.0f, 0.0f };
 static const float c_nearDist = 0.1f;
 static const float c_cameraVerticalFOV = 60.0f * c_pi / 180.0f;
 
@@ -78,34 +79,30 @@ static const float c_cameraVerticalFOV = 60.0f * c_pi / 180.0f;
 #include "MakeMaterials.h"
 
 // Spheres
-auto c_spheres = make_array(
-    SSphere(SVector(-2.0f, -3.0f,  4.0f), 2.0f, TMaterialID::ShinyTeal),
-    SSphere(SVector( 0.3f, -3.5f,  0.5f), 1.5f, TMaterialID::ShinyMagenta),
-    SSphere(SVector( 2.0f, -4.0f, -2.0f), 1.0f, TMaterialID::ShinyBlue),
-    SSphere(SVector(-3.5f, -2.5f, -2.0f), 1.0f, TMaterialID::Water),
-    SSphere(SVector(-3.0f,  5.0f, -3.0f), 0.5f, TMaterialID::EmissiveWhite),
-    SSphere(SVector( 3.0f,  5.0f, -3.0f), 0.5f, TMaterialID::EmissiveRed),
-    SSphere(SVector( 3.0f,  5.0f,  3.0f), 0.5f, TMaterialID::EmissiveBlue),
-    SSphere(SVector(-3.0f,  5.0f,  3.0f), 0.5f, TMaterialID::EmissiveGreen)
-);
-
-const float c_boxSize = 5.0f;
+std::vector<SSphere> c_spheres = {
+    SSphere(SVector(-2.0f, -3.0f,  3.0f), 2.0f, TMaterialID::Water),
+    SSphere(SVector( 2.5f, -3.5f,  1.5f), 1.5f, TMaterialID::ShinyGreen),
+    SSphere(SVector(-0.5f, -4.0f, -0.5f), 1.0f, TMaterialID::ShinyBlue),
+    SSphere(SVector(-4.0f, -4.25f, 0.0f), 0.75f, TMaterialID::ShinyMagenta),
+    SSphere(SVector( 3.0f, -4.25f,-1.0f), 0.75f, TMaterialID::ShinyTeal)
+    //SSphere(SVector(-3.0f,  5.0f, -3.0f), 0.5f, TMaterialID::EmissiveWhite),
+    //SSphere(SVector( 3.0f,  5.0f, -3.0f), 0.5f, TMaterialID::EmissiveRed),
+    //SSphere(SVector( 3.0f,  5.0f,  3.0f), 0.5f, TMaterialID::EmissiveBlue),
+    //SSphere(SVector(-3.0f,  5.0f,  3.0f), 0.5f, TMaterialID::EmissiveGreen)
+};
 
 // Planes
-auto c_planes = make_array(
-    // box walls : front, back, left, right, bottom, top
-    SPlane(SVector( 0.0,  0.0, -1.0), c_boxSize, TMaterialID::MatteBlue),
-    SPlane(SVector( 0.0,  0.0,  1.0),     11.0f, TMaterialID::Black),
-    SPlane(SVector( 1.0,  0.0,  0.0), c_boxSize, TMaterialID::MatteRed),
-    SPlane(SVector(-1.0,  0.0,  0.0), c_boxSize, TMaterialID::MatteGreen),
-    SPlane(SVector( 0.0,  1.0,  0.0), c_boxSize, TMaterialID::ShinyYellow),
-    SPlane(SVector( 0.0, -1.0,  0.0), c_boxSize, TMaterialID::MatteTeal)
-);
+std::vector<SPlane> c_planes = {};
+
+// Boxes
+std::vector<SBox> c_boxes = {
+    SBox(SVector(0.0f, 0.0f, -4.0f), SVector(10.0f, 10.0f, 16.0f), { TMaterialID::MatteRed, TMaterialID::MatteGreen, TMaterialID::ShinyYellow, TMaterialID::MatteTeal, TMaterialID::Black, TMaterialID::MatteBlue }),
+    SBox(SVector(0.0f, 5.0f, 0.0f), SVector(3.0f, 0.1f, 3.0f), TMaterialID::EmissiveWhite)
+
+};
 
 // Triangles
-auto c_triangles = make_array(
-    STriangle(SVector(4.0f, 2.0f, 2.5f), SVector(4.0f, 0.0f, 4.0f), SVector(1.0f, 0.0f, 4.5f), TMaterialID::ShinyRed)
-);
+std::vector<STriangle> c_triangles = {};
 
 //=================================================================================
 static SVector CameraRight ()
@@ -189,6 +186,11 @@ bool AnyIntersection (const SVector& a, const SVector& dir, float length, TObjec
         if (RayIntersects(a, dir, p, collisionInfo, ignoreObjectID))
             return true;
     }
+    for (const SBox& b : c_boxes)
+    {
+        if (RayIntersects(a, dir, b, collisionInfo, ignoreObjectID))
+            return true;
+    }
     for (const STriangle& t : c_triangles)
     {
         if (RayIntersects(a, dir, t, collisionInfo, ignoreObjectID))
@@ -206,6 +208,8 @@ bool ClosestIntersection (const SVector& rayPos, const SVector& rayDir, SCollisi
         ret |= RayIntersects(rayPos, rayDir, s, collisionInfo, ignoreObjectID);
     for (const SPlane& p: c_planes)
         ret |= RayIntersects(rayPos, rayDir, p, collisionInfo, ignoreObjectID);
+    for (const SBox& b : c_boxes)
+        ret |= RayIntersects(rayPos, rayDir, b, collisionInfo, ignoreObjectID);
     for (const STriangle& t : c_triangles)
         ret |= RayIntersects(rayPos, rayDir, t, collisionInfo, ignoreObjectID);
     return ret;
@@ -620,9 +624,6 @@ int CALLBACK WinMain(
 
 NOW:
 
-* could add a box primitive, which let you give a material per side.
- * that'd convert the 6 planes into a single box
-
 * direct lighting should help convergence for matte surfaces https://www.shadertoy.com/view/4tl3z4
 
 NEXT:
@@ -641,6 +642,13 @@ NEXT:
  * generalize reflect / refract pulses, or leave alone?
  * and whatever else part of the brdf?
  * roughness?
+
+* textures soon?
+* could have functions for different aspects of material id's (diffuse, emissive, etc)
+ * have them be templated, specialized by id?
+ * hopefully can make it so constant colored things don't pay the cost of texture based things
+ * textures ought to be rad!
+ * also could have procedural textures this way.  grids and things. could do signed distance field type stuff
 
 GRAPHICS FEATURES:
 * are you handling BRDF pulses correctly? seems like reflect / refract maybe shouldn't be on par with diffuse.
@@ -686,11 +694,15 @@ GRAPHICS FEATURES:
 * get importance sampling working, to get reflection working for scattering / BRDF
 * importance sampling: https://inst.eecs.berkeley.edu/~cs294-13/fa09/lectures/scribe-lecture5.pdf
 * make it so you can render multiple frames and it puts them together into a video
+ * and do motion blur at that point!
+* make SBox able to be oriented?
+* can we do temporal stuff for videos?
 
 SCENE:
 * add a skybox?
 
 OTHER:
+* i think that it's clipping part of the image off in the preview! when i take a screenshot, things on the bottom are there, which aren't there in the preview!
 * try to make it so you give a thread an entire row to do.  May be faster?
 * do TODO's in code files
 * visualize # of raybounces, instead of colors, for complexity analysis?
@@ -700,6 +712,12 @@ OTHER:
 * aspect ratio support is weird. it stretches images in a funny way.  may be correct?
 * profile with sleepy to see where the time is going!
 * move window stuff into it's own file?
+* make a way to save progress (scene, samples, etc)
+ * and then be able to resume progress
+ * support videos too
+ * be able to upsize / downsize etc!
+
+? Compare to GPU pathtracing.  wonder how many samples per second it can get for similar resolution and features?
 
 ! blog posts on all this info
  * basic path tracing / rendering equation

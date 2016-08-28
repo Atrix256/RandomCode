@@ -48,5 +48,8 @@
     <ClInclude Include="SPlane.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="SBox.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

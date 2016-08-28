@@ -28,7 +28,6 @@ inline bool RayIntersects (const SVector& rayPos, const SVector& rayDir, const S
     if (ignoreObjectId == plane.m_objectID)
         return false;
 
-    // TODO: does this work from the inside? Test it and see!
     float collisionTime = (-plane.m_distance - Dot(plane.m_normal, rayPos)) / Dot(plane.m_normal, rayDir);
 
     // only consider positive hit times
