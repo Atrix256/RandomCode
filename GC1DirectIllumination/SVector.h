@@ -208,7 +208,7 @@ inline SVector Refract (const SVector& incident, const SVector& normal, float ra
 //=================================================================================
 inline bool NotZero (const SVector& a)
 {
-    return a.m_x != 0.0f && a.m_y != 0.0f && a.m_z != 0.0f;
+    return a.m_x != 0.0f || a.m_y != 0.0f || a.m_z != 0.0f;
 }
 
 //=================================================================================

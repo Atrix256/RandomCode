@@ -99,7 +99,9 @@ inline bool RayIntersects(const SVector& rayPos, const SVector& rayDir, const SB
     // figure out the surface normal by figuring out which axis we are closest to
     TMaterialID materialId;
     float closestDist = FLT_MAX;
-    SVector normal;
+    SVector normal, tangent, biTangent;
+    float u = 0.0f;
+    float v = 0.0f;
     for (int axis = 0; axis < 3; ++axis)
     {
         float distFromPos = abs(box.m_position[axis] - intersectionPoint[axis]);
@@ -117,13 +119,51 @@ inline bool RayIntersects(const SVector& rayPos, const SVector& rayDir, const SB
             else
             {
                 normal[axis] = 1.0;
-                materialId = box.m_materialIDs[axis * 2+1];
+                materialId = box.m_materialIDs[axis * 2 + 1];
             }
         }
     }
 
-    if (Dot(normal, rayDir) > 0.0f)
+    if (abs(normal.m_x) > 0.1f)
+    {
+        tangent = SVector(0.0f, 0.0f, 1.0f);
+        biTangent = SVector(0.0f, 1.0f, 0.0f);
+        if (normal.m_x < 0.0f)
+        {
+            tangent *= -1.0f;
+            biTangent *= -1.0f;
+        }
+    }
+    else if (abs(normal.m_y) > 0.1f)
+    {
+        tangent = SVector(1.0f, 0.0f, 0.0f);
+        biTangent = SVector(0.0f, 0.0f, 1.0f);
+        if (normal.m_y < 0.0f)
+        {
+            tangent *= -1.0f;
+            biTangent *= -1.0f;
+        }
+    }
+    else if (abs(normal.m_z) > 0.1f)
+    {
+        tangent = SVector(1.0f, 0.0f, 0.0f);
+        biTangent = SVector(0.0f, 1.0f, 0.0f);
+        if (normal.m_z < 0.0f)
+        {
+            tangent *= -1.0f;
+            biTangent *= -1.0f;
+        }
+    }
+
+    u = Dot((intersectionPoint - box.m_position), tangent);
+    v = Dot((intersectionPoint - box.m_position), biTangent);
+
+    if (fromInside)
+    {
         normal *= -1.0f;
+        tangent *= -1.0f;
+        biTangent *= -1.0f;
+    }
 
     info.SuccessfulHit(
         box.m_objectID,
@@ -131,7 +171,11 @@ inline bool RayIntersects(const SVector& rayPos, const SVector& rayDir, const SB
         intersectionPoint,
         normal,
         fromInside,
-        collisionTime
+        collisionTime,
+        tangent,
+        biTangent,
+        u,
+        v
     );
 
     return true;

@@ -23,8 +23,8 @@
 //=================================================================================
 
 // image size
-static const size_t c_imageWidth = 512;
-static const size_t c_imageHeight = 512;
+static const size_t c_imageWidth = 1024;
+static const size_t c_imageHeight = 1024;
 
 // preview update rate
 static const size_t c_redrawFPS = 30;
@@ -40,6 +40,75 @@ static const SVector c_cameraPos = {-1.0f, 4.0f, -10.0f };
 static const SVector c_cameraAt = { 0.0f, 0.0f, 0.0f };
 static const float c_nearDist = 0.1f;
 static const float c_cameraVerticalFOV = 60.0f * c_pi / 180.0f;
+
+
+inline void GetMaterial_Checkerboard(const SCollisionInfo& info, SMaterial& scratchMaterial)
+{
+    // fill in material properties
+    int pattern = int(std::floor(info.m_u) + std::floor(info.m_v)) % 2;
+    if (pattern == 0)
+        scratchMaterial.m_diffuse = SVector(0.9f, 0.9f, 0.1f);
+    else
+        scratchMaterial.m_diffuse = SVector(0.1f, 0.1f, 0.1f);
+}
+
+inline void GetMaterial_Grid(const SCollisionInfo& info, SMaterial& scratchMaterial)
+{
+    // fill in material properties
+    const float c_margin = 0.01f;
+    float f;
+    float fractu = modf(info.m_u, &f);
+    float fractv = modf(info.m_v, &f);
+    if (fractu < 0.0f)
+        fractu += 1.0f;
+    if (fractv < 0.0f)
+        fractv += 1.0f;
+
+    if (fractu < c_margin || fractv < c_margin || fractu >(1.0f - c_margin) || fractv >(1.0f - c_margin))
+        scratchMaterial.m_emissive = SVector(0.0f, 1.0f, 0.0f);
+
+    scratchMaterial.m_diffuse = SVector(0.1f, 0.1f, 0.1f);
+    scratchMaterial.m_reflection = SVector(0.1f, 0.1f, 0.1f);
+}
+
+inline void GetMaterial_CBLight(const SCollisionInfo& info, SMaterial& scratchMaterial)
+{
+    // fill in material properties
+    if (sqrt(info.m_u*info.m_u + info.m_v*info.m_v) < 1.0f / 4.0f)
+        scratchMaterial.m_emissive = SVector(10.0f, 10.0f, 10.0f);
+    else
+        scratchMaterial.m_refraction = SVector(1.0f, 1.0f, 1.0f);
+
+    /*
+    int pattern = int(std::floor(info.m_u) + std::floor(info.m_v)) % 2;
+    if (pattern == 0)
+        return SVector(10.0f, 10.0f, 10.0f);
+    else
+        return SVector(0.0f, 0.0f, 0.0f);
+    */
+
+    /*
+    if (abs(info.m_surfaceNormal.m_x) > 0.9f)
+        return SVector(10.0f, 0.0f, 0.0f);
+    else if (abs(info.m_surfaceNormal.m_y) > 0.9f)
+        return SVector(0.0f, 10.0f, 0.0f);
+    else
+        return SVector(0.0f, 0.0f, 10.0f);*/
+}
+
+inline void GetMaterial_VisualizeUV(const SCollisionInfo& info, SMaterial& scratchMaterial)
+{
+    // fill in material properties
+    float f;
+    float fractu = modf(info.m_u, &f);
+    float fractv = modf(info.m_v, &f);
+    if (fractu < 0.0f)
+        fractu += 1.0f;
+    if (fractv < 0.0f)
+        fractv += 1.0f;
+
+    scratchMaterial.m_diffuse = SVector(fractu, fractv, 0.0f);
+}
 
 // Materials - name, diffuse, emissive, reflective, refractive, refractionIndex, brdf
 #define MATERIALLIST() \
@@ -75,29 +144,38 @@ static const float c_cameraVerticalFOV = 60.0f * c_pi / 180.0f;
     MATERIAL(GlowWhite      , SVector(0.1f, 0.1f, 0.1f), SVector(2.0f, 2.0f, 2.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
     MATERIAL(Water          , SVector(), SVector(), SVector(0.1f, 0.1f, 0.1f), SVector(1.0f, 1.0f, 1.0f), 1.3f, EBRDF::standard) \
     MATERIAL(Chrome         , SVector(0.01f, 0.01f, 0.01f), SVector(), SVector(1.0f, 1.0f, 1.0f), SVector(), 1.0f, EBRDF::standard) \
+    MATERIALEX(Checkerboard ) \
+    MATERIALEX(Grid         ) \
+    MATERIALEX(CBLight      ) \
+    MATERIALEX(VisualizeUV  ) \
 
 #include "MakeMaterials.h"
 
 // Spheres
 std::vector<SSphere> c_spheres = {
-    SSphere(SVector(-2.0f, -3.0f,  3.0f), 2.0f, TMaterialID::Water),
-    SSphere(SVector( 2.5f, -3.5f,  1.5f), 1.5f, TMaterialID::ShinyGreen),
-    SSphere(SVector(-0.5f, -4.0f, -0.5f), 1.0f, TMaterialID::ShinyBlue),
-    SSphere(SVector(-4.0f, -4.25f, 0.0f), 0.75f, TMaterialID::ShinyMagenta),
-    SSphere(SVector( 3.0f, -4.25f,-1.0f), 0.75f, TMaterialID::ShinyTeal)
-    //SSphere(SVector(-3.0f,  5.0f, -3.0f), 0.5f, TMaterialID::EmissiveWhite),
-    //SSphere(SVector( 3.0f,  5.0f, -3.0f), 0.5f, TMaterialID::EmissiveRed),
-    //SSphere(SVector( 3.0f,  5.0f,  3.0f), 0.5f, TMaterialID::EmissiveBlue),
-    //SSphere(SVector(-3.0f,  5.0f,  3.0f), 0.5f, TMaterialID::EmissiveGreen)
+    //SSphere(SVector(0.0f, 0.0f, 0.0f), 2.0f, TMaterialID::ShinyMagenta),
+
+    SSphere(SVector(-2.0f, -2.5f,  3.0f), 2.0f, TMaterialID::Water),
+    SSphere(SVector( 2.5f, -3.0f,  1.5f), 1.5f, TMaterialID::Water),
+    SSphere(SVector(-0.5f, -3.5f, -0.5f), 1.0f, TMaterialID::Water),
+    SSphere(SVector(-4.0f, -3.75f, 0.0f), 0.75f, TMaterialID::Water),
+    SSphere(SVector(3.0f, -3.75f, -1.0f), 0.75f, TMaterialID::Water),
+    SSphere(SVector(-3.0f,  5.0f, -3.0f), 0.5f, TMaterialID::EmissiveWhite),
+    SSphere(SVector( 3.0f,  5.0f, -3.0f), 0.5f, TMaterialID::EmissiveRed),
+    SSphere(SVector( 3.0f,  5.0f,  3.0f), 0.5f, TMaterialID::EmissiveBlue),
+    SSphere(SVector(-3.0f,  5.0f,  3.0f), 0.5f, TMaterialID::EmissiveGreen)
 };
 
 // Planes
-std::vector<SPlane> c_planes = {};
+std::vector<SPlane> c_planes = {
+    //SPlane(SVector(1.0f, 1.0f, 0.0f), 3.0f, TMaterialID::Grid)
+};
 
 // Boxes
 std::vector<SBox> c_boxes = {
-    SBox(SVector(0.0f, 0.0f, -4.0f), SVector(10.0f, 10.0f, 16.0f), { TMaterialID::MatteRed, TMaterialID::MatteGreen, TMaterialID::ShinyYellow, TMaterialID::MatteTeal, TMaterialID::Black, TMaterialID::MatteBlue }),
-    SBox(SVector(0.0f, 5.0f, 0.0f), SVector(3.0f, 0.1f, 3.0f), TMaterialID::EmissiveWhite)
+    SBox(SVector(0.0f, 0.0f, -3.0f), SVector(10.0f, 10.0f, 16.0f), { TMaterialID::MatteRed, TMaterialID::MatteGreen, TMaterialID::Checkerboard, TMaterialID::Grid, TMaterialID::Black, TMaterialID::MatteBlue }),
+    //SBox(SVector(0.0f, 0.0f, 0.0f), SVector(1.0f, 1.0f, 1.0f), TMaterialID::CBLight),
+    //SBox(SVector(-4.0f, 0.0f, 4.0f), SVector(1.0f, 1.0f, 1.0f), TMaterialID::CBLight)
 
 };
 
@@ -237,7 +315,10 @@ SVector L_out(const SCollisionInfo& X, const SVector& outDir, size_t bouncesLeft
     if (bouncesLeft == 0)
         return SVector();
 
-    const SMaterial& material = c_materials[(size_t)X.m_materialID];
+    SMaterial dummyMaterial;
+    const SMaterial& material = GetMaterial(X, dummyMaterial);
+
+    //const SMaterial& material = c_materials[(size_t)X.m_materialID];
 
     // start with emissive lighting
     SVector ret = material.m_emissive;
@@ -623,6 +704,26 @@ int CALLBACK WinMain(
 /*
 
 NOW:
+
+* Primitives with tangent, bitangent, u, v treatment:
+ + box
+ + plane
+ + sphere (note that u,v are based on theta and phi of converting point on sphere to polar coordinates)
+ - triangle (make u,v be two of the three barycentric coordinates.  mention this somewhere as well in the code!)
+
+* hitting emissive from the inside (on the light cube CBLight), is black!
+* refractive index of 1.0 seems to still bend light somehow??
+
+* quit playing with effects for right now
+ * get tangent, bitangent, u,v working for all primitive types
+ * get the rest of the material params able to be exposed 
+ * maybe make the custom materials assumed to be a static class with functions to get each thing?
+
+* I think it's time for procedural colors.
+ * need to give UV coordinates then
+ * also maybe tangent and bitangent?
+
+* then, can load and use images for colors!
 
 * direct lighting should help convergence for matte surfaces https://www.shadertoy.com/view/4tl3z4
 

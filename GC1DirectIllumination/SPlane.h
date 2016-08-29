@@ -42,14 +42,34 @@ inline bool RayIntersects (const SVector& rayPos, const SVector& rayDir, const S
     bool fromInside = Dot(plane.m_normal, rayDir) > 0.0f;
     SVector normal = fromInside ? -plane.m_normal : plane.m_normal;
 
+    // calculate tangent, bitangent, u and v
+    SVector tangent;
+    if (fabs(normal.m_x) > 0.1f)
+        tangent = Cross(SVector(0.0f, 1.0f, 0.0f), normal);
+    else
+        tangent = Cross(SVector(1.0f, 0.0f, 0.0f), normal);
+
+    Normalize(tangent);
+    SVector biTangent = Cross(normal, tangent);
+
+    SVector intersectionPoint = rayPos + rayDir * collisionTime;
+    float u = Dot(intersectionPoint, tangent);
+    float v = Dot(intersectionPoint, biTangent);
+
+    // TODO: do we need to calculate tangent, bitangent, u,v before flipping normal? we do for box, so i think we should!
+
     // successful hit!
     info.SuccessfulHit(
         plane.m_objectID,
         plane.m_materialID,
-        rayPos + rayDir * collisionTime,
+        intersectionPoint,
         normal,
         fromInside,
-        collisionTime
+        collisionTime,
+        tangent,
+        biTangent,
+        u,
+        v
     );
     return true;
 }

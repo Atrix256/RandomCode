@@ -10,6 +10,8 @@ struct SCollisionInfo
         , m_materialID()
         , m_maxCollisionTime(-1.0f)
         , m_fromInside(false)
+        , m_u(0.0f)
+        , m_v(0.0f)
     {
     }
 
@@ -17,6 +19,10 @@ struct SCollisionInfo
     TMaterialID m_materialID;
     SVector     m_intersectionPoint;
     SVector     m_surfaceNormal;
+    SVector     m_tangent;
+    SVector     m_biTangent;
+    float       m_u;
+    float       m_v;
     bool        m_fromInside;
 
     // NOTE: you can set this to a positive value to limit a search by distance.
@@ -29,7 +35,11 @@ struct SCollisionInfo
         SVector intersectionPoint,
         SVector surfaceNormal,
         bool fromInside,
-        float intersectionTime
+        float intersectionTime,
+        SVector tangent = SVector(),   // TODO: make these required instead of optional after all shapes work!
+        SVector biTangent = SVector(),
+        float u = 0.0f,
+        float v = 0.0f
     )
     {
         m_objectID = objectID;
@@ -38,5 +48,9 @@ struct SCollisionInfo
         m_surfaceNormal = surfaceNormal;
         m_fromInside = fromInside;
         m_maxCollisionTime = intersectionTime;
+        m_tangent = tangent;
+        m_biTangent = biTangent;
+        m_u = u;
+        m_v = v;
     }
 };

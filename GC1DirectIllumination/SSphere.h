@@ -66,6 +66,14 @@ inline bool RayIntersects (const SVector& rayPos, const SVector& rayDir, const S
     SVector normal = (rayPos + rayDir * collisionTime) - sphere.m_position;
     Normalize(normal);
 
+    // calculate tangent, bitangent.
+    SVector tangent = Cross(normal, SVector(0.0f, 1.0f, 0.0f));
+    SVector biTangent = Cross(normal, tangent);
+
+    // calculate u, v
+    float u = (atan2(normal.m_z, normal.m_x) + c_pi) / (2.0f * c_pi);
+    float v = acos(normal.m_y) / c_pi;
+
     // make sure normal is facing opposite of ray direction.
     // this is for if we are hitting the object from the inside / back side.
     if (Dot(normal, rayDir) > 0.0f)
@@ -77,7 +85,11 @@ inline bool RayIntersects (const SVector& rayPos, const SVector& rayDir, const S
         rayPos + rayDir * collisionTime,
         normal,
         fromInside,
-        collisionTime
+        collisionTime,
+        tangent,
+        biTangent,
+        u,
+        v
     );
     return true;
 }
