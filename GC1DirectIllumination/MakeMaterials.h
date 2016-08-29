@@ -25,10 +25,11 @@ enum class TMaterialID : size_t {
         static const SMaterial material(diffuse, emissive, reflective, refractive, refractionIndex, brdf, TMaterialID::##name); \
         return material; \
     }
-#define MATERIALEX(name) case TMaterialID::##name: scratchMaterial.m_materialID = TMaterialID::##name; GetMaterial_##name(info, scratchMaterial);  return scratchMaterial;
+#define MATERIALEX(name) case TMaterialID::##name: scratchMaterial.m_materialID = TMaterialID::##name; GetMaterial_##name(info, scratchMaterial, normal);  return scratchMaterial;
 
-const SMaterial& GetMaterial (const SCollisionInfo& info, SMaterial& scratchMaterial)
+const SMaterial& GetMaterial (const SCollisionInfo& info, SMaterial& scratchMaterial, SVector& normal)
 {
+    normal = info.m_surfaceNormal;
     switch (info.m_materialID)
     {
         MATERIALLIST()

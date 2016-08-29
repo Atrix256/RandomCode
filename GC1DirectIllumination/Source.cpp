@@ -23,8 +23,8 @@
 //=================================================================================
 
 // image size
-static const size_t c_imageWidth = 1024;
-static const size_t c_imageHeight = 1024;
+static const size_t c_imageWidth = 512;
+static const size_t c_imageHeight = 512;
 
 // preview update rate
 static const size_t c_redrawFPS = 30;
@@ -42,7 +42,7 @@ static const float c_nearDist = 0.1f;
 static const float c_cameraVerticalFOV = 60.0f * c_pi / 180.0f;
 
 
-inline void GetMaterial_Checkerboard(const SCollisionInfo& info, SMaterial& scratchMaterial)
+inline void GetMaterial_Checkerboard(const SCollisionInfo& info, SMaterial& scratchMaterial, SVector& normal)
 {
     // fill in material properties
     int pattern = int(std::floor(info.m_u) + std::floor(info.m_v)) % 2;
@@ -50,9 +50,10 @@ inline void GetMaterial_Checkerboard(const SCollisionInfo& info, SMaterial& scra
         scratchMaterial.m_diffuse = SVector(0.9f, 0.9f, 0.1f);
     else
         scratchMaterial.m_diffuse = SVector(0.1f, 0.1f, 0.1f);
+    scratchMaterial.m_reflection = SVector(0.4f, 0.4f, 0.4f);
 }
 
-inline void GetMaterial_Grid(const SCollisionInfo& info, SMaterial& scratchMaterial)
+inline void GetMaterial_Grid(const SCollisionInfo& info, SMaterial& scratchMaterial, SVector& normal)
 {
     // fill in material properties
     const float c_margin = 0.01f;
@@ -71,7 +72,7 @@ inline void GetMaterial_Grid(const SCollisionInfo& info, SMaterial& scratchMater
     scratchMaterial.m_reflection = SVector(0.1f, 0.1f, 0.1f);
 }
 
-inline void GetMaterial_CBLight(const SCollisionInfo& info, SMaterial& scratchMaterial)
+inline void GetMaterial_CBLight(const SCollisionInfo& info, SMaterial& scratchMaterial, SVector& normal)
 {
     // fill in material properties
     if (sqrt(info.m_u*info.m_u + info.m_v*info.m_v) < 1.0f / 4.0f)
@@ -96,7 +97,7 @@ inline void GetMaterial_CBLight(const SCollisionInfo& info, SMaterial& scratchMa
         return SVector(0.0f, 0.0f, 10.0f);*/
 }
 
-inline void GetMaterial_VisualizeUV(const SCollisionInfo& info, SMaterial& scratchMaterial)
+inline void GetMaterial_VisualizeUV(const SCollisionInfo& info, SMaterial& scratchMaterial, SVector& normal)
 {
     // fill in material properties
     float f;
@@ -110,11 +111,43 @@ inline void GetMaterial_VisualizeUV(const SCollisionInfo& info, SMaterial& scrat
     scratchMaterial.m_emissive = SVector(fractu, fractv, 0.0f);
 }
 
-inline void GetMaterial_VisualizeUVTriangle(const SCollisionInfo& info, SMaterial& scratchMaterial)
+inline void GetMaterial_VisualizeUVTriangle(const SCollisionInfo& info, SMaterial& scratchMaterial, SVector& normal)
 {
     // fill in material properties
     float w = 1.0f - info.m_u - info.m_v;
     scratchMaterial.m_emissive = SVector(info.m_u, info.m_v, w);
+}
+
+inline void GetMaterial_BumpTest(const SCollisionInfo& info, SMaterial& scratchMaterial, SVector& normal)
+{
+    // fill in material properties
+    //scratchMaterial.m_diffuse = SVector(0.4f, 0.4f, 0.1f);
+    scratchMaterial.m_reflection = SVector(0.2f, 0.2f, 0.2f);
+    scratchMaterial.m_refraction = SVector(1.0f, 1.0f, 1.0f);
+    scratchMaterial.m_refractionIndex = 1.05f;
+
+    // modify the normal
+    float f;
+    float v = modf(info.m_v * 10.0f, &f);
+    SVector adjustedNormal;
+
+    const float c_bump = 0.5f;
+
+    float offset = sin(v * 2.0f * c_pi);
+    adjustedNormal = SVector(0.0f, c_bump * offset, 1.0f);
+
+    Normalize(adjustedNormal);
+    normal = adjustedNormal.m_x * info.m_tangent;
+    normal += adjustedNormal.m_y * info.m_biTangent;
+    normal += adjustedNormal.m_z * info.m_surfaceNormal;
+
+    /*
+    const float c_reflectionDull = 1.0f / 8.0f;
+    if (abs(v) < 0.25)
+        scratchMaterial.m_reflection = SVector(1.0f, 1.0f, 1.0f);
+    else
+        scratchMaterial.m_reflection = SVector(c_reflectionDull, c_reflectionDull, c_reflectionDull);
+    */
 }
 
 // Materials - name, diffuse, emissive, reflective, refractive, refractionIndex, brdf
@@ -127,13 +160,13 @@ inline void GetMaterial_VisualizeUVTriangle(const SCollisionInfo& info, SMateria
     MATERIAL(MatteMagenta   , SVector(0.9f, 0.1f, 0.9f), SVector(), SVector(), SVector(), 1.0f, EBRDF::standard) \
     MATERIAL(MatteYellow    , SVector(0.9f, 0.9f, 0.1f), SVector(), SVector(), SVector(), 1.0f, EBRDF::standard) \
     MATERIAL(MatteWhite     , SVector(0.9f, 0.9f, 0.9f), SVector(), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(EmissiveRed    , SVector(), SVector(10.0f,  0.0f,  0.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(EmissiveGreen  , SVector(), SVector( 0.0f, 10.0f,  0.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(EmissiveBlue   , SVector(), SVector( 0.0f,  0.0f, 10.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(EmissiveTeal   , SVector(), SVector( 0.0f, 10.0f, 10.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(EmissiveMagenta, SVector(), SVector(10.0f,  0.0f, 10.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(EmissiveYellow , SVector(), SVector(10.0f, 10.0f,  0.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(EmissiveWhite  , SVector(), SVector(10.0f, 10.0f, 10.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(EmissiveRed    , SVector(), SVector(20.0f,  0.0f,  0.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(EmissiveGreen  , SVector(), SVector( 0.0f, 20.0f,  0.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(EmissiveBlue   , SVector(), SVector( 0.0f,  0.0f, 20.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(EmissiveTeal   , SVector(), SVector( 0.0f, 20.0f, 20.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(EmissiveMagenta, SVector(), SVector(20.0f,  0.0f, 20.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(EmissiveYellow , SVector(), SVector(20.0f, 20.0f,  0.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(EmissiveWhite  , SVector(), SVector(20.0f, 20.0f, 20.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
     MATERIAL(ShinyRed       , SVector(0.9f, 0.1f, 0.1f), SVector(), SVector(0.2f, 0.2f, 0.2f), SVector(), 1.0f, EBRDF::standard) \
     MATERIAL(ShinyGreen     , SVector(0.1f, 0.9f, 0.1f), SVector(), SVector(0.2f, 0.2f, 0.2f), SVector(), 1.0f, EBRDF::standard) \
     MATERIAL(ShinyBlue      , SVector(0.1f, 0.1f, 0.9f), SVector(), SVector(0.2f, 0.2f, 0.2f), SVector(), 1.0f, EBRDF::standard) \
@@ -156,6 +189,7 @@ inline void GetMaterial_VisualizeUVTriangle(const SCollisionInfo& info, SMateria
     MATERIALEX(CBLight              ) \
     MATERIALEX(VisualizeUV          ) \
     MATERIALEX(VisualizeUVTriangle  ) \
+    MATERIALEX(BumpTest             ) \
 
 #include "MakeMaterials.h"
 
@@ -163,15 +197,22 @@ inline void GetMaterial_VisualizeUVTriangle(const SCollisionInfo& info, SMateria
 std::vector<SSphere> c_spheres = {
     //SSphere(SVector(0.0f, 0.0f, 0.0f), 2.0f, TMaterialID::ShinyMagenta),
 
-    SSphere(SVector(-2.0f, -2.5f,  3.0f), 2.0f, TMaterialID::Water),
-    SSphere(SVector( 2.5f, -3.0f,  1.5f), 1.5f, TMaterialID::Water),
-    SSphere(SVector(-0.5f, -3.5f, -0.5f), 1.0f, TMaterialID::Water),
-    SSphere(SVector(-4.0f, -3.75f, 0.0f), 0.75f, TMaterialID::Water),
-    SSphere(SVector(3.0f, -3.75f, -1.0f), 0.75f, TMaterialID::Water),
-    SSphere(SVector(-3.0f,  5.0f, -3.0f), 0.5f, TMaterialID::EmissiveWhite),
-    SSphere(SVector( 3.0f,  5.0f, -3.0f), 0.5f, TMaterialID::EmissiveRed),
-    SSphere(SVector( 3.0f,  5.0f,  3.0f), 0.5f, TMaterialID::EmissiveBlue),
-    SSphere(SVector(-3.0f,  5.0f,  3.0f), 0.5f, TMaterialID::EmissiveGreen)
+    SSphere(SVector(-2.0f, -2.5f + 1.5f,  3.0f - 2.0f), 2.0f, TMaterialID::BumpTest),
+    SSphere(SVector( 2.5f, -3.0f + 1.5f,  1.5f - 2.0f), 1.5f, TMaterialID::BumpTest),
+    SSphere(SVector(-0.5f, -3.5f + 1.5f, -0.5f - 2.0f), 1.0f, TMaterialID::BumpTest),
+    SSphere(SVector(-4.0f, -3.75f + 1.5f, 0.0f - 2.0f), 0.75f, TMaterialID::BumpTest),
+    SSphere(SVector(3.0f, -3.75f + 1.5f, -1.0f - 2.0f), 0.75f, TMaterialID::BumpTest),
+    SSphere(SVector(-3.0f,  4.5f, -3.0f), 0.5f, TMaterialID::EmissiveWhite),
+    SSphere(SVector( 3.0f,  4.5f, -3.0f), 0.5f, TMaterialID::EmissiveRed),
+    SSphere(SVector( 3.0f,  4.5f,  3.0f), 0.5f, TMaterialID::EmissiveBlue),
+    SSphere(SVector(-3.0f,  4.5f,  3.0f), 0.5f, TMaterialID::EmissiveGreen),
+
+    //SSphere(SVector(-3.0f, 5.0f,-3.0f), 0.5f, TMaterialID::EmissiveWhite),
+    //SSphere(SVector( 3.0f, 5.0f,-3.0f), 0.5f, TMaterialID::EmissiveWhite),
+    //SSphere(SVector( 3.0f, 5.0f, 3.0f), 0.5f, TMaterialID::EmissiveWhite),
+    //SSphere(SVector(-3.0f, 5.0f, 3.0f), 0.5f, TMaterialID::EmissiveWhite),
+
+    //SSphere(SVector( 0.0f,-1.0f, -3.0f), 3.0f, TMaterialID::BumpTest)
 };
 
 // Planes
@@ -181,9 +222,11 @@ std::vector<SPlane> c_planes = {
 
 // Boxes
 std::vector<SBox> c_boxes = {
-    SBox(SVector(0.0f, 0.0f, -3.0f), SVector(10.0f, 10.0f, 16.0f), { TMaterialID::MatteRed, TMaterialID::MatteGreen, TMaterialID::Checkerboard, TMaterialID::Grid, TMaterialID::Black, TMaterialID::MatteBlue }),
+    SBox(SVector(0.0f, 0.0f, -3.0f), SVector(10.0f, 10.0f, 16.0f), { TMaterialID::MatteRed, TMaterialID::MatteGreen, TMaterialID::Checkerboard, TMaterialID::MatteTeal, TMaterialID::Black, TMaterialID::MatteBlue }),
     //SBox(SVector(0.0f, 0.0f, 0.0f), SVector(1.0f, 1.0f, 1.0f), TMaterialID::CBLight),
-    //SBox(SVector(-4.0f, 0.0f, 4.0f), SVector(1.0f, 1.0f, 1.0f), TMaterialID::CBLight
+    //SBox(SVector(-4.0f, 0.0f, 4.0f), SVector(1.0f, 1.0f, 1.0f), TMaterialID::CBLight)
+
+    //SBox(SVector(0.0f, 0.0f, 0.0f), SVector(5.0f, 5.0f, 5.0f), TMaterialID::MatteGreen)
 };
 
 // Triangles
@@ -325,7 +368,8 @@ SVector L_out(const SCollisionInfo& X, const SVector& outDir, size_t bouncesLeft
         return SVector();
 
     SMaterial dummyMaterial;
-    const SMaterial& material = GetMaterial(X, dummyMaterial);
+    SVector normal;
+    const SMaterial& material = GetMaterial(X, dummyMaterial, normal);
 
     //const SMaterial& material = c_materials[(size_t)X.m_materialID];
 
@@ -338,11 +382,11 @@ SVector L_out(const SCollisionInfo& X, const SVector& outDir, size_t bouncesLeft
     // add in reflection BRDF pulse.  
     if (PassesRussianRoulette(material.m_reflection, bouncesLeft))
     {
-        SVector reflectDir = Reflect(-outDir, X.m_surfaceNormal);
+        SVector reflectDir = Reflect(-outDir, normal);
         SCollisionInfo collisionInfo;
         if (ClosestIntersection(X.m_intersectionPoint, reflectDir, collisionInfo, X.m_objectID))
         {
-            float cos_theta = Dot(reflectDir, X.m_surfaceNormal);
+            float cos_theta = Dot(reflectDir, normal);
             SVector BRDF = material.m_reflection * cos_theta;
             ret += BRDF * L_out(collisionInfo, -reflectDir, bouncesLeft - 1);
         }
@@ -354,14 +398,14 @@ SVector L_out(const SCollisionInfo& X, const SVector& outDir, size_t bouncesLeft
         // make our refraction index ratio.
         // air has a refractive index of just over 1.0, and vacum has 1.0.
         float ratio = X.m_fromInside ? material.m_refractionIndex / 1.0f : 1.0f / material.m_refractionIndex;
-        SVector refractDir = Refract(-outDir, X.m_surfaceNormal, ratio);
+        SVector refractDir = Refract(-outDir, normal, ratio);
         SCollisionInfo collisionInfo;
 
         // We need to push the ray out a little bit, instead of telling it to ignore this object for the intersection
         // test, because we may hit the same object again legitimately!
         if (ClosestIntersection(X.m_intersectionPoint + refractDir * 0.001f, refractDir, collisionInfo))
         {
-            float cos_theta = Dot(refractDir, X.m_surfaceNormal);
+            float cos_theta = Dot(refractDir, normal);
             SVector BRDF = material.m_refraction * cos_theta;
             ret += BRDF * L_out(collisionInfo, -refractDir, bouncesLeft - 1);
         }
@@ -370,7 +414,7 @@ SVector L_out(const SCollisionInfo& X, const SVector& outDir, size_t bouncesLeft
     // add in random samples for global illumination etc
     if (PassesRussianRoulette(material.m_diffuse, bouncesLeft))
     {
-        SVector newRayDir = CosineSampleHemisphere(X.m_surfaceNormal);
+        SVector newRayDir = CosineSampleHemisphere(normal);
         SCollisionInfo collisionInfo;
         if (ClosestIntersection(X.m_intersectionPoint, newRayDir, collisionInfo, X.m_objectID))
         {
