@@ -53,7 +53,7 @@ inline bool RayIntersects (const SVector& rayPos, const SVector& rayDir, const S
 
     const SVector& s = (rayPos - triangle.m_A) / a;
     const SVector& r = Cross(s,e_1);
-    SVector b; // NOTE: barycentric coords!
+    SVector b; // b is barycentric coordinates
     b.m_x = Dot(s,q);
     b.m_y = Dot(r, rayDir);
     b.m_z = 1.0f - b.m_x - b.m_y;
@@ -77,13 +77,25 @@ inline bool RayIntersects (const SVector& rayPos, const SVector& rayDir, const S
         fromInside = true;
     }
 
+    // TODO: is this consistent with normal inversion stuff?
+    SVector tangent = triangle.m_B - triangle.m_A;
+    Normalize(tangent);
+    SVector biTangent = Cross(tangent, normal);
+    Normalize(biTangent);
+    float u = b.m_z;
+    float v = b.m_x;
+
     info.SuccessfulHit(
         triangle.m_objectID,
         triangle.m_materialID,
         rayPos + rayDir * t,
         normal,
         fromInside,
-        t
+        t,
+        tangent,
+        biTangent,
+        u,
+        v
     );
 
     return true;

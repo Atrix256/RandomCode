@@ -107,7 +107,14 @@ inline void GetMaterial_VisualizeUV(const SCollisionInfo& info, SMaterial& scrat
     if (fractv < 0.0f)
         fractv += 1.0f;
 
-    scratchMaterial.m_diffuse = SVector(fractu, fractv, 0.0f);
+    scratchMaterial.m_emissive = SVector(fractu, fractv, 0.0f);
+}
+
+inline void GetMaterial_VisualizeUVTriangle(const SCollisionInfo& info, SMaterial& scratchMaterial)
+{
+    // fill in material properties
+    float w = 1.0f - info.m_u - info.m_v;
+    scratchMaterial.m_emissive = SVector(info.m_u, info.m_v, w);
 }
 
 // Materials - name, diffuse, emissive, reflective, refractive, refractionIndex, brdf
@@ -144,10 +151,11 @@ inline void GetMaterial_VisualizeUV(const SCollisionInfo& info, SMaterial& scrat
     MATERIAL(GlowWhite      , SVector(0.1f, 0.1f, 0.1f), SVector(2.0f, 2.0f, 2.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
     MATERIAL(Water          , SVector(), SVector(), SVector(0.1f, 0.1f, 0.1f), SVector(1.0f, 1.0f, 1.0f), 1.3f, EBRDF::standard) \
     MATERIAL(Chrome         , SVector(0.01f, 0.01f, 0.01f), SVector(), SVector(1.0f, 1.0f, 1.0f), SVector(), 1.0f, EBRDF::standard) \
-    MATERIALEX(Checkerboard ) \
-    MATERIALEX(Grid         ) \
-    MATERIALEX(CBLight      ) \
-    MATERIALEX(VisualizeUV  ) \
+    MATERIALEX(Checkerboard         ) \
+    MATERIALEX(Grid                 ) \
+    MATERIALEX(CBLight              ) \
+    MATERIALEX(VisualizeUV          ) \
+    MATERIALEX(VisualizeUVTriangle  ) \
 
 #include "MakeMaterials.h"
 
@@ -175,12 +183,13 @@ std::vector<SPlane> c_planes = {
 std::vector<SBox> c_boxes = {
     SBox(SVector(0.0f, 0.0f, -3.0f), SVector(10.0f, 10.0f, 16.0f), { TMaterialID::MatteRed, TMaterialID::MatteGreen, TMaterialID::Checkerboard, TMaterialID::Grid, TMaterialID::Black, TMaterialID::MatteBlue }),
     //SBox(SVector(0.0f, 0.0f, 0.0f), SVector(1.0f, 1.0f, 1.0f), TMaterialID::CBLight),
-    //SBox(SVector(-4.0f, 0.0f, 4.0f), SVector(1.0f, 1.0f, 1.0f), TMaterialID::CBLight)
-
+    //SBox(SVector(-4.0f, 0.0f, 4.0f), SVector(1.0f, 1.0f, 1.0f), TMaterialID::CBLight
 };
 
 // Triangles
-std::vector<STriangle> c_triangles = {};
+std::vector<STriangle> c_triangles = {
+    //STriangle(SVector(0.0f, 0.0f, 0.0f), SVector(0.0f, 5.0f, 0.0f), SVector(5.0f, 5.0f, 0.0f), TMaterialID::VisualizeUVTriangle)
+};
 
 //=================================================================================
 static SVector CameraRight ()
@@ -705,25 +714,12 @@ int CALLBACK WinMain(
 
 NOW:
 
-* Primitives with tangent, bitangent, u, v treatment:
- + box
- + plane
- + sphere (note that u,v are based on theta and phi of converting point on sphere to polar coordinates)
- - triangle (make u,v be two of the three barycentric coordinates.  mention this somewhere as well in the code!)
+? try playing around with bump map?
 
 * hitting emissive from the inside (on the light cube CBLight), is black!
 * refractive index of 1.0 seems to still bend light somehow??
 
-* quit playing with effects for right now
- * get tangent, bitangent, u,v working for all primitive types
- * get the rest of the material params able to be exposed 
- * maybe make the custom materials assumed to be a static class with functions to get each thing?
-
-* I think it's time for procedural colors.
- * need to give UV coordinates then
- * also maybe tangent and bitangent?
-
-* then, can load and use images for colors!
+* load and use images for colors / properties.
 
 * direct lighting should help convergence for matte surfaces https://www.shadertoy.com/view/4tl3z4
 
@@ -750,6 +746,14 @@ NEXT:
  * hopefully can make it so constant colored things don't pay the cost of texture based things
  * textures ought to be rad!
  * also could have procedural textures this way.  grids and things. could do signed distance field type stuff
+
+* a way to have const parameters to materials
+ * this would let you specify grid material but bass params for margin, and on / off material stuff -> make it emissive, diffuse, shiny, etc
+ * make custom material functions take a struct based on their name. make macro construct a const struct of that type with given params.
+ * pass it to material function
+ * how do we have primitives use these? do they specify the params when they specify the material?
+ * maybe we go more the material template route? where materials extend other materials? i dunno
+ * maybe we can do some magical lambda stuff.
 
 GRAPHICS FEATURES:
 * are you handling BRDF pulses correctly? seems like reflect / refract maybe shouldn't be on par with diffuse.
@@ -803,6 +807,10 @@ SCENE:
 * add a skybox?
 
 OTHER:
+* could lump the custom materials and the non custom materials together in enum value.
+ * when using a material, if < custom, return an entry from an array
+ * else, call the function based on a switch
+ * non custom materials probably will be cheaper if we do that!
 * i think that it's clipping part of the image off in the preview! when i take a screenshot, things on the bottom are there, which aren't there in the preview!
 * try to make it so you give a thread an entire row to do.  May be faster?
 * do TODO's in code files
@@ -817,6 +825,7 @@ OTHER:
  * and then be able to resume progress
  * support videos too
  * be able to upsize / downsize etc!
+* calculation of tangent, bitangent, u,v is inconsistent on each primitive type! check notes below to see what I mean!
 
 ? Compare to GPU pathtracing.  wonder how many samples per second it can get for similar resolution and features?
 
@@ -824,5 +833,14 @@ OTHER:
  * basic path tracing / rendering equation
  * advanced features like russian roulette and such
  * specific features
+
+
+ ===== NOTES: =====
+ 
+ * tangent, bitangent, u,v calculations:
+  * box: normal, tangent, bitangent is what you'd expect per face.  u,v is projection on those vectors.
+  * plane:  tangent is cross of up vector and normal. bitangent is cross of normal and tangent.
+  * sphere: tangent is cross of normal and up vector.  bitangent is cross of normal and tangent. u and v are theta and phi of spherical coordinates.
+  * triangle: normal is what you'd expect.  tangent is from A->B.  bitangent is cross of tangent and normal. u,v are two of the barycentric coordinates for the triangle, coresponding to point A,B. the third is gotten by 1-u-v.
 
 */
