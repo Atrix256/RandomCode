@@ -184,11 +184,11 @@ inline void GetMaterial_BumpTest(const SCollisionInfo& info, SMaterial& scratchM
     MATERIAL(GlowYellow     , SVector(0.1f, 0.1f, 0.1f), SVector(2.0f, 2.0f, 0.0f), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
     MATERIAL(GlowWhite      , SVector(0.1f, 0.1f, 0.1f), SVector(2.0f, 2.0f, 2.0f), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
     MATERIAL(Water          , SVector(), SVector(), SVector(0.1f, 0.1f, 0.1f), SVector(1.0f, 1.0f, 1.0f), 1.3f, 0.0f, EBRDF::standard) \
-    MATERIAL(ChromeRough0   , SVector(0.01f, 0.01f, 0.01f), SVector(), SVector(1.0f, 1.0f, 1.0f), SVector(), 1.0f, 0.0f, EBRDF::standard) \
-    MATERIAL(ChromeRough25  , SVector(0.01f, 0.01f, 0.01f), SVector(), SVector(1.0f, 1.0f, 1.0f), SVector(), 1.0f, 0.25f, EBRDF::standard) \
-    MATERIAL(ChromeRough50  , SVector(0.01f, 0.01f, 0.01f), SVector(), SVector(1.0f, 1.0f, 1.0f), SVector(), 1.0f, 0.50f, EBRDF::standard) \
-    MATERIAL(ChromeRough75  , SVector(0.01f, 0.01f, 0.01f), SVector(), SVector(1.0f, 1.0f, 1.0f), SVector(), 1.0f, 0.75f, EBRDF::standard) \
-    MATERIAL(ChromeRough100 , SVector(0.01f, 0.01f, 0.01f), SVector(), SVector(1.0f, 1.0f, 1.0f), SVector(), 1.0f, 1.0f, EBRDF::standard) \
+    MATERIAL(ChromeRough0   , SVector(), SVector(), SVector(1.0f, 1.0f, 1.0f), SVector(), 1.0f, 0.0f, EBRDF::standard) \
+    MATERIAL(ChromeRough25  , SVector(), SVector(), SVector(1.0f, 1.0f, 1.0f), SVector(), 1.0f, 0.25f, EBRDF::standard) \
+    MATERIAL(ChromeRough50  , SVector(), SVector(), SVector(1.0f, 1.0f, 1.0f), SVector(), 1.0f, 0.50f, EBRDF::standard) \
+    MATERIAL(ChromeRough75  , SVector(), SVector(), SVector(1.0f, 1.0f, 1.0f), SVector(), 1.0f, 0.75f, EBRDF::standard) \
+    MATERIAL(ChromeRough100 , SVector(), SVector(), SVector(1.0f, 1.0f, 1.0f), SVector(), 1.0f, 1.0f, EBRDF::standard) \
     MATERIALEX(Checkerboard         ) \
     MATERIALEX(Grid                 ) \
     MATERIALEX(CBLight              ) \
@@ -367,7 +367,7 @@ SVector L_out(const SCollisionInfo& X, const SVector& outDir, size_t bouncesLeft
         SVector reflectDir = Reflect(-outDir, normal);
         if (material.m_roughness > 0.0f)
         {
-            SVector randomDir = CosineSampleHemisphere(normal);
+            SVector randomDir = CosineSampleHemisphere(reflectDir);
             reflectDir = Lerp(reflectDir, randomDir, material.m_roughness);
         }
 
@@ -387,13 +387,6 @@ SVector L_out(const SCollisionInfo& X, const SVector& outDir, size_t bouncesLeft
         // air has a refractive index of just over 1.0, and vacum has 1.0.
         float ratio = X.m_fromInside ? material.m_refractionIndex / 1.0f : 1.0f / material.m_refractionIndex;
         SVector refractDir = Refract(-outDir, normal, ratio);
-
-        if (material.m_roughness > 0.0f)
-        {
-            SVector randomDir = CosineSampleHemisphere(normal);
-            refractDir = Lerp(refractDir, randomDir, material.m_roughness);
-        }
-
         SCollisionInfo collisionInfo;
 
         // We need to push the ray out a little bit, instead of telling it to ignore this object for the intersection
@@ -755,14 +748,13 @@ NOW:
 
 * test how roughness works with refraction
 
-* get rid of object id's if they aren't useful!
-
 * hitting emissive from the inside (on the light cube CBLight), is black!
 * refractive index of 1.0 seems to still bend light somehow??
 
 * load and use images for colors / properties.
 
 * direct lighting should help convergence for matte surfaces https://www.shadertoy.com/view/4tl3z4
+ * complex how to do that though.
 
 ? to figure out noise issue... maybe make it take one sample and keep a history of what happened for each pixel.  then look at a dark pixel to see what the heck it hit?
 
@@ -848,6 +840,7 @@ GRAPHICS FEATURES:
 * could try cutting holes in objects (with custom material making parts transparent) to see shaped light shadows -> like an eclipse
 * try halton sequence to see if it converges faster?
 * portal support: i think maybe we could let the material modify the ray position / direction to implement this?
+* make roughness affect refraction? naive implementation failed, made it all black even when very very small amount of refraction
 
 SCENE:
 * add a skybox?
