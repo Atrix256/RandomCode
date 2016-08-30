@@ -12,9 +12,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="ObjectID.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
     <ClInclude Include="SCollisionInfo.h">
       <Filter>Source Files</Filter>
     </ClInclude>

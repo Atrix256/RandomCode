@@ -143,7 +143,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MakeMaterials.h" />
-    <ClInclude Include="ObjectID.h" />
     <ClInclude Include="Random.h" />
     <ClInclude Include="SBox.h" />
     <ClInclude Include="SCollisionInfo.h" />

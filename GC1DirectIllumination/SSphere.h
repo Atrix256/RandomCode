@@ -1,7 +1,6 @@
 #pragma once
 
 #include "SVector.h"
-#include "ObjectID.h"
 #include "SCollisionInfo.h"
 
 //=================================================================================
@@ -10,23 +9,18 @@ struct SSphere
     SSphere(SVector position, float radius, TMaterialID materialID)
         : m_position(position)
         , m_radius(radius)
-        , m_objectID(GenerateObjectID())
         , m_materialID(materialID)
     {
     }
 
     SVector     m_position;
     float       m_radius;
-    TObjectID   m_objectID;
     TMaterialID m_materialID;
 };
 
 //=================================================================================
-inline bool RayIntersects (const SVector& rayPos, const SVector& rayDir, const SSphere& sphere, SCollisionInfo& info, TObjectID ignoreObjectId = c_invalidObjectID)
+inline bool RayIntersects (const SVector& rayPos, const SVector& rayDir, const SSphere& sphere, SCollisionInfo& info)
 {
-    if (ignoreObjectId == sphere.m_objectID)
-        return false;
-
     //get the vector from the center of this circle to where the ray begins.
     SVector m = rayPos - sphere.m_position;
 
@@ -80,7 +74,6 @@ inline bool RayIntersects (const SVector& rayPos, const SVector& rayDir, const S
         normal *= -1.0f;
 
     info.SuccessfulHit(
-        sphere.m_objectID,
         sphere.m_materialID,
         rayPos + rayDir * collisionTime,
         normal,

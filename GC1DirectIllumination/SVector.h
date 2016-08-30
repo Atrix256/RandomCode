@@ -182,6 +182,16 @@ inline SVector Cross (const SVector& a, const SVector& b)
 }
 
 //=================================================================================
+inline SVector Lerp (const SVector& a, const SVector& b, float t)
+{
+    SVector ret;
+    ret.m_x = a.m_x + (b.m_x - a.m_x) * t;
+    ret.m_y = a.m_y + (b.m_y - a.m_y) * t;
+    ret.m_z = a.m_z + (b.m_z - a.m_z) * t;
+    return ret;
+}
+
+//=================================================================================
 inline SVector Reflect (const SVector& incident, const SVector& normal)
 {
     return incident - 2.0f * normal * Dot(incident, normal);

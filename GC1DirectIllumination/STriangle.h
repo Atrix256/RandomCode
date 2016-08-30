@@ -1,7 +1,6 @@
 #pragma once
 
 #include "SVector.h"
-#include "ObjectID.h"
 #include "SCollisionInfo.h"
 
 //=================================================================================
@@ -11,7 +10,6 @@ struct STriangle
         : m_A(A)
         , m_B(B)
         , m_C(C)
-        , m_objectID(GenerateObjectID())
         , m_materialID(materialID)
     {
         SVector e_1 = m_B - m_A;
@@ -25,17 +23,13 @@ struct STriangle
     SVector     m_B;
     SVector     m_C;
     SVector     m_normal;
-    TObjectID   m_objectID;
     TMaterialID m_materialID;
 };
 
 //=================================================================================
-inline bool RayIntersects (const SVector& rayPos, const SVector& rayDir, const STriangle& triangle, SCollisionInfo& info, TObjectID ignoreObjectId = c_invalidObjectID)
+inline bool RayIntersects (const SVector& rayPos, const SVector& rayDir, const STriangle& triangle, SCollisionInfo& info)
 {
     // This function adapted from GraphicsCodex.com
-
-    if (ignoreObjectId == triangle.m_objectID)
-        return false;
 
     /* If ray P + tw hits triangle V[0], V[1], V[2], then the function returns true,
     stores the barycentric coordinates in b[], and stores the distance to the intersection
@@ -86,7 +80,6 @@ inline bool RayIntersects (const SVector& rayPos, const SVector& rayDir, const S
     float v = b.m_x;
 
     info.SuccessfulHit(
-        triangle.m_objectID,
         triangle.m_materialID,
         rayPos + rayDir * t,
         normal,

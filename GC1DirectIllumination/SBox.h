@@ -1,7 +1,6 @@
 #pragma once
 
 #include "SVector.h"
-#include "ObjectID.h"
 #include "SCollisionInfo.h"
 #include <array>
 
@@ -11,7 +10,6 @@ struct SBox
     SBox(SVector position, SVector scale, const std::array<TMaterialID,6>& materialIDs)
         : m_position(position)
         , m_scale(scale)
-        , m_objectID(GenerateObjectID())
         , m_materialIDs(materialIDs)
     {
     }
@@ -19,7 +17,6 @@ struct SBox
     SBox(SVector position, SVector scale, TMaterialID materialID)
         : m_position(position)
         , m_scale(scale)
-        , m_objectID(GenerateObjectID())
     {
         for(TMaterialID& m : m_materialIDs)
             m = materialID;
@@ -27,16 +24,12 @@ struct SBox
 
     SVector     m_position;
     SVector     m_scale;
-    TObjectID   m_objectID;
     std::array<TMaterialID,6> m_materialIDs;
 };
 
 //=================================================================================
-inline bool RayIntersects(const SVector& rayPos, const SVector& rayDir, const SBox& box, SCollisionInfo& info, TObjectID ignoreObjectId = c_invalidObjectID)
+inline bool RayIntersects(const SVector& rayPos, const SVector& rayDir, const SBox& box, SCollisionInfo& info)
 {
-    if (ignoreObjectId == box.m_objectID)
-        return false;
-
     float rayMinTime = 0.0;
     float rayMaxTime = FLT_MAX;
 
@@ -166,7 +159,6 @@ inline bool RayIntersects(const SVector& rayPos, const SVector& rayDir, const SB
     }
 
     info.SuccessfulHit(
-        box.m_objectID,
         materialId,
         intersectionPoint,
         normal,

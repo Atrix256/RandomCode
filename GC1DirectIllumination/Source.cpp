@@ -34,6 +34,7 @@ static const bool c_jitterSamples = true;
 static const size_t c_maxBounces = 10;
 static const size_t c_russianRouletteStartBounce = 5;
 static const size_t c_stratifyPixel = 4;
+static const float c_rayBounceEpsilon = 0.001f;
 
 // camera - assumes no roll, and that (0,1,0) is up
 static const SVector c_cameraPos = {-1.0f, 4.0f, -10.0f };
@@ -152,38 +153,42 @@ inline void GetMaterial_BumpTest(const SCollisionInfo& info, SMaterial& scratchM
 
 // Materials - name, diffuse, emissive, reflective, refractive, refractionIndex, brdf
 #define MATERIALLIST() \
-    MATERIAL(Black          , SVector(), SVector(), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(MatteRed       , SVector(0.9f, 0.1f, 0.1f), SVector(), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(MatteGreen     , SVector(0.1f, 0.9f, 0.1f), SVector(), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(MatteBlue      , SVector(0.1f, 0.1f, 0.9f), SVector(), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(MatteTeal      , SVector(0.1f, 0.9f, 0.9f), SVector(), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(MatteMagenta   , SVector(0.9f, 0.1f, 0.9f), SVector(), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(MatteYellow    , SVector(0.9f, 0.9f, 0.1f), SVector(), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(MatteWhite     , SVector(0.9f, 0.9f, 0.9f), SVector(), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(EmissiveRed    , SVector(), SVector(20.0f,  0.0f,  0.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(EmissiveGreen  , SVector(), SVector( 0.0f, 20.0f,  0.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(EmissiveBlue   , SVector(), SVector( 0.0f,  0.0f, 20.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(EmissiveTeal   , SVector(), SVector( 0.0f, 20.0f, 20.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(EmissiveMagenta, SVector(), SVector(20.0f,  0.0f, 20.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(EmissiveYellow , SVector(), SVector(20.0f, 20.0f,  0.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(EmissiveWhite  , SVector(), SVector(20.0f, 20.0f, 20.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(ShinyRed       , SVector(0.9f, 0.1f, 0.1f), SVector(), SVector(0.2f, 0.2f, 0.2f), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(ShinyGreen     , SVector(0.1f, 0.9f, 0.1f), SVector(), SVector(0.2f, 0.2f, 0.2f), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(ShinyBlue      , SVector(0.1f, 0.1f, 0.9f), SVector(), SVector(0.2f, 0.2f, 0.2f), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(ShinyTeal      , SVector(0.1f, 0.9f, 0.9f), SVector(), SVector(0.2f, 0.2f, 0.2f), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(ShinyMagenta   , SVector(0.9f, 0.1f, 0.9f), SVector(), SVector(0.2f, 0.2f, 0.2f), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(ShinyYellow    , SVector(0.9f, 0.9f, 0.1f), SVector(), SVector(0.2f, 0.2f, 0.2f), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(ShinyWhite     , SVector(0.9f, 0.9f, 0.9f), SVector(), SVector(0.2f, 0.2f, 0.2f), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(ShinyGrey      , SVector(0.1f, 0.1f, 0.1f), SVector(), SVector(0.2f, 0.2f, 0.2f), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(GlowRed        , SVector(0.1f, 0.1f, 0.1f), SVector(0.01f, 0.0f, 0.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(GlowGreen      , SVector(0.1f, 0.1f, 0.1f), SVector(0.0f, 0.2f, 0.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(GlowBlue       , SVector(0.1f, 0.1f, 0.1f), SVector(0.0f, 0.0f, 2.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(GlowTeal       , SVector(0.1f, 0.1f, 0.1f), SVector(0.0f, 2.0f, 2.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(GlowMagenta    , SVector(0.1f, 0.1f, 0.1f), SVector(2.0f, 0.0f, 2.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(GlowYellow     , SVector(0.1f, 0.1f, 0.1f), SVector(2.0f, 2.0f, 0.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(GlowWhite      , SVector(0.1f, 0.1f, 0.1f), SVector(2.0f, 2.0f, 2.0f), SVector(), SVector(), 1.0f, EBRDF::standard) \
-    MATERIAL(Water          , SVector(), SVector(), SVector(0.1f, 0.1f, 0.1f), SVector(1.0f, 1.0f, 1.0f), 1.3f, EBRDF::standard) \
-    MATERIAL(Chrome         , SVector(0.01f, 0.01f, 0.01f), SVector(), SVector(1.0f, 1.0f, 1.0f), SVector(), 1.0f, EBRDF::standard) \
+    MATERIAL(Black          , SVector(), SVector(), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
+    MATERIAL(MatteRed       , SVector(0.9f, 0.1f, 0.1f), SVector(), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
+    MATERIAL(MatteGreen     , SVector(0.1f, 0.9f, 0.1f), SVector(), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
+    MATERIAL(MatteBlue      , SVector(0.1f, 0.1f, 0.9f), SVector(), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
+    MATERIAL(MatteTeal      , SVector(0.1f, 0.9f, 0.9f), SVector(), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
+    MATERIAL(MatteMagenta   , SVector(0.9f, 0.1f, 0.9f), SVector(), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
+    MATERIAL(MatteYellow    , SVector(0.9f, 0.9f, 0.1f), SVector(), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
+    MATERIAL(MatteWhite     , SVector(0.9f, 0.9f, 0.9f), SVector(), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
+    MATERIAL(EmissiveRed    , SVector(), SVector(20.0f,  0.0f,  0.0f), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
+    MATERIAL(EmissiveGreen  , SVector(), SVector( 0.0f, 20.0f,  0.0f), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
+    MATERIAL(EmissiveBlue   , SVector(), SVector( 0.0f,  0.0f, 20.0f), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
+    MATERIAL(EmissiveTeal   , SVector(), SVector( 0.0f, 20.0f, 20.0f), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
+    MATERIAL(EmissiveMagenta, SVector(), SVector(20.0f,  0.0f, 20.0f), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
+    MATERIAL(EmissiveYellow , SVector(), SVector(20.0f, 20.0f,  0.0f), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
+    MATERIAL(EmissiveWhite  , SVector(), SVector(20.0f, 20.0f, 20.0f), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
+    MATERIAL(ShinyRed       , SVector(0.9f, 0.1f, 0.1f), SVector(), SVector(0.2f, 0.2f, 0.2f), SVector(), 1.0f, 0.0f, EBRDF::standard) \
+    MATERIAL(ShinyGreen     , SVector(0.1f, 0.9f, 0.1f), SVector(), SVector(0.2f, 0.2f, 0.2f), SVector(), 1.0f, 0.0f, EBRDF::standard) \
+    MATERIAL(ShinyBlue      , SVector(0.1f, 0.1f, 0.9f), SVector(), SVector(0.2f, 0.2f, 0.2f), SVector(), 1.0f, 0.0f, EBRDF::standard) \
+    MATERIAL(ShinyTeal      , SVector(0.1f, 0.9f, 0.9f), SVector(), SVector(0.2f, 0.2f, 0.2f), SVector(), 1.0f, 0.0f, EBRDF::standard) \
+    MATERIAL(ShinyMagenta   , SVector(0.9f, 0.1f, 0.9f), SVector(), SVector(0.2f, 0.2f, 0.2f), SVector(), 1.0f, 0.0f, EBRDF::standard) \
+    MATERIAL(ShinyYellow    , SVector(0.9f, 0.9f, 0.1f), SVector(), SVector(0.2f, 0.2f, 0.2f), SVector(), 1.0f, 0.0f, EBRDF::standard) \
+    MATERIAL(ShinyWhite     , SVector(0.9f, 0.9f, 0.9f), SVector(), SVector(0.2f, 0.2f, 0.2f), SVector(), 1.0f, 0.0f, EBRDF::standard) \
+    MATERIAL(ShinyGrey      , SVector(0.1f, 0.1f, 0.1f), SVector(), SVector(0.2f, 0.2f, 0.2f), SVector(), 1.0f, 0.0f, EBRDF::standard) \
+    MATERIAL(GlowRed        , SVector(0.1f, 0.1f, 0.1f), SVector(0.01f, 0.0f, 0.0f), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
+    MATERIAL(GlowGreen      , SVector(0.1f, 0.1f, 0.1f), SVector(0.0f, 0.2f, 0.0f), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
+    MATERIAL(GlowBlue       , SVector(0.1f, 0.1f, 0.1f), SVector(0.0f, 0.0f, 2.0f), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
+    MATERIAL(GlowTeal       , SVector(0.1f, 0.1f, 0.1f), SVector(0.0f, 2.0f, 2.0f), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
+    MATERIAL(GlowMagenta    , SVector(0.1f, 0.1f, 0.1f), SVector(2.0f, 0.0f, 2.0f), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
+    MATERIAL(GlowYellow     , SVector(0.1f, 0.1f, 0.1f), SVector(2.0f, 2.0f, 0.0f), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
+    MATERIAL(GlowWhite      , SVector(0.1f, 0.1f, 0.1f), SVector(2.0f, 2.0f, 2.0f), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
+    MATERIAL(Water          , SVector(), SVector(), SVector(0.1f, 0.1f, 0.1f), SVector(1.0f, 1.0f, 1.0f), 1.3f, 0.0f, EBRDF::standard) \
+    MATERIAL(ChromeRough0   , SVector(0.01f, 0.01f, 0.01f), SVector(), SVector(1.0f, 1.0f, 1.0f), SVector(), 1.0f, 0.0f, EBRDF::standard) \
+    MATERIAL(ChromeRough25  , SVector(0.01f, 0.01f, 0.01f), SVector(), SVector(1.0f, 1.0f, 1.0f), SVector(), 1.0f, 0.25f, EBRDF::standard) \
+    MATERIAL(ChromeRough50  , SVector(0.01f, 0.01f, 0.01f), SVector(), SVector(1.0f, 1.0f, 1.0f), SVector(), 1.0f, 0.50f, EBRDF::standard) \
+    MATERIAL(ChromeRough75  , SVector(0.01f, 0.01f, 0.01f), SVector(), SVector(1.0f, 1.0f, 1.0f), SVector(), 1.0f, 0.75f, EBRDF::standard) \
+    MATERIAL(ChromeRough100 , SVector(0.01f, 0.01f, 0.01f), SVector(), SVector(1.0f, 1.0f, 1.0f), SVector(), 1.0f, 1.0f, EBRDF::standard) \
     MATERIALEX(Checkerboard         ) \
     MATERIALEX(Grid                 ) \
     MATERIALEX(CBLight              ) \
@@ -197,15 +202,21 @@ inline void GetMaterial_BumpTest(const SCollisionInfo& info, SMaterial& scratchM
 std::vector<SSphere> c_spheres = {
     //SSphere(SVector(0.0f, 0.0f, 0.0f), 2.0f, TMaterialID::ShinyMagenta),
 
-    SSphere(SVector(-2.0f, -2.5f + 1.5f,  3.0f - 2.0f), 2.0f, TMaterialID::BumpTest),
-    SSphere(SVector( 2.5f, -3.0f + 1.5f,  1.5f - 2.0f), 1.5f, TMaterialID::BumpTest),
-    SSphere(SVector(-0.5f, -3.5f + 1.5f, -0.5f - 2.0f), 1.0f, TMaterialID::BumpTest),
-    SSphere(SVector(-4.0f, -3.75f + 1.5f, 0.0f - 2.0f), 0.75f, TMaterialID::BumpTest),
-    SSphere(SVector(3.0f, -3.75f + 1.5f, -1.0f - 2.0f), 0.75f, TMaterialID::BumpTest),
+    //SSphere(SVector(-2.0f, -2.5f + 1.5f,  3.0f - 2.0f), 2.0f, TMaterialID::BumpTest),
+    //SSphere(SVector( 2.5f, -3.0f + 1.5f,  1.5f - 2.0f), 1.5f, TMaterialID::BumpTest),
+    //SSphere(SVector(-0.5f, -3.5f + 1.5f, -0.5f - 2.0f), 1.0f, TMaterialID::BumpTest),
+    //SSphere(SVector(-4.0f, -3.75f + 1.5f, 0.0f - 2.0f), 0.75f, TMaterialID::BumpTest),
+    //SSphere(SVector(3.0f, -3.75f + 1.5f, -1.0f - 2.0f), 0.75f, TMaterialID::BumpTest),
     SSphere(SVector(-3.0f,  4.5f, -3.0f), 0.5f, TMaterialID::EmissiveWhite),
     SSphere(SVector( 3.0f,  4.5f, -3.0f), 0.5f, TMaterialID::EmissiveRed),
     SSphere(SVector( 3.0f,  4.5f,  3.0f), 0.5f, TMaterialID::EmissiveBlue),
     SSphere(SVector(-3.0f,  4.5f,  3.0f), 0.5f, TMaterialID::EmissiveGreen),
+
+    SSphere(SVector(-4.0f, 0.0f, 0.0f), 1.0f, TMaterialID::ChromeRough0),
+    SSphere(SVector(-2.0f, 0.0f, 0.0f), 1.0f, TMaterialID::ChromeRough25),
+    SSphere(SVector( 0.0f, 0.0f, 0.0f), 1.0f, TMaterialID::ChromeRough50),
+    SSphere(SVector( 2.0f, 0.0f, 0.0f), 1.0f, TMaterialID::ChromeRough75),
+    SSphere(SVector( 4.0f, 0.0f, 0.0f), 1.0f, TMaterialID::ChromeRough100)
 
     //SSphere(SVector(-3.0f, 5.0f,-3.0f), 0.5f, TMaterialID::EmissiveWhite),
     //SSphere(SVector( 3.0f, 5.0f,-3.0f), 0.5f, TMaterialID::EmissiveWhite),
@@ -222,7 +233,7 @@ std::vector<SPlane> c_planes = {
 
 // Boxes
 std::vector<SBox> c_boxes = {
-    SBox(SVector(0.0f, 0.0f, -3.0f), SVector(10.0f, 10.0f, 16.0f), { TMaterialID::MatteRed, TMaterialID::MatteGreen, TMaterialID::Checkerboard, TMaterialID::MatteTeal, TMaterialID::Black, TMaterialID::MatteBlue }),
+    SBox(SVector(0.0f, 0.0f, -3.0f), SVector(10.0f, 10.0f, 16.0f), { TMaterialID::MatteRed, TMaterialID::MatteGreen, TMaterialID::MatteYellow, TMaterialID::MatteTeal, TMaterialID::MatteMagenta, TMaterialID::MatteBlue }),
     //SBox(SVector(0.0f, 0.0f, 0.0f), SVector(1.0f, 1.0f, 1.0f), TMaterialID::CBLight),
     //SBox(SVector(-4.0f, 0.0f, 4.0f), SVector(1.0f, 1.0f, 1.0f), TMaterialID::CBLight)
 
@@ -302,46 +313,17 @@ static std::atomic<size_t> g_currentPixelIndex(-1);
 static SImageDataRGBF32 g_image_RGB_F32(c_imageWidth, c_imageHeight);
 
 //=================================================================================
-bool AnyIntersection (const SVector& a, const SVector& dir, float length, TObjectID ignoreObjectID = c_invalidObjectID)
-{
-    SCollisionInfo collisionInfo;
-    collisionInfo.m_maxCollisionTime = length;
-    for (const SSphere& s : c_spheres)
-    {
-        if (RayIntersects(a, dir, s, collisionInfo, ignoreObjectID))
-            return true;
-    }
-    for (const SPlane& p : c_planes)
-    {
-        if (RayIntersects(a, dir, p, collisionInfo, ignoreObjectID))
-            return true;
-    }
-    for (const SBox& b : c_boxes)
-    {
-        if (RayIntersects(a, dir, b, collisionInfo, ignoreObjectID))
-            return true;
-    }
-    for (const STriangle& t : c_triangles)
-    {
-        if (RayIntersects(a, dir, t, collisionInfo, ignoreObjectID))
-            return true;
-    }
-
-    return false;
-}
-
-//=================================================================================
-bool ClosestIntersection (const SVector& rayPos, const SVector& rayDir, SCollisionInfo& collisionInfo, TObjectID ignoreObjectID = c_invalidObjectID)
+bool ClosestIntersection (const SVector& rayPos, const SVector& rayDir, SCollisionInfo& collisionInfo)
 {
     bool ret = false;
     for (const SSphere& s : c_spheres)
-        ret |= RayIntersects(rayPos, rayDir, s, collisionInfo, ignoreObjectID);
+        ret |= RayIntersects(rayPos, rayDir, s, collisionInfo);
     for (const SPlane& p: c_planes)
-        ret |= RayIntersects(rayPos, rayDir, p, collisionInfo, ignoreObjectID);
+        ret |= RayIntersects(rayPos, rayDir, p, collisionInfo);
     for (const SBox& b : c_boxes)
-        ret |= RayIntersects(rayPos, rayDir, b, collisionInfo, ignoreObjectID);
+        ret |= RayIntersects(rayPos, rayDir, b, collisionInfo);
     for (const STriangle& t : c_triangles)
-        ret |= RayIntersects(rayPos, rayDir, t, collisionInfo, ignoreObjectID);
+        ret |= RayIntersects(rayPos, rayDir, t, collisionInfo);
     return ret;
 }
 
@@ -383,8 +365,14 @@ SVector L_out(const SCollisionInfo& X, const SVector& outDir, size_t bouncesLeft
     if (PassesRussianRoulette(material.m_reflection, bouncesLeft))
     {
         SVector reflectDir = Reflect(-outDir, normal);
+        if (material.m_roughness > 0.0f)
+        {
+            SVector randomDir = CosineSampleHemisphere(normal);
+            reflectDir = Lerp(reflectDir, randomDir, material.m_roughness);
+        }
+
         SCollisionInfo collisionInfo;
-        if (ClosestIntersection(X.m_intersectionPoint, reflectDir, collisionInfo, X.m_objectID))
+        if (ClosestIntersection(X.m_intersectionPoint + reflectDir * c_rayBounceEpsilon, reflectDir, collisionInfo))
         {
             float cos_theta = Dot(reflectDir, normal);
             SVector BRDF = material.m_reflection * cos_theta;
@@ -399,11 +387,18 @@ SVector L_out(const SCollisionInfo& X, const SVector& outDir, size_t bouncesLeft
         // air has a refractive index of just over 1.0, and vacum has 1.0.
         float ratio = X.m_fromInside ? material.m_refractionIndex / 1.0f : 1.0f / material.m_refractionIndex;
         SVector refractDir = Refract(-outDir, normal, ratio);
+
+        if (material.m_roughness > 0.0f)
+        {
+            SVector randomDir = CosineSampleHemisphere(normal);
+            refractDir = Lerp(refractDir, randomDir, material.m_roughness);
+        }
+
         SCollisionInfo collisionInfo;
 
         // We need to push the ray out a little bit, instead of telling it to ignore this object for the intersection
         // test, because we may hit the same object again legitimately!
-        if (ClosestIntersection(X.m_intersectionPoint + refractDir * 0.001f, refractDir, collisionInfo))
+        if (ClosestIntersection(X.m_intersectionPoint + refractDir * c_rayBounceEpsilon, refractDir, collisionInfo))
         {
             float cos_theta = Dot(refractDir, normal);
             SVector BRDF = material.m_refraction * cos_theta;
@@ -416,7 +411,7 @@ SVector L_out(const SCollisionInfo& X, const SVector& outDir, size_t bouncesLeft
     {
         SVector newRayDir = CosineSampleHemisphere(normal);
         SCollisionInfo collisionInfo;
-        if (ClosestIntersection(X.m_intersectionPoint, newRayDir, collisionInfo, X.m_objectID))
+        if (ClosestIntersection(X.m_intersectionPoint + newRayDir * c_rayBounceEpsilon, newRayDir, collisionInfo))
         {
             // no cosine multiplication, because we use cosine weighted samples
             ret += material.m_diffuse * L_out(collisionInfo, -newRayDir, bouncesLeft - 1);
@@ -758,7 +753,9 @@ int CALLBACK WinMain(
 
 NOW:
 
-? try playing around with bump map?
+* test how roughness works with refraction
+
+* get rid of object id's if they aren't useful!
 
 * hitting emissive from the inside (on the light cube CBLight), is black!
 * refractive index of 1.0 seems to still bend light somehow??
@@ -766,6 +763,8 @@ NOW:
 * load and use images for colors / properties.
 
 * direct lighting should help convergence for matte surfaces https://www.shadertoy.com/view/4tl3z4
+
+? to figure out noise issue... maybe make it take one sample and keep a history of what happened for each pixel.  then look at a dark pixel to see what the heck it hit?
 
 NEXT:
 * get BRDFs working
@@ -846,6 +845,9 @@ GRAPHICS FEATURES:
  * and do motion blur at that point!
 * make SBox able to be oriented?
 * can we do temporal stuff for videos?
+* could try cutting holes in objects (with custom material making parts transparent) to see shaped light shadows -> like an eclipse
+* try halton sequence to see if it converges faster?
+* portal support: i think maybe we could let the material modify the ray position / direction to implement this?
 
 SCENE:
 * add a skybox?
@@ -870,14 +872,29 @@ OTHER:
  * support videos too
  * be able to upsize / downsize etc!
 * calculation of tangent, bitangent, u,v is inconsistent on each primitive type! check notes below to see what I mean!
+* try ray marching eventually
 
 ? Compare to GPU pathtracing.  wonder how many samples per second it can get for similar resolution and features?
+ * could try on shadertoy.com before gpu implementation?
 
 ! blog posts on all this info
  * basic path tracing / rendering equation
  * advanced features like russian roulette and such
  * specific features
 
+Blog Post on path tracing basics:
+ * cosine weighted sampling vs not
+  * random point in circle.  compare disc (like i do), vs normalizing points in square, vs throwing points out of circle out.
+  * visualize points in hemisphere somehow for distribution-ness
+ * halton sequence vs random numbers?  https://en.wikipedia.org/wiki/Halton_sequence
+
+Links for blog and such:
+ * angelo's path tracing link:  http://www.scratchapixel.com/lessons/3d-basic-rendering/global-illumination-path-tracing
+ * http://www.dirsig.org/docs/new/rad_solvers.html
+ * http://cgg.unibe.ch/publications/denoising-your-monte-carlo-renders
+ * rolling the dice siggraph course
+ * http://www.rorydriscoll.com/2009/01/07/better-sampling/
+ * https://pathtracing.wordpress.com/2011/03/03/cosine-weighted-hemisphere/
 
  ===== NOTES: =====
  

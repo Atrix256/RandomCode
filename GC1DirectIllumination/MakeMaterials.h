@@ -2,7 +2,7 @@
 // TMaterialID Enum
 //=================================================================================
 
-#define MATERIAL(name, diffuse, emissive, reflective, refractive, refractionIndex, brdf) name,
+#define MATERIAL(name, diffuse, emissive, reflective, refractive, refractionIndex, roughness, brdf) name,
 #define MATERIALEX(name) name,
     
 enum class TMaterialID : size_t {
@@ -19,10 +19,10 @@ enum class TMaterialID : size_t {
 // GetMaterial Function
 //=================================================================================
 
-#define MATERIAL(name, diffuse, emissive, reflective, refractive, refractionIndex, brdf) \
+#define MATERIAL(name, diffuse, emissive, reflective, refractive, refractionIndex, roughness, brdf) \
     case TMaterialID::##name: \
     { \
-        static const SMaterial material(diffuse, emissive, reflective, refractive, refractionIndex, brdf, TMaterialID::##name); \
+        static const SMaterial material(diffuse, emissive, reflective, refractive, refractionIndex, roughness, brdf, TMaterialID::##name); \
         return material; \
     }
 #define MATERIALEX(name) case TMaterialID::##name: scratchMaterial.m_materialID = TMaterialID::##name; GetMaterial_##name(info, scratchMaterial, normal);  return scratchMaterial;
@@ -34,7 +34,7 @@ const SMaterial& GetMaterial (const SCollisionInfo& info, SMaterial& scratchMate
     {
         MATERIALLIST()
     }
-    static const SMaterial errorMaterial(SVector(1.0f, 0.0f, 1.0f), SVector(), SVector(), SVector(), 1.0f, EBRDF::standard, TMaterialID::Error);
+    static const SMaterial errorMaterial(SVector(1.0f, 0.0f, 1.0f), SVector(), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard, TMaterialID::Error);
     return errorMaterial;
 }
 
