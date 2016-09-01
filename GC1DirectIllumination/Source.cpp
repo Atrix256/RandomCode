@@ -32,12 +32,12 @@ static const size_t c_redrawFPS = 30;
 // sampling
 static const bool c_jitterSamples = true;
 static const size_t c_maxBounces = 10;
-static const size_t c_russianRouletteStartBounce = 5;
-static const size_t c_stratifyPixel = 4;
+static const size_t c_russianRouletteStartBounce = 10;
+static const size_t c_stratifyPixel = 1;
 static const float c_rayBounceEpsilon = 0.001f;
 
 // camera - assumes no roll, and that (0,1,0) is up
-static const SVector c_cameraPos = {-1.0f, 4.0f, -10.0f };
+static const SVector c_cameraPos = { 1.0f, 1.0f, -10.0f };
 static const SVector c_cameraAt = { 0.0f, 0.0f, 0.0f };
 static const float c_nearDist = 0.1f;
 static const float c_cameraVerticalFOV = 60.0f * c_pi / 180.0f;
@@ -161,13 +161,13 @@ inline void GetMaterial_BumpTest(const SCollisionInfo& info, SMaterial& scratchM
     MATERIAL(MatteMagenta   , SVector(0.9f, 0.1f, 0.9f), SVector(), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
     MATERIAL(MatteYellow    , SVector(0.9f, 0.9f, 0.1f), SVector(), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
     MATERIAL(MatteWhite     , SVector(0.9f, 0.9f, 0.9f), SVector(), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
-    MATERIAL(EmissiveRed    , SVector(), SVector(20.0f,  0.0f,  0.0f), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
-    MATERIAL(EmissiveGreen  , SVector(), SVector( 0.0f, 20.0f,  0.0f), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
-    MATERIAL(EmissiveBlue   , SVector(), SVector( 0.0f,  0.0f, 20.0f), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
-    MATERIAL(EmissiveTeal   , SVector(), SVector( 0.0f, 20.0f, 20.0f), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
-    MATERIAL(EmissiveMagenta, SVector(), SVector(20.0f,  0.0f, 20.0f), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
-    MATERIAL(EmissiveYellow , SVector(), SVector(20.0f, 20.0f,  0.0f), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
-    MATERIAL(EmissiveWhite  , SVector(), SVector(20.0f, 20.0f, 20.0f), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
+    MATERIAL(EmissiveRed    , SVector(), SVector(0.9f, 0.1f, 0.1f), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
+    MATERIAL(EmissiveGreen  , SVector(), SVector(0.1f, 0.9f, 0.1f), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
+    MATERIAL(EmissiveBlue   , SVector(), SVector(0.1f, 0.1f, 0.9f), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
+    MATERIAL(EmissiveTeal   , SVector(), SVector(0.1f, 0.9f, 0.9f), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
+    MATERIAL(EmissiveMagenta, SVector(), SVector(0.9f, 0.1f, 0.9f), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
+    MATERIAL(EmissiveYellow , SVector(), SVector(0.9f, 0.9f, 0.1f), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
+    MATERIAL(EmissiveWhite  , SVector(), SVector(0.9f, 0.9f, 0.9f), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
     MATERIAL(ShinyRed       , SVector(0.9f, 0.1f, 0.1f), SVector(), SVector(0.2f, 0.2f, 0.2f), SVector(), 1.0f, 0.0f, EBRDF::standard) \
     MATERIAL(ShinyGreen     , SVector(0.1f, 0.9f, 0.1f), SVector(), SVector(0.2f, 0.2f, 0.2f), SVector(), 1.0f, 0.0f, EBRDF::standard) \
     MATERIAL(ShinyBlue      , SVector(0.1f, 0.1f, 0.9f), SVector(), SVector(0.2f, 0.2f, 0.2f), SVector(), 1.0f, 0.0f, EBRDF::standard) \
@@ -207,10 +207,10 @@ std::vector<SSphere> c_spheres = {
     //SSphere(SVector(-0.5f, -3.5f + 1.5f, -0.5f - 2.0f), 1.0f, TMaterialID::BumpTest),
     //SSphere(SVector(-4.0f, -3.75f + 1.5f, 0.0f - 2.0f), 0.75f, TMaterialID::BumpTest),
     //SSphere(SVector(3.0f, -3.75f + 1.5f, -1.0f - 2.0f), 0.75f, TMaterialID::BumpTest),
-    SSphere(SVector(-3.0f,  4.5f, -3.0f), 0.5f, TMaterialID::EmissiveWhite),
-    SSphere(SVector( 3.0f,  4.5f, -3.0f), 0.5f, TMaterialID::EmissiveRed),
-    SSphere(SVector( 3.0f,  4.5f,  3.0f), 0.5f, TMaterialID::EmissiveBlue),
-    SSphere(SVector(-3.0f,  4.5f,  3.0f), 0.5f, TMaterialID::EmissiveGreen),
+    SSphere(SVector(-4.f,  4.f, -4.f), 1.0f, TMaterialID::EmissiveRed),
+    SSphere(SVector( 4.f,  4.f, -4.f), 1.0f, TMaterialID::EmissiveWhite),
+    SSphere(SVector( 4.f,  4.f,  4.f), 1.0f, TMaterialID::EmissiveBlue),
+    SSphere(SVector(-4.f,  4.f,  4.f), 1.0f, TMaterialID::EmissiveGreen),
 
     SSphere(SVector(-4.0f, 0.0f, 0.0f), 1.0f, TMaterialID::ChromeRough0),
     SSphere(SVector(-2.0f, 0.0f, 0.0f), 1.0f, TMaterialID::ChromeRough25),
@@ -233,7 +233,7 @@ std::vector<SPlane> c_planes = {
 
 // Boxes
 std::vector<SBox> c_boxes = {
-    SBox(SVector(0.0f, 0.0f, -3.0f), SVector(10.0f, 10.0f, 16.0f), { TMaterialID::MatteRed, TMaterialID::MatteGreen, TMaterialID::MatteYellow, TMaterialID::MatteTeal, TMaterialID::MatteMagenta, TMaterialID::MatteBlue }),
+    SBox(SVector(0.0f, 0.0f, -3.0f), SVector(10.0f, 10.0f, 16.0f), { TMaterialID::MatteRed, TMaterialID::MatteGreen, TMaterialID::MatteYellow, TMaterialID::MatteBlue, TMaterialID::MatteMagenta, TMaterialID::MatteTeal }),
     //SBox(SVector(0.0f, 0.0f, 0.0f), SVector(1.0f, 1.0f, 1.0f), TMaterialID::CBLight),
     //SBox(SVector(-4.0f, 0.0f, 4.0f), SVector(1.0f, 1.0f, 1.0f), TMaterialID::CBLight)
 
@@ -367,15 +367,15 @@ SVector L_out(const SCollisionInfo& X, const SVector& outDir, size_t bouncesLeft
         SVector reflectDir = Reflect(-outDir, normal);
         if (material.m_roughness > 0.0f)
         {
-            SVector randomDir = CosineSampleHemisphere(reflectDir);
-            reflectDir = Lerp(reflectDir, randomDir, material.m_roughness);
+            SVector randomDir = UniformSampleHemisphere(normal);
+            reflectDir = Lerp(reflectDir, randomDir, material.m_roughness * material.m_roughness);
         }
 
         SCollisionInfo collisionInfo;
         if (ClosestIntersection(X.m_intersectionPoint + reflectDir * c_rayBounceEpsilon, reflectDir, collisionInfo))
         {
             float cos_theta = Dot(reflectDir, normal);
-            SVector BRDF = material.m_reflection * cos_theta;
+            SVector BRDF = 2.0f * material.m_reflection * cos_theta;
             ret += BRDF * L_out(collisionInfo, -reflectDir, bouncesLeft - 1);
         }
     }
@@ -393,9 +393,7 @@ SVector L_out(const SCollisionInfo& X, const SVector& outDir, size_t bouncesLeft
         // test, because we may hit the same object again legitimately!
         if (ClosestIntersection(X.m_intersectionPoint + refractDir * c_rayBounceEpsilon, refractDir, collisionInfo))
         {
-            float cos_theta = Dot(refractDir, normal);
-            SVector BRDF = material.m_refraction * cos_theta;
-            ret += BRDF * L_out(collisionInfo, -refractDir, bouncesLeft - 1);
+            ret += material.m_refraction * L_out(collisionInfo, -refractDir, bouncesLeft - 1);
         }
     }
 
@@ -406,7 +404,6 @@ SVector L_out(const SCollisionInfo& X, const SVector& outDir, size_t bouncesLeft
         SCollisionInfo collisionInfo;
         if (ClosestIntersection(X.m_intersectionPoint + newRayDir * c_rayBounceEpsilon, newRayDir, collisionInfo))
         {
-            // no cosine multiplication, because we use cosine weighted samples
             ret += material.m_diffuse * L_out(collisionInfo, -newRayDir, bouncesLeft - 1);
         }
     }
@@ -841,6 +838,7 @@ GRAPHICS FEATURES:
 * try halton sequence to see if it converges faster?
 * portal support: i think maybe we could let the material modify the ray position / direction to implement this?
 * make roughness affect refraction? naive implementation failed, made it all black even when very very small amount of refraction
+* I don't think you implemented stratified samples correctly!
 
 SCENE:
 * add a skybox?
@@ -896,5 +894,7 @@ Links for blog and such:
   * plane:  tangent is cross of up vector and normal. bitangent is cross of normal and tangent.
   * sphere: tangent is cross of normal and up vector.  bitangent is cross of normal and tangent. u and v are theta and phi of spherical coordinates.
   * triangle: normal is what you'd expect.  tangent is from A->B.  bitangent is cross of tangent and normal. u,v are two of the barycentric coordinates for the triangle, coresponding to point A,B. the third is gotten by 1-u-v.
+
+* bright lights seem to increase variance (noise), especially when they are small.
 
 */

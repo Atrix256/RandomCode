@@ -246,6 +246,28 @@ inline SVector CosineSampleHemisphere (const SVector& normal)
 }
 
 //=================================================================================
+inline SVector UniformSampleHemisphere (SVector N)
+{
+    // adapted from @lh0xfb on twitter: https://github.com/gheshu/gputracer/blob/master/depth.glsl
+    SVector dir;
+    do
+    {
+        dir.m_x = RandomFloat(-1.0f, 1.0f);
+        dir.m_y = RandomFloat(-1.0f, 1.0f);
+        dir.m_z = RandomFloat(-1.0f, 1.0f);
+    } while (LengthSq(dir) > 1.0f);
+    //while(Dot(dir, N) <= 0.0);
+
+    if (Dot(dir, N) <= 0.0f)
+        dir *= -1.0f;
+
+    // TODO: can do with trig instead of looping!
+
+    Normalize(dir);
+    return dir;
+}
+
+//=================================================================================
 inline float MaxComponentValue (const SVector& s)
 {
     return (s.m_x > s.m_y && s.m_x > s.m_z)
