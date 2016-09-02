@@ -37,8 +37,8 @@ static const size_t c_stratifyPixel = 1;
 static const float c_rayBounceEpsilon = 0.001f;
 
 // camera - assumes no roll, and that (0,1,0) is up
-static const SVector c_cameraPos = { 1.0f, 1.0f, -10.0f };
-static const SVector c_cameraAt = { 0.0f, 0.0f, 0.0f };
+static const SVector c_cameraPos = { 1.0f, -1.0f, -10.0f };
+static const SVector c_cameraAt = { 0.0f, -2.0f, 0.0f };
 static const float c_nearDist = 0.1f;
 static const float c_cameraVerticalFOV = 60.0f * c_pi / 180.0f;
 
@@ -185,10 +185,10 @@ inline void GetMaterial_BumpTest(const SCollisionInfo& info, SMaterial& scratchM
     MATERIAL(GlowWhite      , SVector(0.1f, 0.1f, 0.1f), SVector(2.0f, 2.0f, 2.0f), SVector(), SVector(), 1.0f, 0.0f, EBRDF::standard) \
     MATERIAL(Water          , SVector(), SVector(), SVector(0.1f, 0.1f, 0.1f), SVector(1.0f, 1.0f, 1.0f), 1.3f, 0.0f, EBRDF::standard) \
     MATERIAL(ChromeRough0   , SVector(), SVector(), SVector(1.0f, 1.0f, 1.0f), SVector(), 1.0f, 0.0f, EBRDF::standard) \
-    MATERIAL(ChromeRough25  , SVector(), SVector(), SVector(1.0f, 1.0f, 1.0f), SVector(), 1.0f, 0.25f, EBRDF::standard) \
-    MATERIAL(ChromeRough50  , SVector(), SVector(), SVector(1.0f, 1.0f, 1.0f), SVector(), 1.0f, 0.50f, EBRDF::standard) \
-    MATERIAL(ChromeRough75  , SVector(), SVector(), SVector(1.0f, 1.0f, 1.0f), SVector(), 1.0f, 0.75f, EBRDF::standard) \
-    MATERIAL(ChromeRough100 , SVector(), SVector(), SVector(1.0f, 1.0f, 1.0f), SVector(), 1.0f, 1.0f, EBRDF::standard) \
+    MATERIAL(ChromeRough25  , SVector(), SVector(), SVector(1.0f, 1.0f, 1.0f), SVector(), 1.0f, 0.2f, EBRDF::standard) \
+    MATERIAL(ChromeRough50  , SVector(), SVector(), SVector(1.0f, 1.0f, 1.0f), SVector(), 1.0f, 0.4f, EBRDF::standard) \
+    MATERIAL(ChromeRough75  , SVector(), SVector(), SVector(1.0f, 1.0f, 1.0f), SVector(), 1.0f, 0.6f, EBRDF::standard) \
+    MATERIAL(ChromeRough100 , SVector(), SVector(), SVector(1.0f, 1.0f, 1.0f), SVector(), 1.0f, 0.8f, EBRDF::standard) \
     MATERIALEX(Checkerboard         ) \
     MATERIALEX(Grid                 ) \
     MATERIALEX(CBLight              ) \
@@ -212,11 +212,13 @@ std::vector<SSphere> c_spheres = {
     SSphere(SVector( 4.f,  4.f,  4.f), 1.0f, TMaterialID::EmissiveBlue),
     SSphere(SVector(-4.f,  4.f,  4.f), 1.0f, TMaterialID::EmissiveGreen),
 
-    SSphere(SVector(-4.0f, 0.0f, 0.0f), 1.0f, TMaterialID::ChromeRough0),
-    SSphere(SVector(-2.0f, 0.0f, 0.0f), 1.0f, TMaterialID::ChromeRough25),
-    SSphere(SVector( 0.0f, 0.0f, 0.0f), 1.0f, TMaterialID::ChromeRough50),
-    SSphere(SVector( 2.0f, 0.0f, 0.0f), 1.0f, TMaterialID::ChromeRough75),
-    SSphere(SVector( 4.0f, 0.0f, 0.0f), 1.0f, TMaterialID::ChromeRough100)
+    SSphere(SVector(-4.0f, -4.0f, 0.0f), 1.0f, TMaterialID::ChromeRough0),
+    SSphere(SVector(-2.0f, -4.0f, 0.0f), 1.0f, TMaterialID::ChromeRough25),
+    SSphere(SVector( 0.0f, -4.0f, 0.0f), 1.0f, TMaterialID::ChromeRough50),
+    SSphere(SVector( 2.0f, -4.0f, 0.0f), 1.0f, TMaterialID::ChromeRough75),
+    SSphere(SVector( 4.0f, -4.0f, 0.0f), 1.0f, TMaterialID::ChromeRough100),
+
+    //SSphere(SVector(0.5f, -4.0f, -3.0f), 1.0f, TMaterialID::BumpTest)
 
     //SSphere(SVector(-3.0f, 5.0f,-3.0f), 0.5f, TMaterialID::EmissiveWhite),
     //SSphere(SVector( 3.0f, 5.0f,-3.0f), 0.5f, TMaterialID::EmissiveWhite),
@@ -233,7 +235,7 @@ std::vector<SPlane> c_planes = {
 
 // Boxes
 std::vector<SBox> c_boxes = {
-    SBox(SVector(0.0f, 0.0f, -3.0f), SVector(10.0f, 10.0f, 16.0f), { TMaterialID::MatteRed, TMaterialID::MatteGreen, TMaterialID::MatteYellow, TMaterialID::MatteBlue, TMaterialID::MatteMagenta, TMaterialID::MatteTeal }),
+    SBox(SVector(0.0f, 0.0f, -3.0f), SVector(10.0f, 10.0f, 16.0f), { TMaterialID::MatteRed, TMaterialID::MatteGreen, TMaterialID::Checkerboard, TMaterialID::MatteBlue, TMaterialID::MatteMagenta, TMaterialID::MatteTeal }),
     //SBox(SVector(0.0f, 0.0f, 0.0f), SVector(1.0f, 1.0f, 1.0f), TMaterialID::CBLight),
     //SBox(SVector(-4.0f, 0.0f, 4.0f), SVector(1.0f, 1.0f, 1.0f), TMaterialID::CBLight)
 
@@ -742,30 +744,32 @@ int CALLBACK WinMain(
 /*
 
 NOW:
-
-* test how roughness works with refraction
-
-* hitting emissive from the inside (on the light cube CBLight), is black!
-* refractive index of 1.0 seems to still bend light somehow??
-
 * load and use images for colors / properties.
-
-* direct lighting should help convergence for matte surfaces https://www.shadertoy.com/view/4tl3z4
- * complex how to do that though.
-
-? to figure out noise issue... maybe make it take one sample and keep a history of what happened for each pixel.  then look at a dark pixel to see what the heck it hit?
-
-NEXT:
-* get BRDFs working
- * for now, just choose BDRF type (reflect, refract, diffuse)
- * then combine them after they are working
 
 * related to refraction:
  * Total internal reflection
  * fresnel
 
+* beer's law
+
 * Objects inside of transparent objects are problematic, need to fix.
-  * not sure why!
+  * not sure why! (retest)
+
+* solution from matt to not have to turn down lighting
+ * do averages in a "tone mapping"  space (such as square root)
+ * then undo the tone mapping at the end.
+ * this makes outliers not affect things as much
+ * matt referenced this: http://graphicrants.blogspot.com/2013/12/tone-mapping.html?m=1
+ * matt did this which seems similar to reinhardt:  1 / (1 + luma)
+
+NEXT:
+
+
+
+
+* get BRDFs working
+ * for now, just choose BDRF type (reflect, refract, diffuse)
+ * then combine them after they are working
 
  BRDF stuff:
  * generalize reflect / refract pulses, or leave alone?
@@ -788,14 +792,12 @@ NEXT:
  * maybe we can do some magical lambda stuff.
 
 GRAPHICS FEATURES:
-* are you handling BRDF pulses correctly? seems like reflect / refract maybe shouldn't be on par with diffuse.
-* maybe make a cube type?  could replace the room walls with a cube then even!
+* are you handling BRDF pulses correctly? seems like reflect / refract maybe shouldn't be on par with diffuse. need to weight by solid angle? or no?
 * make it so you can do uniform samples instead of random samples, to have a graphical comparison of results.
  * Should make it obvious why monte carlo is the better way
 * fresnel: graphics codex talks about fresnel in material section
 * smallpt handles glass vs mirrors vs diffuse surfaces differently
  * https://drive.google.com/file/d/0B8g97JkuSSBwUENiWTJXeGtTOHFmSm51UC01YWtCZw/view
-* implement roughness somehow
 * try mixing direct illumination with monte carlo like this: https://www.shadertoy.com/view/4tl3z4
 * scattering function
 * importance sampling
@@ -804,8 +806,6 @@ GRAPHICS FEATURES:
  * saturate towards white!
 * bloom (post process)
 * CSG
-* refraction
-* beer's law / internal reflection stuff
 * participating media (fog) - maybe have fog volumes? i dunno.
 * blue noise sampling?
  * try different jittering patterns
@@ -815,8 +815,8 @@ GRAPHICS FEATURES:
 * depth of field
 * motion blur (monte carlo sample in time, not just in space)
 * load and render meshes
+* load scene descriptions?
 * textures
-* bump mapping
 ? look up "volumetric path tracing"?  https://en.wikipedia.org/wiki/Volumetric_path_tracing
 * area lights and image based lighting? this should just work, by having emissive surfaces / textures.
 * chromatic abberation etc (may need to do frequency sampling!!)
@@ -839,6 +839,8 @@ GRAPHICS FEATURES:
 * portal support: i think maybe we could let the material modify the ray position / direction to implement this?
 * make roughness affect refraction? naive implementation failed, made it all black even when very very small amount of refraction
 * I don't think you implemented stratified samples correctly!
+* direct lighting should help convergence for matte surfaces https://www.shadertoy.com/view/4tl3z4
+ * complex how to do that correctly though. you have to project the shape onto a sphere and weight sample by area (solid angle size)
 
 SCENE:
 * add a skybox?
@@ -878,6 +880,7 @@ Blog Post on path tracing basics:
   * random point in circle.  compare disc (like i do), vs normalizing points in square, vs throwing points out of circle out.
   * visualize points in hemisphere somehow for distribution-ness
  * halton sequence vs random numbers?  https://en.wikipedia.org/wiki/Halton_sequence
+ * add bias to show difference (like, wrong way to calculate ray in hemisphere, that just normalizes ray in box)
 
 Links for blog and such:
  * angelo's path tracing link:  http://www.scratchapixel.com/lessons/3d-basic-rendering/global-illumination-path-tracing
