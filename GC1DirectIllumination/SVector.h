@@ -246,7 +246,7 @@ inline SVector CosineSampleHemisphere (const SVector& normal)
 }
 
 //=================================================================================
-inline SVector UniformSampleHemisphere (SVector N)
+inline SVector UniformSampleHemisphere (const SVector& N)
 {
     // adapted from @lh0xfb on twitter: https://github.com/gheshu/gputracer/blob/master/depth.glsl
     SVector dir;

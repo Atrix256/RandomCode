@@ -452,7 +452,6 @@ void ThreadFunc()
 
     // render individual pixels across multiple threads until we run out of pixels to do
     size_t pixelIndex = ++g_currentPixelIndex;
-    bool firstThread = pixelIndex == 0;
     while (!g_wantsExit.load())
     {
         size_t sampleCount = 1 + pixelIndex / g_image_RGB_F32.m_pixels.size();
@@ -791,7 +790,10 @@ NEXT:
  * maybe we go more the material template route? where materials extend other materials? i dunno
  * maybe we can do some magical lambda stuff.
 
+
 GRAPHICS FEATURES:
+* stratify the hemisphere bounces, not just the screen rays!
+* objects which are multiple - reflective, refractive and diffuse - should random roll to pick which one.  probably  weighted by luminance.
 * are you handling BRDF pulses correctly? seems like reflect / refract maybe shouldn't be on par with diffuse. need to weight by solid angle? or no?
 * make it so you can do uniform samples instead of random samples, to have a graphical comparison of results.
  * Should make it obvious why monte carlo is the better way
