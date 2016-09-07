@@ -91,6 +91,8 @@ const std::vector<STriangle> c_triangles =
     STriangle({  -4.0f, -2.0f,  12.0f }, { -4.0f,  2.0f,  -4.0f }, { -4.0f, -2.0f, -4.0f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 0.1f, 0.9f, 0.1f })),
 };
 
+// TODO: treat this as environment illumination? as described here: http://www.scratchapixel.com/lessons/3d-basic-rendering/global-illumination-path-tracing/global-illumination-path-tracing-practical-implementation
+// TODO: probably need to review where we are returning this.  like maybe only for miss, but not for max bounce!
 const TVector3 c_rayMissColor = {0.0f, 0.0f, 0.0f};
 
 //=================================================================================
@@ -280,6 +282,31 @@ float RandomFloat (float min, float max)
     return min + (max - min) * RandomFloat();
 }
 
+// TODO: remove this after you figure out noise issue
+//=================================================================================
+inline TVector3 CosineSampleHemisphere (const TVector3& normal)
+{
+    // from smallpt: http://www.kevinbeason.com/smallpt/
+
+    float r1 = 2.0f * c_pi *RandomFloat();
+    float r2 = RandomFloat();
+    float r2s = sqrt(r2);
+
+    TVector3 w = normal;
+    TVector3 u;
+    if (fabs(w[0]) > 0.1f)
+        u = Cross({ 0.0f, 1.0f, 0.0f }, w);
+    else
+        u = Cross({ 1.0f, 0.0f, 0.0f }, w);
+
+    u = Normalize(u);
+    TVector3 v = Cross(w, u);
+    TVector3 d = (u*cos(r1)*r2s + v*sin(r1)*r2s + w*sqrt(1 - r2));
+    d = Normalize(d);
+
+    return d;
+}
+
 //=================================================================================
 inline TVector3 UniformSampleHemisphere (const TVector3& N)
 {
@@ -410,7 +437,7 @@ TVector3 L_out (const SRayHitInfo& X, const TVector3& outDir, size_t bouncesLeft
 {
     // if no bounces left, return black / darkness
     if (bouncesLeft == 0)
-        return c_rayMissColor;
+        return { 0.0f, 0.0f, 0.0f };
 
     // start with emissive lighting
     TVector3 ret = X.m_material->m_emissive;
@@ -419,12 +446,17 @@ TVector3 L_out (const SRayHitInfo& X, const TVector3& outDir, size_t bouncesLeft
     {
         const float pdf = 1.0f / (2 * c_pi);
 
+#if 0
+        TVector3 newRayDir = CosineSampleHemisphere(X.m_surfaceNormal);
+        SRayHitInfo info;
+        if (ClosestIntersection(X.m_intersectionPoint + newRayDir * c_rayBounceEpsilon, newRayDir, info))
+            ret += L_out(info, -newRayDir, bouncesLeft - 1) * X.m_material->m_diffuse / pdf;
+#else
         TVector3 newRayDir = UniformSampleHemisphere(X.m_surfaceNormal);
         SRayHitInfo info;
         if (ClosestIntersection(X.m_intersectionPoint + newRayDir * c_rayBounceEpsilon, newRayDir, info))
-        {
             ret += Dot(newRayDir, X.m_surfaceNormal) * 2.0f * L_out(info, -newRayDir, bouncesLeft - 1) * X.m_material->m_diffuse / pdf;
-        }
+#endif
     }
 
     return ret;
@@ -600,7 +632,8 @@ int main (int argc, char**argv)
 /*
 
 TODO:
-* show time elapsed and time estimated remaining
+
+
 
 * do the furnace test to make sure it comes out ok
 
@@ -615,5 +648,15 @@ TODO:
 
 * note on blog how windows likes to cache images if you are viewing with the windows image viewer! delete file or zoom in / out.
 
+* figure out how the get the user params to the top of the file.  preferably the scene too, but maybe not.
 
+* show time elapsed and time estimated remaining
+
+* profile to make sure there's no dumb perf issues
+
+----- NOTES -----
+
+* make the same scene as the scratchpixel code and run them side by side to see if you have the same problems
+ * scratch pixel code is a bit trash.
+ * also, deals with lighting differently - it has point lights, not emissive surfaces
 */
