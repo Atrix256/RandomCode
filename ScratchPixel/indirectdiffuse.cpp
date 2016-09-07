@@ -30,6 +30,8 @@
 #include <algorithm>
 #define M_PI 3.14159265359
 #define GI
+#include <thread>
+#include <atomic>
 
 #include <cstdio>
 #include <cstdlib>
@@ -573,6 +575,41 @@ Vec3f castRay(
     return hitColor;
 }
 
+std::atomic<size_t> pixelIndex(-1);
+void RenderFunc(Options& options, Vec3f *framebuffer, const std::vector<std::unique_ptr<Object>> &objects, const std::vector<std::unique_ptr<Light>> &lights) {
+
+    float scale = tan(deg2rad(options.fov * 0.5));
+    float imageAspectRatio = options.width / (float)options.height;
+
+    Vec3f orig;
+    options.cameraToWorld.multVecMatrix(Vec3f(0), orig);
+
+    size_t numPixels = options.width*options.height;
+    size_t pixel = ++pixelIndex;
+    bool firstThread = (pixel == 0);
+    while (pixel < numPixels)
+    {
+        size_t i = pixel % options.width;
+        size_t j = pixel / options.width;
+
+        Vec3f* pix = &framebuffer[pixel];
+
+        // generate primary ray direction
+        float x = (2 * (i + 0.5) / (float)options.width - 1) * imageAspectRatio * scale;
+        float y = (1 - 2 * (j + 0.5) / (float)options.height) * scale;
+        Vec3f dir;
+        options.cameraToWorld.multDirMatrix(Vec3f(x, y, -1), dir);
+        dir.normalize();
+        *(pix) = castRay(orig, dir, objects, lights, options);
+
+        pixel = ++pixelIndex;
+
+        if (firstThread) {
+            fprintf(stderr, "\r%3d%c", uint32_t(j / (float)options.height * 100), '%');
+        }
+    }
+}
+
 // [comment]
 // The main render function. This where we iterate over all pixels in the image, generate
 // primary rays and cast these rays into the scene. The content of the framebuffer is
@@ -584,24 +621,16 @@ void render(
     const std::vector<std::unique_ptr<Light>> &lights)
 {
     std::unique_ptr<Vec3f []> framebuffer(new Vec3f[options.width * options.height]);
-    Vec3f *pix = framebuffer.get();
-    float scale = tan(deg2rad(options.fov * 0.5));
-    float imageAspectRatio = options.width / (float)options.height;
-    Vec3f orig;
-    options.cameraToWorld.multVecMatrix(Vec3f(0), orig);
     auto timeStart = std::chrono::high_resolution_clock::now();
-    for (uint32_t j = 0; j < options.height; ++j) {
-        for (uint32_t i = 0; i < options.width; ++i) {
-            // generate primary ray direction
-            float x = (2 * (i + 0.5) / (float)options.width - 1) * imageAspectRatio * scale;
-            float y = (1 - 2 * (j + 0.5) / (float)options.height) * scale;
-            Vec3f dir;
-            options.cameraToWorld.multDirMatrix(Vec3f(x, y, -1), dir);
-            dir.normalize();
-            *(pix++) = castRay(orig, dir, objects, lights, options);
-        }
-        fprintf(stderr, "\r%3d%c", uint32_t(j / (float)options.height * 100), '%');
-    }
+
+    std::vector<std::thread> threads;
+    threads.resize(std::thread::hardware_concurrency()-1);
+    for (std::thread& t : threads)
+        t = std::thread(RenderFunc, options, framebuffer.get(), std::cref(objects), std::cref(lights));
+
+    for (std::thread& t : threads)
+        t.join();
+
     auto timeEnd = std::chrono::high_resolution_clock::now();
     auto passedTime = std::chrono::duration<double, std::milli>(timeEnd - timeStart).count();
     fprintf(stderr, "\rDone: %.2f (sec)\n", passedTime / 1000);
