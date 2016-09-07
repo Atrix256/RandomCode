@@ -10,25 +10,45 @@ typedef std::array<uint8, 3> TPixelBGRU8;
 typedef std::array<float, 3> TPixelRGBF32;
 const float c_pi = 3.14159265359f;
 
+struct SMaterial
+{
+    SMaterial (const TPixelRGBF32& emissive, const TPixelRGBF32& diffuse )
+        : m_emissive(emissive)
+        , m_diffuse(diffuse)
+    { }
+    TPixelRGBF32    m_emissive;
+    TPixelRGBF32    m_diffuse;
+};
+
 struct SSphere
 {
     TVector3        m_position;
     float           m_radius;
-    TPixelRGBF32    m_emissive;
-    TPixelRGBF32    m_diffuse;
+    SMaterial       m_material;
+};
+
+struct STriangle
+{
+    STriangle (const TVector3& a, const TVector3& b, const TVector3& c, const SMaterial& material);
+
+    TVector3    m_a, m_b, m_c;
+    SMaterial   m_material;
+
+    // calculated!
+    TVector3    m_normal;
 };
 
 struct SRayHitInfo
 {
     SRayHitInfo ()
-        : m_sphere(nullptr)
+        : m_material(nullptr)
         , m_collisionTime(-1.0f)
     { }
-    const SSphere*  m_sphere;
-    TVector3        m_intersectionPoint;
-    TVector3        m_surfaceNormal;
-    float           m_collisionTime;
-    bool            m_fromInside;
+
+    const SMaterial*    m_material;
+    TVector3            m_intersectionPoint;
+    TVector3            m_surfaceNormal;
+    float               m_collisionTime;
 };
 
 //=================================================================================
@@ -53,13 +73,20 @@ const float c_cameraVerticalFOV = 60.0f * c_pi / 180.0f;
 // the scene
 const std::vector<SSphere> c_spheres =
 {
-    //     Position      | Radius|     Emissive      |      Diffuse
-    { { 0.0f, 0.5f, 0.0f }, 0.5f,{ 1.0f, 1.0f, 1.0f },{ 0.0f, 0.0f, 0.0f } },
-    { { 2.0f, 0.0f, 2.0f }, 0.5f,{ 0.0f, 0.0f, 0.0f },{ 0.9f, 0.9f, 0.1f } },
-    { {-1.0f,-0.5f, 4.0f }, 2.0f,{ 0.0f, 0.0f, 0.0f },{ 0.1f, 0.9f, 0.1f } }
+    //     Position         | Radius|       Emissive      |      Diffuse
+    { {  0.0f,  0.5f, 0.0f }, 0.5f, { { 1.0f, 1.0f, 1.0f }, { 0.0f, 0.0f, 0.0f } } },
+    { {  2.0f,  0.0f, 2.0f }, 0.5f, { { 0.0f, 0.0f, 0.0f }, { 0.9f, 0.9f, 0.1f } } },
+    { { -1.0f, -0.5f, 4.0f }, 2.0f, { { 0.0f, 0.0f, 0.0f }, { 0.1f, 0.9f, 0.1f } } }
 };
 
-const TVector3 c_rayMissColor = {0.0f, 0.0f, 0.4f};  // TODO: put this back to black
+const std::vector<STriangle> c_triangles =
+{
+    //                    A          |           B           |           C          |                Emissive       |      Diffuse
+    STriangle({ -15.0f, -3.0f, -15.0f }, { 15.0f, -3.0f, -15.0f }, { 15.0f, -3.0f, 15.0f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f })),
+    STriangle({ -15.0f, -3.0f, -15.0f }, { 15.0f, -3.0f,  15.0f }, {-15.0f, -3.0f, 15.0f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f }))
+};
+
+const TVector3 c_rayMissColor = {0.0f, 0.0f, 0.4f}; // TODO: put back to black
 
 //=================================================================================
 //=================================================================================
@@ -181,6 +208,18 @@ inline TVector3 Cross (const TVector3& a, const TVector3& b)
 }
 
 //=================================================================================
+STriangle::STriangle (const TVector3& a, const TVector3& b, const TVector3& c, const SMaterial& material)
+    : m_material(material)
+    , m_a(a)
+    , m_b(b)
+    , m_c(c)
+{
+    TVector3 e1 = m_b - m_a;
+    TVector3 e2 = m_c - m_a;
+    m_normal = Normalize(Cross(e1, e2));
+}
+
+//=================================================================================
 // Derived values
 const size_t c_numPixels = c_imageWidth * c_imageHeight;
 const float c_aspectRatio = float(c_imageWidth) / float(c_imageHeight);
@@ -227,7 +266,7 @@ float RandomFloat(float min, float max)
 }
 
 //=================================================================================
-inline TVector3 UniformSampleHemisphere(const TVector3& N)
+inline TVector3 UniformSampleHemisphere (const TVector3& N)
 {
     // adapted from @lh0xfb on twitter: https://github.com/gheshu/gputracer/blob/master/depth.glsl
     TVector3 dir;
@@ -267,18 +306,12 @@ bool RayIntersects (const TVector3& rayPos, const TVector3& rayDir, const SSpher
     if (discr <= 0.0)
         return false;
 
-    //not inside til proven otherwise
-    bool fromInside = false;
-
     //ray now found to intersect sphere, compute smallest t value of intersection
     float collisionTime = -b - sqrt(discr);
 
     //if t is negative, ray started inside sphere so clamp t to zero and remember that we hit from the inside
     if (collisionTime < 0.0)
-    {
         collisionTime = -b + sqrt(discr);
-        fromInside = true;
-    }
 
     //enforce a max distance if we should
     if (info.m_collisionTime >= 0.0 && collisionTime > info.m_collisionTime)
@@ -292,9 +325,56 @@ bool RayIntersects (const TVector3& rayPos, const TVector3& rayDir, const SSpher
         normal *= -1.0f;
 
     info.m_collisionTime = collisionTime;
-    info.m_fromInside = fromInside;
     info.m_intersectionPoint = rayPos + rayDir * collisionTime;
-    info.m_sphere = &sphere;
+    info.m_material = &sphere.m_material;
+    info.m_surfaceNormal = normal;
+    return true;
+}
+
+//=================================================================================
+bool RayIntersects (const TVector3& rayPos, const TVector3& rayDir, const STriangle& triangle, SRayHitInfo& info)
+{
+    // This function adapted from GraphicsCodex.com
+
+    /* If ray P + tw hits triangle V[0], V[1], V[2], then the function returns true,
+    stores the barycentric coordinates in b[], and stores the distance to the intersection
+    in t. Otherwise returns false and the other output parameters are undefined.*/
+
+    // Edge vectors
+    TVector3 e_1 = triangle.m_b - triangle.m_a;
+    TVector3 e_2 = triangle.m_c - triangle.m_a;
+
+    const TVector3& q = Cross(rayDir, e_2);
+    const float a = Dot(e_1, q);
+
+    if (abs(a) == 0.0f)
+        return false;
+
+    const TVector3& s = (rayPos - triangle.m_a) / a;
+    const TVector3& r = Cross(s, e_1);
+    TVector3 b; // b is barycentric coordinates
+    b[0] = Dot(s,q);
+    b[1] = Dot(r, rayDir);
+    b[2] = 1.0f - b[0] - b[1];
+    // Intersected outside triangle?
+    if ((b[0] < 0.0f) || (b[1] < 0.0f) || (b[2] < 0.0f)) return false;
+    float t = Dot(e_2,r);
+    if (t < 0.0f)
+        return false;
+
+    //enforce a max distance if we should
+    if (info.m_collisionTime >= 0.0 && t > info.m_collisionTime)
+        return false;
+
+    // make sure normal is facing opposite of ray direction.
+    // this is for if we are hitting the object from the inside / back side.
+    TVector3 normal = triangle.m_normal;
+    if (Dot(triangle.m_normal, rayDir) > 0.0f)
+        normal *= -1.0f;
+
+    info.m_collisionTime = t;
+    info.m_intersectionPoint = rayPos + rayDir * t;
+    info.m_material = &triangle.m_material;
     info.m_surfaceNormal = normal;
     return true;
 }
@@ -305,6 +385,8 @@ bool ClosestIntersection (const TVector3& rayPos, const TVector3& rayDir, SRayHi
     bool ret = false;
     for (const SSphere& s : c_spheres)
         ret |= RayIntersects(rayPos, rayDir, s, info);
+    for (const STriangle& t : c_triangles)
+        ret |= RayIntersects(rayPos, rayDir, t, info);
     return ret;
 }
 
@@ -316,7 +398,7 @@ TVector3 L_out (const SRayHitInfo& X, const TVector3& outDir, size_t bouncesLeft
         return c_rayMissColor;
 
     // start with emissive lighting
-    TVector3 ret = X.m_sphere->m_emissive;
+    TVector3 ret = X.m_material->m_emissive;
 
     // add in random recursive samples for global illumination
     {
@@ -325,7 +407,7 @@ TVector3 L_out (const SRayHitInfo& X, const TVector3& outDir, size_t bouncesLeft
         if (ClosestIntersection(X.m_intersectionPoint + newRayDir * c_rayBounceEpsilon, newRayDir, info))
         {
             float cos_theta = Dot(newRayDir, X.m_surfaceNormal);
-            TVector3 BRDF = X.m_sphere->m_diffuse * 2.0f * cos_theta;
+            TVector3 BRDF = X.m_material->m_diffuse * 2.0f * cos_theta;
             ret += BRDF * L_out(info, -newRayDir, bouncesLeft - 1);
         }
     }
@@ -497,15 +579,17 @@ int main (int argc, char**argv)
 /*
 
 TODO:
+* make a good scene - like the one here: http://scratchapixel.com/lessons/3d-basic-rendering/global-illumination-path-tracing/global-illumination-path-tracing-practical-implementation
+
 * print out how long the render took.
 
-* make multi sampling work
-* use trig for UniformSampleHemisphere instead of looping
-* make max bounces
-* make a #define for direct lighting only
-* set up a scene that looks ok with diffuse only
-* i don't think we need to expose the "from inside" flag yet
+* do a furnace test!
 
-* the resulting image is pretty noisy, why is that?
+* use trig for UniformSampleHemisphere instead of looping
+* make a #define for direct lighting only (to show for comparison)
+* set up a scene that looks ok with diffuse only
+
+* the resulting image is pretty noisy for 5000 spp, why is that?
+ * try cosine weighted to see if it helps?
 
 */
