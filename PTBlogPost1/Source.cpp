@@ -2,7 +2,7 @@
 #include <atomic>
 #include <vector>
 #include <thread>
-#include <windows.h> // for bitmap headers and high performance timer. Sorry non windows folk!
+#include <windows.h> // for bitmap headers
 
 typedef std::array<float, 3> TVector3;
 typedef uint8_t uint8;
@@ -56,37 +56,41 @@ struct SRayHitInfo
 //=================================================================================
 
 // image size
-const size_t c_imageWidth = 256;
-const size_t c_imageHeight = 256;
+const size_t c_imageWidth = 512;
+const size_t c_imageHeight = 512;
 
 // sampling parameters
-const size_t c_samplesPerPixel = 5000;
-const size_t c_numBounces = 5;
+const size_t c_samplesPerPixel = 100;
+const size_t c_numBounces = 3;
 const float c_rayBounceEpsilon = 0.001f;
 
 // camera parameters - assumes no roll (z axis rotation) and assumes that the camera isn't looking straight up
-const TVector3 c_cameraPos = {0.0f, 0.0f, -4.0f};
+const TVector3 c_cameraPos = {0.0f, 0.0f, -10.0f};
 const TVector3 c_cameraLookAt = { 0.0f, 0.0f, 0.0f };
 float c_nearPlaneDistance = 0.1f;
-const float c_cameraVerticalFOV = 60.0f * c_pi / 180.0f;
+const float c_cameraVerticalFOV = 40.0f * c_pi / 180.0f;
 
 // the scene
 const std::vector<SSphere> c_spheres =
 {
     //     Position         | Radius|       Emissive      |      Diffuse
-    { {  0.0f,  0.5f, 0.0f }, 0.5f, { { 1.0f, 1.0f, 1.0f }, { 0.0f, 0.0f, 0.0f } } },
-    { {  2.0f,  0.0f, 2.0f }, 0.5f, { { 0.0f, 0.0f, 0.0f }, { 0.9f, 0.9f, 0.1f } } },
-    { { -1.0f, -0.5f, 4.0f }, 2.0f, { { 0.0f, 0.0f, 0.0f }, { 0.1f, 0.9f, 0.1f } } }
+    { {  4.0f,  4.0f, 6.0f }, 0.5f, { { 1.0f, 1.0f, 1.0f }, { 0.0f, 0.0f, 0.0f } } },   // light
+    { {  0.0f,  0.0f, 4.0f }, 2.0f, { { 0.0f, 0.0f, 0.0f }, { 0.5f, 0.5f, 0.5f } } },   // ball
 };
 
 const std::vector<STriangle> c_triangles =
 {
     //                    A          |           B           |           C          |                Emissive       |      Diffuse
-    STriangle({ -15.0f, -3.0f, -15.0f }, { 15.0f, -3.0f, -15.0f }, { 15.0f, -3.0f, 15.0f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f })),
-    STriangle({ -15.0f, -3.0f, -15.0f }, { 15.0f, -3.0f,  15.0f }, {-15.0f, -3.0f, 15.0f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f }))
+    // floor
+    STriangle({ -15.0f, -2.0f, -15.0f }, { 15.0f, -2.0f, -15.0f }, { 15.0f, -2.0f, 15.0f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 0.9f, 0.1f, 0.1f })),
+    STriangle({ -15.0f, -2.0f, -15.0f }, { 15.0f, -2.0f,  15.0f }, {-15.0f, -2.0f, 15.0f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 0.9f, 0.1f, 0.1f })),
+
+    // green wall
+    STriangle({  -4.0f, -2.0f,  12.0f }, { -4.0f,  2.0f,  12.0f }, { -4.0f,  2.0f, -4.0f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 0.1f, 0.9f, 0.1f })),
+    STriangle({  -4.0f, -2.0f,  12.0f }, { -4.0f,  2.0f,  -4.0f }, { -4.0f, -2.0f, -4.0f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 0.1f, 0.9f, 0.1f })),
 };
 
-const TVector3 c_rayMissColor = {0.0f, 0.0f, 0.4f}; // TODO: put back to black
+const TVector3 c_rayMissColor = {0.0f, 0.0f, 0.0f};
 
 //=================================================================================
 //=================================================================================
@@ -151,6 +155,16 @@ inline TVector3 operator* (const TVector3& a, const TVector3& b)
         a[0] * b[0],
         a[1] * b[1],
         a[2] * b[2]
+    };
+}
+
+inline TVector3 operator* (float b, const TVector3& a)
+{
+    return
+    {
+        a[0] * b,
+        a[1] * b,
+        a[2] * b
     };
 }
 
@@ -402,13 +416,13 @@ TVector3 L_out (const SRayHitInfo& X, const TVector3& outDir, size_t bouncesLeft
 
     // add in random recursive samples for global illumination
     {
+        const float pdf = 1.0f / (2 * c_pi);
+
         TVector3 newRayDir = UniformSampleHemisphere(X.m_surfaceNormal);
         SRayHitInfo info;
         if (ClosestIntersection(X.m_intersectionPoint + newRayDir * c_rayBounceEpsilon, newRayDir, info))
         {
-            float cos_theta = Dot(newRayDir, X.m_surfaceNormal);
-            TVector3 BRDF = X.m_material->m_diffuse * 2.0f * cos_theta;
-            ret += BRDF * L_out(info, -newRayDir, bouncesLeft - 1);
+            ret += Dot(newRayDir, X.m_surfaceNormal) * 2.0f * L_out(info, -newRayDir, bouncesLeft - 1) * X.m_material->m_diffuse / pdf;
         }
     }
 
@@ -560,6 +574,7 @@ int main (int argc, char**argv)
     g_pixels.resize(c_numPixels);
 
     // spin up some threads to do the rendering work
+    auto start = std::chrono::high_resolution_clock::now();
     std::vector<std::thread> threads;
     threads.resize(numThreads);
     for (std::thread& t : threads)
@@ -568,28 +583,31 @@ int main (int argc, char**argv)
     // wait for the threads to be done
     for (std::thread& t : threads)
         t.join();
+    auto end = std::chrono::high_resolution_clock::now();
 
     // save the image as out.bmp
     if (!SaveImage())
         printf("Could not save image.\n");
 
+    // report how long it took
+    std::chrono::duration<double> diff = end - start;
+    printf("\nRendering took %0.1f seconds.\n", diff.count());
     return 0;
 }
 
 /*
 
 TODO:
-* make a good scene - like the one here: http://scratchapixel.com/lessons/3d-basic-rendering/global-illumination-path-tracing/global-illumination-path-tracing-practical-implementation
-
-* print out how long the render took.
-
-* do a furnace test!
+* do the furnace test to make sure it comes out ok
 
 * use trig for UniformSampleHemisphere instead of looping
 * make a #define for direct lighting only (to show for comparison)
-* set up a scene that looks ok with diffuse only
 
 * the resulting image is pretty noisy for 5000 spp, why is that?
  * try cosine weighted to see if it helps?
+ * also could try jittering
+ * could also try it in other renderer to see how it turns out
+
+* note on blog how windows likes to cache images if you are viewing with the windows image viewer! delete file or zoom in / out.
 
 */
