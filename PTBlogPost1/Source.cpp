@@ -62,7 +62,7 @@ const size_t c_imageHeight = 512;
 
 // sampling parameters
 const size_t c_samplesPerPixel = 1000;
-const size_t c_numBounces = 3;
+const size_t c_numBounces = 5;
 const float c_rayBounceEpsilon = 0.001f;
 
 // camera parameters - assumes no roll (z axis rotation) and assumes that the camera isn't looking straight up
@@ -593,6 +593,7 @@ int main (int argc, char**argv)
     // report how long it took
     std::chrono::duration<double> diff = end - start;
     printf("\nRendering took %0.1f seconds.\n", diff.count());
+    system("pause");
     return 0;
 }
 
@@ -610,6 +611,7 @@ TODO:
  * try cosine weighted to see if it helps?
  * also could try jittering
  * could also try it in other renderer to see how it turns out
+ * could also try running the code on scratch pixel: http://scratchapixel.com/code.php?id=34&origin=/lessons/3d-basic-rendering/global-illumination-path-tracing
 
 * note on blog how windows likes to cache images if you are viewing with the windows image viewer! delete file or zoom in / out.
 
