@@ -2,6 +2,7 @@
 #include <atomic>
 #include <vector>
 #include <thread>
+#include <random>
 #include <windows.h> // for bitmap headers
 
 typedef std::array<float, 3> TVector3;
@@ -60,7 +61,7 @@ const size_t c_imageWidth = 512;
 const size_t c_imageHeight = 512;
 
 // sampling parameters
-const size_t c_samplesPerPixel = 100;
+const size_t c_samplesPerPixel = 1000;
 const size_t c_numBounces = 3;
 const float c_rayBounceEpsilon = 0.001f;
 
@@ -258,23 +259,23 @@ inline float Clamp (float v, float min, float max)
 // from 0 to 1
 float RandomFloat ()
 {
+    /*
     // Xorshift random number algorithm invented by George Marsaglia
     static uint32_t rng_state = 0xf2eec0de;
     rng_state ^= (rng_state << 13);
     rng_state ^= (rng_state >> 17);
     rng_state ^= (rng_state << 5);
     return float(rng_state) * (1.0f / 4294967296.0f);
+    */
 
     // alternately, using a standard c++ prng
-    /*
     static std::random_device rd;
     static std::mt19937 mt(rd());
     static std::uniform_real_distribution<float> dist(0.0f, 1.0f);
     return dist(mt);
-    */
 }
 
-float RandomFloat(float min, float max)
+float RandomFloat (float min, float max)
 {
     return min + (max - min) * RandomFloat();
 }
@@ -598,6 +599,8 @@ int main (int argc, char**argv)
 /*
 
 TODO:
+* show time elapsed and time estimated remaining
+
 * do the furnace test to make sure it comes out ok
 
 * use trig for UniformSampleHemisphere instead of looping
@@ -609,5 +612,6 @@ TODO:
  * could also try it in other renderer to see how it turns out
 
 * note on blog how windows likes to cache images if you are viewing with the windows image viewer! delete file or zoom in / out.
+
 
 */

@@ -743,6 +743,10 @@ int CALLBACK WinMain(
 /*
 
 NOW:
+* use better FOV (40?) to get rid of fish eye
+* use pdf correctly like first blog post
+* use regular random numbers instead of the xor shift, the blog post seems to be happier with it
+
 * load and use images for colors / properties.
 
 * related to refraction:
