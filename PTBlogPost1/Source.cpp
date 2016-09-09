@@ -5,6 +5,8 @@
 #include <random>
 #include <windows.h> // for bitmap headers
 
+#define COSINE_WEIGHTED_HEMISPHERE_SAMPLES() 1
+
 typedef std::array<float, 3> TVector3;
 typedef uint8_t uint8;
 typedef std::array<uint8, 3> TPixelBGRU8;
@@ -61,7 +63,7 @@ const size_t c_imageWidth = 512;
 const size_t c_imageHeight = 512;
 
 // sampling parameters
-const size_t c_samplesPerPixel = 1000;
+const size_t c_samplesPerPixel = 10000;
 const size_t c_numBounces = 5;
 const float c_rayBounceEpsilon = 0.001f;
 
@@ -444,13 +446,13 @@ TVector3 L_out (const SRayHitInfo& X, const TVector3& outDir, size_t bouncesLeft
 
     // add in random recursive samples for global illumination
     {
-        const float pdf = 1.0f / (2 * c_pi);
+        const float pdf = 1.0f / c_pi;
 
-#if 0
+#if COSINE_WEIGHTED_HEMISPHERE_SAMPLES()
         TVector3 newRayDir = CosineSampleHemisphere(X.m_surfaceNormal);
         SRayHitInfo info;
         if (ClosestIntersection(X.m_intersectionPoint + newRayDir * c_rayBounceEpsilon, newRayDir, info))
-            ret += L_out(info, -newRayDir, bouncesLeft - 1) * X.m_material->m_diffuse / pdf;
+            ret += 2.0f * L_out(info, -newRayDir, bouncesLeft - 1) * X.m_material->m_diffuse / pdf;
 #else
         TVector3 newRayDir = UniformSampleHemisphere(X.m_surfaceNormal);
         SRayHitInfo info;
