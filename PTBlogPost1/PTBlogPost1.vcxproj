@@ -141,6 +141,15 @@
   <ItemGroup>
     <ClCompile Include="Source.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="SMaterial.h" />
+    <ClInclude Include="SRayHitInfo.h" />
+    <ClInclude Include="SSphere.h" />
+    <ClInclude Include="STimer.h" />
+    <ClInclude Include="STriangle.h" />
+    <ClInclude Include="TVector3.h" />
+    <ClInclude Include="Utils.h" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
