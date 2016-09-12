@@ -11,9 +11,18 @@
 
 #include <windows.h> // for bitmap headers
 
+#define FORCE_SINGLE_THREAD() 1
+
+#define RENDER_SCENE() 1
+// Scenes:
+//  0 = darky sky, not much lighting
+//  1 = furnace test
+
 //=================================================================================
-// User tweakable parameters
+// User tweakable parameters - Scenes
 //=================================================================================
+
+#if RENDER_SCENE() == 0
 
 // image size
 const size_t c_imageWidth = 512;
@@ -50,6 +59,36 @@ const std::vector<STriangle> c_triangles =
     STriangle({  -4.0f, -2.0f,  12.0f }, { -4.0f,  2.0f,  -4.0f }, { -4.0f, -2.0f, -4.0f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 0.1f, 0.9f, 0.1f })),
 };
 
+#elif RENDER_SCENE() == 1
+
+// image size
+const size_t c_imageWidth = 256;
+const size_t c_imageHeight = 256;
+
+// sampling parameters
+const size_t c_samplesPerPixel = 1000;
+const size_t c_numBounces = 3;
+const float c_rayBounceEpsilon = 0.001f;
+
+// camera parameters - assumes no roll (z axis rotation) and assumes that the camera isn't looking straight up
+const TVector3 c_cameraPos = { 0.0f, 0.0f, -10.0f };
+const TVector3 c_cameraLookAt = { 0.0f, 0.0f, 0.0f };
+float c_nearPlaneDistance = 0.1f;
+const float c_cameraVerticalFOV = 40.0f * c_pi / 180.0f;
+
+// the scene
+const std::vector<SSphere> c_spheres =
+{
+    //     Position         | Radius|       Emissive      |      Diffuse
+    { { 0.0f, 0.0f, 4.0f },  2.0f, { { 0.0f, 0.0f, 0.0f }, { 0.1f, 0.1f, 0.1f } } },   // ball
+};
+
+const std::vector<STriangle> c_triangles = {};
+
+const TVector3 c_rayMissColor = { 1.0f, 1.0f, 1.0f };
+
+#endif
+
 //=================================================================================
 //=================================================================================
 // Globals
@@ -81,27 +120,35 @@ bool ClosestIntersection (const TVector3& rayPos, const TVector3& rayDir, SRayHi
 //=================================================================================
 TVector3 L_out (const SRayHitInfo& X, const TVector3& outDir, size_t bouncesLeft)
 {
-    // if no bounces left, return black / darkness
+    // if no bounces left, return the ray miss color
     if (bouncesLeft == 0)
-        return { 0.0f, 0.0f, 0.0f };
+        return c_rayMissColor;
 
     // start with emissive lighting
     TVector3 ret = X.m_material->m_emissive;
 
     // add in random recursive samples for global illumination
     {
-        const float pdf = 1.0f / c_pi;
+        const float pdf = 1.0f;// / c_pi;
 
+        // TODO: note that taking the 2.0f* off of the cosine weighted one makes it look more like uniform samples, in the (broken!) furnace test.  need to look into that...
+        // TODO: the cosine weighted hemisphere samples in furnace test are all 0.314... ie pi/10. wtf? need to divide by pi i think, but we already do?!
+        // TODO: seemingly we DON'T need to divide by pi? not sure what the deal is with my shading ):
+        // TODO: same for uniform sampling.  i think my pdf is screwed up?
 #if COSINE_WEIGHTED_HEMISPHERE_SAMPLES()
         TVector3 newRayDir = CosineSampleHemisphere(X.m_surfaceNormal);
         SRayHitInfo info;
         if (ClosestIntersection(X.m_intersectionPoint + newRayDir * c_rayBounceEpsilon, newRayDir, info))
-            ret += 2.0f * L_out(info, -newRayDir, bouncesLeft - 1) * X.m_material->m_diffuse / pdf;
+            ret += L_out(info, -newRayDir, bouncesLeft - 1) * X.m_material->m_diffuse / pdf;
+        else
+            ret += c_rayMissColor * X.m_material->m_diffuse / pdf;
 #else
         TVector3 newRayDir = UniformSampleHemisphere(X.m_surfaceNormal);
         SRayHitInfo info;
         if (ClosestIntersection(X.m_intersectionPoint + newRayDir * c_rayBounceEpsilon, newRayDir, info))
             ret += Dot(newRayDir, X.m_surfaceNormal) * 2.0f * L_out(info, -newRayDir, bouncesLeft - 1) * X.m_material->m_diffuse / pdf;
+        else
+            ret += Dot(newRayDir, X.m_surfaceNormal) * 2.0f * c_rayMissColor * X.m_material->m_diffuse / pdf;
 #endif
     }
 
@@ -114,7 +161,7 @@ TPixelRGBF32 L_in (const TPixelRGBF32& rayPos, const TPixelRGBF32& rayDir)
     // if this ray doesn't hit anything, return black / darkness
     SRayHitInfo info;
     if (!ClosestIntersection(rayPos, rayDir, info))
-        return { 0.0f, 0.0f, 0.0f };
+        return c_rayMissColor;
 
     // else, return the amount of light coming towards us from the object we hit
     return L_out(info, -rayDir, c_numBounces);
@@ -183,6 +230,12 @@ bool SaveImage ()
         const TPixelRGBF32& src = g_pixels[i];
         TPixelBGRU8& dest = outPixels[i];
 
+        if (src[0] != 1.0f)
+        {
+            printf("%f\n", src[0]);
+            int ijkl = 0;
+        }
+
         // apply gamma correction
         TPixelRGBF32 correctedPixel;
         correctedPixel[0] = powf(src[0], 1.0f / 2.2f);
@@ -238,7 +291,7 @@ bool SaveImage ()
 int main (int argc, char**argv)
 {
     // report the params
-    const size_t numThreads = std::thread::hardware_concurrency();
+    const size_t numThreads = FORCE_SINGLE_THREAD() ? 1 : std::thread::hardware_concurrency();
     printf("Rendering a %ix%i image with %i samples per pixel and %i ray bounces.\n", c_imageWidth, c_imageHeight, c_samplesPerPixel, c_numBounces);
     printf("Using %i threads.\n", numThreads);
 
