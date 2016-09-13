@@ -128,7 +128,6 @@ inline TVector3 Cross (const TVector3& a, const TVector3& b)
     };
 }
 
-#define COSINE_WEIGHTED_HEMISPHERE_SAMPLES() 1
 // TODO: remove this after you figure out noise issue
 //=================================================================================
 inline TVector3 CosineSampleHemisphere (const TVector3& normal)

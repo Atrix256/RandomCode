@@ -13,10 +13,16 @@
 
 #define FORCE_SINGLE_THREAD() 1
 
-#define RENDER_SCENE() 1
+// TODO: remove this, and the function it calls!
+#define COSINE_WEIGHTED_HEMISPHERE_SAMPLES() 1
+
+#define RENDER_SCENE() 2
 // Scenes:
-//  0 = darky sky, not much lighting
-//  1 = furnace test
+//  0 = sphere on plane with wall, small light            (slow convergence)
+//  1 = sphere on plane with wall, small light + blue sky (quick convergence)
+//  2 = spheres in box with small bright light            (slow convergence)
+//  3 = sphere in box with larger dimmer light            (quick convergence)
+//  4 = furnace test
 
 //=================================================================================
 // User tweakable parameters - Scenes
@@ -29,7 +35,7 @@ const size_t c_imageWidth = 512;
 const size_t c_imageHeight = 512;
 
 // sampling parameters
-const size_t c_samplesPerPixel = 1000;
+const size_t c_samplesPerPixel = 100;
 const size_t c_numBounces = 5;
 const float c_rayBounceEpsilon = 0.001f;
 
@@ -59,14 +65,89 @@ const std::vector<STriangle> c_triangles =
     STriangle({  -4.0f, -2.0f,  12.0f }, { -4.0f,  2.0f,  -4.0f }, { -4.0f, -2.0f, -4.0f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 0.1f, 0.9f, 0.1f })),
 };
 
+const TVector3 c_rayMissColor = { 0.0f, 0.0f, 0.0f };
+
 #elif RENDER_SCENE() == 1
 
 // image size
-const size_t c_imageWidth = 256;
-const size_t c_imageHeight = 256;
+const size_t c_imageWidth = 512;
+const size_t c_imageHeight = 512;
 
 // sampling parameters
-const size_t c_samplesPerPixel = 1000;
+const size_t c_samplesPerPixel = 100;
+const size_t c_numBounces = 5;
+const float c_rayBounceEpsilon = 0.001f;
+
+// camera parameters - assumes no roll (z axis rotation) and assumes that the camera isn't looking straight up
+const TVector3 c_cameraPos = {0.0f, 0.0f, -10.0f};
+const TVector3 c_cameraLookAt = { 0.0f, 0.0f, 0.0f };
+float c_nearPlaneDistance = 0.1f;
+const float c_cameraVerticalFOV = 40.0f * c_pi / 180.0f;
+
+// the scene
+const std::vector<SSphere> c_spheres =
+{
+    //     Position         | Radius|       Emissive      |      Diffuse
+    { {  4.0f,  4.0f, 6.0f }, 0.5f, { { 1.0f, 1.0f, 1.0f }, { 0.0f, 0.0f, 0.0f } } },   // light
+    { {  0.0f,  0.0f, 4.0f }, 2.0f, { { 0.0f, 0.0f, 0.0f }, { 0.5f, 0.5f, 0.5f } } },   // ball
+};
+
+const std::vector<STriangle> c_triangles =
+{
+    //                    A          |           B           |           C          |                Emissive       |      Diffuse
+    // floor
+    STriangle({ -15.0f, -2.0f, -15.0f }, { 15.0f, -2.0f, -15.0f }, { 15.0f, -2.0f, 15.0f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 0.9f, 0.1f, 0.1f })),
+    STriangle({ -15.0f, -2.0f, -15.0f }, { 15.0f, -2.0f,  15.0f }, {-15.0f, -2.0f, 15.0f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 0.9f, 0.1f, 0.1f })),
+
+    // green wall
+    STriangle({  -4.0f, -2.0f,  12.0f }, { -4.0f,  2.0f,  12.0f }, { -4.0f,  2.0f, -4.0f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 0.1f, 0.9f, 0.1f })),
+    STriangle({  -4.0f, -2.0f,  12.0f }, { -4.0f,  2.0f,  -4.0f }, { -4.0f, -2.0f, -4.0f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 0.1f, 0.9f, 0.1f })),
+};
+
+const TVector3 c_rayMissColor = { 0.1f, 0.4f, 1.0f };
+
+#elif RENDER_SCENE() == 2
+
+// image size
+const size_t c_imageWidth = 512;
+const size_t c_imageHeight = 512;
+
+// sampling parameters
+const size_t c_samplesPerPixel = 100;
+const size_t c_numBounces = 3;
+const float c_rayBounceEpsilon = 0.001f;
+
+// camera parameters - assumes no roll (z axis rotation) and assumes that the camera isn't looking straight up
+const TVector3 c_cameraPos = { 0.0f, 0.0f, -10.0f };
+const TVector3 c_cameraLookAt = { 0.0f, 0.0f, 0.0f };
+float c_nearPlaneDistance = 0.1f;
+const float c_cameraVerticalFOV = 40.0f * c_pi / 180.0f;
+
+// the scene
+const std::vector<SSphere> c_spheres =
+{
+    //     Position         | Radius|       Emissive      |      Diffuse
+    { { 0.0f, 0.0f, 4.0f },  2.0f, { { 0.0f, 0.0f, 0.0f }, { 0.1f, 0.1f, 0.1f } } },   // ball
+};
+
+const std::vector<STriangle> c_triangles =
+{
+    //                    A          |           B           |           C          |                Emissive       |      Diffuse
+    // floor
+    STriangle({ -10.0f, -2.0f, -10.0f }, { 10.0f, -2.0f, -10.0f }, { 10.0f, -2.0f, 10.0f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 0.9f, 0.1f, 0.1f })),
+    STriangle({ -10.0f, -2.0f, -10.0f }, { 10.0f, -2.0f,  10.0f }, {-10.0f, -2.0f, 10.0f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 0.9f, 0.1f, 0.1f })),
+};
+
+const TVector3 c_rayMissColor = { 0.0f, 1.0f, 0.0f };
+
+#elif RENDER_SCENE() == 4
+
+// image size
+const size_t c_imageWidth = 512;
+const size_t c_imageHeight = 512;
+
+// sampling parameters
+const size_t c_samplesPerPixel = 100;
 const size_t c_numBounces = 3;
 const float c_rayBounceEpsilon = 0.001f;
 
@@ -129,26 +210,20 @@ TVector3 L_out (const SRayHitInfo& X, const TVector3& outDir, size_t bouncesLeft
 
     // add in random recursive samples for global illumination
     {
-        const float pdf = 1.0f;// / c_pi;
-
-        // TODO: note that taking the 2.0f* off of the cosine weighted one makes it look more like uniform samples, in the (broken!) furnace test.  need to look into that...
-        // TODO: the cosine weighted hemisphere samples in furnace test are all 0.314... ie pi/10. wtf? need to divide by pi i think, but we already do?!
-        // TODO: seemingly we DON'T need to divide by pi? not sure what the deal is with my shading ):
-        // TODO: same for uniform sampling.  i think my pdf is screwed up?
 #if COSINE_WEIGHTED_HEMISPHERE_SAMPLES()
         TVector3 newRayDir = CosineSampleHemisphere(X.m_surfaceNormal);
         SRayHitInfo info;
         if (ClosestIntersection(X.m_intersectionPoint + newRayDir * c_rayBounceEpsilon, newRayDir, info))
-            ret += L_out(info, -newRayDir, bouncesLeft - 1) * X.m_material->m_diffuse / pdf;
+            ret += L_out(info, -newRayDir, bouncesLeft - 1) * X.m_material->m_diffuse;
         else
-            ret += c_rayMissColor * X.m_material->m_diffuse / pdf;
+            ret += c_rayMissColor * X.m_material->m_diffuse;
 #else
         TVector3 newRayDir = UniformSampleHemisphere(X.m_surfaceNormal);
         SRayHitInfo info;
         if (ClosestIntersection(X.m_intersectionPoint + newRayDir * c_rayBounceEpsilon, newRayDir, info))
-            ret += Dot(newRayDir, X.m_surfaceNormal) * 2.0f * L_out(info, -newRayDir, bouncesLeft - 1) * X.m_material->m_diffuse / pdf;
+            ret += Dot(newRayDir, X.m_surfaceNormal) * 2.0f * L_out(info, -newRayDir, bouncesLeft - 1) * X.m_material->m_diffuse;
         else
-            ret += Dot(newRayDir, X.m_surfaceNormal) * 2.0f * c_rayMissColor * X.m_material->m_diffuse / pdf;
+            ret += Dot(newRayDir, X.m_surfaceNormal) * 2.0f * c_rayMissColor * X.m_material->m_diffuse;
 #endif
     }
 
@@ -229,12 +304,6 @@ bool SaveImage ()
     {
         const TPixelRGBF32& src = g_pixels[i];
         TPixelBGRU8& dest = outPixels[i];
-
-        if (src[0] != 1.0f)
-        {
-            printf("%f\n", src[0]);
-            int ijkl = 0;
-        }
 
         // apply gamma correction
         TPixelRGBF32 correctedPixel;
@@ -330,6 +399,9 @@ int main (int argc, char**argv)
 
 TODO:
 
+* finish scenes 2 and 3
+ * those are the "pretty" scenes.  make them look good with GI and AO and color bleed and stuff!
+
 * do a couple different scenes
  * this current one to show how it takes a while to converge
  * something with small bright lights that take a while to converge
@@ -340,10 +412,21 @@ TODO:
 
 * profile to make sure there's no dumb perf issues
 
-* remove cosine weighted function from 1st blog post code, that is coming up next!
+* remove cosine weighted function from 1st blog post code, that is coming up next! (or, is coming up after AA)
+
+* gather stuff from email!
 
 ----- BLOG -----
- * mention furnace test
- * note how windows likes to cache images if you are viewing with the windows image viewer! delete file or zoom in / out.
+* mention furnace test
+* note how windows likes to cache images if you are viewing with the windows image viewer! delete file or zoom in / out.
+ * takes the color out of images and other compression artifacts too!
+
+* divide by pi or not
+ * https://seblagarde.wordpress.com/2012/01/08/pi-or-not-to-pi-in-game-lighting-equation/
+
+----- COSINE WEIGHTING -----
+
+? why do we have to take the 2.0 off too, instead of just the cosine?
+ * analyze distribution of samples to explain it in that post
 
 */
