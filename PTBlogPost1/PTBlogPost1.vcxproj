@@ -143,6 +143,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SMaterial.h" />
+    <ClInclude Include="SQuad.h" />
     <ClInclude Include="SRayHitInfo.h" />
     <ClInclude Include="SSphere.h" />
     <ClInclude Include="STimer.h" />

@@ -41,5 +41,8 @@
     <ClInclude Include="STimer.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="SQuad.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

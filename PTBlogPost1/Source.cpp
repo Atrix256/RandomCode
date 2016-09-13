@@ -6,22 +6,24 @@
 #include "SMaterial.h"
 #include "STriangle.h"
 #include "SSphere.h"
+#include "SQuad.h"
 #include "SRayHitInfo.h"
 #include "STimer.h"
 
 #include <windows.h> // for bitmap headers
 
-#define FORCE_SINGLE_THREAD() 1
+#define FORCE_SINGLE_THREAD() 0
 
-// TODO: remove this, and the function it calls!
+// TODO: remove these and the associated functions / functionality
 #define COSINE_WEIGHTED_HEMISPHERE_SAMPLES() 1
+#define JITTER_AA() 1
 
 #define RENDER_SCENE() 2
 // Scenes:
 //  0 = sphere on plane with wall, small light            (slow convergence)
 //  1 = sphere on plane with wall, small light + blue sky (quick convergence)
-//  2 = spheres in box with small bright light            (slow convergence)
-//  3 = sphere in box with larger dimmer light            (quick convergence)
+//  2 = spheres in box with small bright light            (prettier scene, slow convergence)
+//  3 = sphere in box with larger dimmer light            (prettier scene, quick convergence)
 //  4 = furnace test
 
 //=================================================================================
@@ -61,9 +63,11 @@ const std::vector<STriangle> c_triangles =
     STriangle({ -15.0f, -2.0f, -15.0f }, { 15.0f, -2.0f,  15.0f }, {-15.0f, -2.0f, 15.0f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 0.9f, 0.1f, 0.1f })),
 
     // green wall
-    STriangle({  -4.0f, -2.0f,  12.0f }, { -4.0f,  2.0f,  12.0f }, { -4.0f,  2.0f, -4.0f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 0.1f, 0.9f, 0.1f })),
-    STriangle({  -4.0f, -2.0f,  12.0f }, { -4.0f,  2.0f,  -4.0f }, { -4.0f, -2.0f, -4.0f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 0.1f, 0.9f, 0.1f })),
+    STriangle({  -4.0f, -3.0f,  12.0f }, { -4.0f,  2.0f,  12.0f }, { -4.0f,  2.0f, -4.0f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 0.1f, 0.9f, 0.1f })),
+    STriangle({  -4.0f, -3.0f,  12.0f }, { -4.0f,  2.0f,  -4.0f }, { -4.0f, -3.0f, -4.0f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 0.1f, 0.9f, 0.1f })),
 };
+
+const std::vector<SQuad> c_quads = {};
 
 const TVector3 c_rayMissColor = { 0.0f, 0.0f, 0.0f };
 
@@ -100,9 +104,11 @@ const std::vector<STriangle> c_triangles =
     STriangle({ -15.0f, -2.0f, -15.0f }, { 15.0f, -2.0f,  15.0f }, {-15.0f, -2.0f, 15.0f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 0.9f, 0.1f, 0.1f })),
 
     // green wall
-    STriangle({  -4.0f, -2.0f,  12.0f }, { -4.0f,  2.0f,  12.0f }, { -4.0f,  2.0f, -4.0f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 0.1f, 0.9f, 0.1f })),
-    STriangle({  -4.0f, -2.0f,  12.0f }, { -4.0f,  2.0f,  -4.0f }, { -4.0f, -2.0f, -4.0f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 0.1f, 0.9f, 0.1f })),
+    STriangle({  -4.0f, -3.0f,  12.0f }, { -4.0f,  2.0f,  12.0f }, { -4.0f,  2.0f, -4.0f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 0.1f, 0.9f, 0.1f })),
+    STriangle({  -4.0f, -3.0f,  12.0f }, { -4.0f,  2.0f,  -4.0f }, { -4.0f, -3.0f, -4.0f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 0.1f, 0.9f, 0.1f })),
 };
+
+const std::vector<SQuad> c_quads = {};
 
 const TVector3 c_rayMissColor = { 0.1f, 0.4f, 1.0f };
 
@@ -114,31 +120,112 @@ const size_t c_imageHeight = 512;
 
 // sampling parameters
 const size_t c_samplesPerPixel = 100;
-const size_t c_numBounces = 3;
+const size_t c_numBounces = 5;
 const float c_rayBounceEpsilon = 0.001f;
 
 // camera parameters - assumes no roll (z axis rotation) and assumes that the camera isn't looking straight up
-const TVector3 c_cameraPos = { 0.0f, 0.0f, -10.0f };
-const TVector3 c_cameraLookAt = { 0.0f, 0.0f, 0.0f };
+const TVector3 c_cameraPos = { 278.0f, 273.0f, -800.0f };
+const TVector3 c_cameraLookAt = { 278.0f, 273.0f, 0.0f };
 float c_nearPlaneDistance = 0.1f;
 const float c_cameraVerticalFOV = 40.0f * c_pi / 180.0f;
 
 // the scene
-const std::vector<SSphere> c_spheres =
-{
-    //     Position         | Radius|       Emissive      |      Diffuse
-    { { 0.0f, 0.0f, 4.0f },  2.0f, { { 0.0f, 0.0f, 0.0f }, { 0.1f, 0.1f, 0.1f } } },   // ball
-};
+const std::vector<SSphere> c_spheres = { };
 
-const std::vector<STriangle> c_triangles =
-{
-    //                    A          |           B           |           C          |                Emissive       |      Diffuse
+const std::vector<STriangle> c_triangles = { };
+
+// I modified the cornell box from http://www.graphics.cornell.edu/online/box/data.html
+const std::vector<SQuad> c_quads = {
     // floor
-    STriangle({ -10.0f, -2.0f, -10.0f }, { 10.0f, -2.0f, -10.0f }, { 10.0f, -2.0f, 10.0f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 0.9f, 0.1f, 0.1f })),
-    STriangle({ -10.0f, -2.0f, -10.0f }, { 10.0f, -2.0f,  10.0f }, {-10.0f, -2.0f, 10.0f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 0.9f, 0.1f, 0.1f })),
+    SQuad({ 552.8f, 0.0f, 0.0f }, { 0.0f, 0.0f,   0.0f }, {   0.0f, 0.0f, 559.2f },{ 549.6f, 0.0f, 559.2f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f })),
+
+    // Light
+    SQuad({ 343.0f, 548.6f, 227.0f },{ 343.0f, 548.6f, 332.0f },{ 213.0f, 548.6f, 332.0f },{ 213.0f, 548.6f, 227.0f }, SMaterial({25.0f, 25.0f, 25.0f}, {0.78f, 0.78f, 0.78f})),
+
+    // Cieling
+    SQuad({ 556.0f, 548.8f,   0.0f },{ 556.0f, 548.8f, 559.2f },{ 0.0f, 548.8f, 559.2f },{ 0.0f, 548.8f,   0.0f }, SMaterial({0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f})),
+
+    // back wall
+    SQuad({549.6f,   0.0f, 559.2f},{  0.0f,   0.0f, 559.2f},{  0.0f, 548.8f, 559.2f},{556.0f, 548.8f, 559.2f}, SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
+
+    // left wall
+    SQuad({0.0f,   0.0f, 559.2f},{0.0f,   0.0f,   0.0f},{0.0f, 548.8f,   0.0f},{0.0f, 548.8f, 559.2f}, SMaterial({ 0.0f, 0.0f, 0.0f },{ 0.0f, 1.0f, 0.0f })),
+
+    // right wall
+    SQuad({552.8f,   0.0f,   0.0f},{549.6f,   0.0f, 559.2f},{556.0f, 548.8f, 559.2f},{556.0f, 548.8f,   0.0f}, SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 0.0f, 0.0f })),
+
+    // short block
+    SQuad({ 130.0f, 165.0f,  65.0f },{ 82.0f, 165.0f, 225.0f },{ 240.0f, 165.0f, 272.0f },{ 290.0f, 165.0f, 114.0f },SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
+    SQuad({ 290.0f,   0.0f, 114.0f },{ 290.0f, 165.0f, 114.0f },{ 240.0f, 165.0f, 272.0f },{ 240.0f,   0.0f, 272.0f },SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
+    SQuad({ 130.0f,   0.0f,  65.0f },{ 130.0f, 165.0f,  65.0f },{ 290.0f, 165.0f, 114.0f },{ 290.0f,   0.0f, 114.0f },SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
+    SQuad({ 82.0f,   0.0f, 225.0f },{ 82.0f, 165.0f, 225.0f },{ 130.0f, 165.0f,  65.0f },{ 130.0f,   0.0f,  65.0f },SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
+    SQuad({ 240.0f,   0.0f, 272.0f },{ 240.0f, 165.0f, 272.0f },{ 82.0f, 165.0f, 225.0f },{ 82.0f,   0.0f, 225.0f },SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
+
+    // tall block
+    SQuad({ 423.0f, 330.0f, 247.0f },{ 265.0f, 330.0f, 296.0f },{ 314.0f, 330.0f, 456.0f },{ 472.0f, 330.0f, 406.0f }, SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
+    SQuad({ 423.0f,   0.0f, 247.0f },{ 423.0f, 330.0f, 247.0f },{ 472.0f, 330.0f, 406.0f },{ 472.0f,   0.0f, 406.0f }, SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
+    SQuad({ 472.0f,   0.0f, 406.0f },{ 472.0f, 330.0f, 406.0f },{ 314.0f, 330.0f, 456.0f },{ 314.0f,   0.0f, 456.0f }, SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
+    SQuad({ 314.0f,   0.0f, 456.0f },{ 314.0f, 330.0f, 456.0f },{ 265.0f, 330.0f, 296.0f },{ 265.0f,   0.0f, 296.0f }, SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
+    SQuad({ 265.0f,   0.0f, 296.0f },{ 265.0f, 330.0f, 296.0f },{ 423.0f, 330.0f, 247.0f },{ 423.0f,   0.0f, 247.0f }, SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
 };
 
-const TVector3 c_rayMissColor = { 0.0f, 1.0f, 0.0f };
+const TVector3 c_rayMissColor = { 0.0f, 0.0f, 0.0f };
+
+#elif RENDER_SCENE() == 3
+
+// image size
+const size_t c_imageWidth = 512;
+const size_t c_imageHeight = 512;
+
+// sampling parameters
+const size_t c_samplesPerPixel = 100;
+const size_t c_numBounces = 5;
+const float c_rayBounceEpsilon = 0.001f;
+
+// camera parameters - assumes no roll (z axis rotation) and assumes that the camera isn't looking straight up
+const TVector3 c_cameraPos = { 278.0f, 273.0f, -800.0f };
+const TVector3 c_cameraLookAt = { 278.0f, 273.0f, 0.0f };
+float c_nearPlaneDistance = 0.1f;
+const float c_cameraVerticalFOV = 40.0f * c_pi / 180.0f;
+
+// the scene
+const std::vector<SSphere> c_spheres = { };
+
+const std::vector<STriangle> c_triangles = { };
+
+// I modified the cornell box from http://www.graphics.cornell.edu/online/box/data.html
+const std::vector<SQuad> c_quads = {
+    // floor
+    SQuad({ 552.8f, 0.0f, 0.0f }, { 0.0f, 0.0f,   0.0f }, {   0.0f, 0.0f, 559.2f },{ 549.6f, 0.0f, 559.2f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f })),
+
+    // Cieling
+    SQuad({ 556.0f, 548.8f,   0.0f },{ 556.0f, 548.8f, 559.2f },{ 0.0f, 548.8f, 559.2f },{ 0.0f, 548.8f,   0.0f }, SMaterial({ 1.0f, 1.0f, 1.0f }, { 0.78f, 0.78f, 0.78f })),
+
+    // back wall
+    SQuad({549.6f,   0.0f, 559.2f},{  0.0f,   0.0f, 559.2f},{  0.0f, 548.8f, 559.2f},{556.0f, 548.8f, 559.2f}, SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
+
+    // left wall
+    SQuad({0.0f,   0.0f, 559.2f},{0.0f,   0.0f,   0.0f},{0.0f, 548.8f,   0.0f},{0.0f, 548.8f, 559.2f}, SMaterial({ 0.0f, 0.0f, 0.0f },{ 0.0f, 1.0f, 0.0f })),
+
+    // right wall
+    SQuad({552.8f,   0.0f,   0.0f},{549.6f,   0.0f, 559.2f},{556.0f, 548.8f, 559.2f},{556.0f, 548.8f,   0.0f}, SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 0.0f, 0.0f })),
+
+    // short block
+    SQuad({ 130.0f, 165.0f,  65.0f },{ 82.0f, 165.0f, 225.0f },{ 240.0f, 165.0f, 272.0f },{ 290.0f, 165.0f, 114.0f },SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
+    SQuad({ 290.0f,   0.0f, 114.0f },{ 290.0f, 165.0f, 114.0f },{ 240.0f, 165.0f, 272.0f },{ 240.0f,   0.0f, 272.0f },SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
+    SQuad({ 130.0f,   0.0f,  65.0f },{ 130.0f, 165.0f,  65.0f },{ 290.0f, 165.0f, 114.0f },{ 290.0f,   0.0f, 114.0f },SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
+    SQuad({ 82.0f,   0.0f, 225.0f },{ 82.0f, 165.0f, 225.0f },{ 130.0f, 165.0f,  65.0f },{ 130.0f,   0.0f,  65.0f },SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
+    SQuad({ 240.0f,   0.0f, 272.0f },{ 240.0f, 165.0f, 272.0f },{ 82.0f, 165.0f, 225.0f },{ 82.0f,   0.0f, 225.0f },SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
+
+    // tall block
+    SQuad({ 423.0f, 330.0f, 247.0f },{ 265.0f, 330.0f, 296.0f },{ 314.0f, 330.0f, 456.0f },{ 472.0f, 330.0f, 406.0f }, SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
+    SQuad({ 423.0f,   0.0f, 247.0f },{ 423.0f, 330.0f, 247.0f },{ 472.0f, 330.0f, 406.0f },{ 472.0f,   0.0f, 406.0f }, SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
+    SQuad({ 472.0f,   0.0f, 406.0f },{ 472.0f, 330.0f, 406.0f },{ 314.0f, 330.0f, 456.0f },{ 314.0f,   0.0f, 456.0f }, SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
+    SQuad({ 314.0f,   0.0f, 456.0f },{ 314.0f, 330.0f, 456.0f },{ 265.0f, 330.0f, 296.0f },{ 265.0f,   0.0f, 296.0f }, SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
+    SQuad({ 265.0f,   0.0f, 296.0f },{ 265.0f, 330.0f, 296.0f },{ 423.0f, 330.0f, 247.0f },{ 423.0f,   0.0f, 247.0f }, SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
+};
+
+const TVector3 c_rayMissColor = { 0.0f, 0.0f, 0.0f };
 
 #elif RENDER_SCENE() == 4
 
@@ -165,6 +252,8 @@ const std::vector<SSphere> c_spheres =
 };
 
 const std::vector<STriangle> c_triangles = {};
+
+const std::vector<SQuad> c_quads = {};
 
 const TVector3 c_rayMissColor = { 1.0f, 1.0f, 1.0f };
 
@@ -195,6 +284,11 @@ bool ClosestIntersection (const TVector3& rayPos, const TVector3& rayDir, SRayHi
         ret |= RayIntersects(rayPos, rayDir, s, info);
     for (const STriangle& t : c_triangles)
         ret |= RayIntersects(rayPos, rayDir, t, info);
+    for (const SQuad& q : c_quads) {
+        ret |= RayIntersects(rayPos, rayDir, q.m_a, info);
+        ret |= RayIntersects(rayPos, rayDir, q.m_b, info);
+    }
+
     return ret;
 }
 
@@ -268,11 +362,14 @@ void ThreadFunc (STimer& timer)
     int lastPercent = -1;
     while (pixelIndex < c_numPixels)
     {
+        float jitterX = JITTER_AA() ? RandomFloat() : 0.5f;
+        float jitterY = JITTER_AA() ? RandomFloat() : 0.5f;
+
         // get the current pixel's UV coordinate and memory location
         size_t x = pixelIndex % c_imageWidth;
         size_t y = pixelIndex / c_imageWidth;
-        float u = (float)x / (float)c_imageWidth;
-        float v = (float)y / (float)c_imageHeight;
+        float u = ((float)x + jitterX) / (float)c_imageWidth;
+        float v = ((float)y + jitterY) / (float)c_imageHeight;
         TPixelRGBF32& pixel = g_pixels[pixelIndex];
 
         // render the pixel by taking multiple samples and incrementally averaging them
@@ -293,7 +390,7 @@ void ThreadFunc (STimer& timer)
 }
 
 //=================================================================================
-bool SaveImage ()
+bool SaveImage (const char* fileName)
 {
     // allocate memory for our bitmap BGR U8 image
     std::vector<TPixelBGRU8> outPixels;
@@ -317,11 +414,11 @@ bool SaveImage ()
         dest[2] = uint8(Clamp(correctedPixel[0] * 255.0f, 0.0f, 255.0f));
     }
 
-    // write the bitmap to out.bmp
+    // write the bitmap
     
     // open the file if we can
     FILE *file;
-    file = fopen("out.bmp", "wb");
+    file = fopen(fileName, "wb");
     if (!file)
         return false;
  
@@ -359,6 +456,9 @@ bool SaveImage ()
 //=================================================================================
 int main (int argc, char**argv)
 {
+    // get the filename from the command line, or use out.bmp if none supplied
+    const char* fileName = argc < 2 ? "out.bmp" : argv[1];
+
     // report the params
     const size_t numThreads = FORCE_SINGLE_THREAD() ? 1 : std::thread::hardware_concurrency();
     printf("Rendering a %ix%i image with %i samples per pixel and %i ray bounces.\n", c_imageWidth, c_imageHeight, c_samplesPerPixel, c_numBounces);
@@ -371,24 +471,29 @@ int main (int argc, char**argv)
     {
         STimer timer;
 
-        // spin up some threads to do the rendering work
-        auto start = std::chrono::high_resolution_clock::now();
-        std::vector<std::thread> threads;
-        threads.resize(numThreads);
-        for (std::thread& t : threads)
-            t = std::thread(ThreadFunc, std::ref(timer));
+        // if going multithreaded, spin up some threads to do rendering work, and wait for them to be done
+        if (numThreads > 1) {
+            auto start = std::chrono::high_resolution_clock::now();
+            std::vector<std::thread> threads;
+            threads.resize(numThreads);
 
-        // wait for the threads to be done
-        for (std::thread& t : threads)
-            t.join();
-        auto end = std::chrono::high_resolution_clock::now();
+            for (std::thread& t : threads)
+                t = std::thread(ThreadFunc, std::ref(timer));
+
+            for (std::thread& t : threads)
+                t.join();
+        }
+        // else if single threaded, just call the rendering function from the main thread
+        else {
+            ThreadFunc(timer);
+        }
     }
 
-    // save the image as out.bmp
-    if (!SaveImage())
-        printf("Could not save image.\n");
+    // save the image
+    if (!SaveImage(fileName))
+        printf("Could not save image as %s.\n", fileName);
     else
-        printf("Saved out.bmp.\n");
+        printf("Saved image as %s.\n", fileName);
 
     // all done
     system("pause");
@@ -398,35 +503,43 @@ int main (int argc, char**argv)
 /*
 
 TODO:
-
-* finish scenes 2 and 3
- * those are the "pretty" scenes.  make them look good with GI and AO and color bleed and stuff!
-
-* do a couple different scenes
- * this current one to show how it takes a while to converge
- * something with small bright lights that take a while to converge
- * something in a box with large lights that takes a shorter time to converge
- * furnace test, to make sure it comes out ok
-
 * use trig for UniformSampleHemisphere instead of looping
 
 * profile to make sure there's no dumb perf issues
 
 * remove cosine weighted function from 1st blog post code, that is coming up next! (or, is coming up after AA)
-
-* gather stuff from email!
+ * and jitter AA, if we aren't keeping it in for the first blog post.  We probably are though.
 
 ----- BLOG -----
 * mention furnace test
 * note how windows likes to cache images if you are viewing with the windows image viewer! delete file or zoom in / out.
  * takes the color out of images and other compression artifacts too!
+* remake images at different levels
+? include AA? it's probably super easy to explain so probably should.
 
 * divide by pi or not
  * https://seblagarde.wordpress.com/2012/01/08/pi-or-not-to-pi-in-game-lighting-equation/
+ * more here: https://seblagarde.wordpress.com/2011/08/17/hello-world/
+ * and wikipedia (which does): https://en.wikipedia.org/wiki/Path_tracing
+
+* slow convergence discussion:
+ * http://computergraphics.stackexchange.com/questions/3972/is-it-expected-that-a-naive-path-tracer-takes-many-many-samples-to-converge/3976#3976
+ * the more different that samples are, the longer it will take to converge (could make an example of that if you care to?)
 
 ----- COSINE WEIGHTING -----
 
 ? why do we have to take the 2.0 off too, instead of just the cosine?
  * analyze distribution of samples to explain it in that post
+
+----- Explicit light rays for larger lights -----
+* https://gist.github.com/breakin/ed737ab44356b76ff21fc0c03e27e811
+* also show how to do point lights!
+* Can look better faster due to direct illumination. things in shadow / refraction / etc still take a while though.
+
+----- Refraction -----
+? does cosine law also apply to BSDF? if so, how?
+* have to integrate over full sphere, not just hemisphere then!
+ * http://computergraphics.stackexchange.com/questions/2482/choosing-reflection-or-refraction-in-path-tracing
+
 
 */
