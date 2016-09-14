@@ -475,8 +475,10 @@ TODO:
 * show images with varying # of samples, and how long it took to render
 
 * make small (256x256?) gifs of each scene showing 1,10,100,1000,10000,100000 samples
- ? maybe: https://imgflip.com/images-to-gif
- ? maybe : http://makeagif.com
+ ? maybe: https://imgflip.com/images-to-gif -> water marked
+ ? maybe : http://makeagif.com -> didn't work
+ ? maybe: http://gifmaker.me/ -> seems to have worked!
+ ? DAPSE code also has gif maker built in i think, maybe as command line!
 
 * mention furnace test
 * note how windows likes to cache images if you are viewing with the windows image viewer! delete file or zoom in / out.
