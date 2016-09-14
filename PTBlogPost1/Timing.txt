@@ -1,3 +1,0 @@
-! todo: do other timings.
-! todo: make other scenes!
-Out_Scene3_256_100000spp.bmp -> 1.1 hours
