@@ -4,6 +4,8 @@
 #include <random>
 #include "TVector3.h"
 #include "SMaterial.h"
+#include "SAABB.h"
+#include "SOBB.h"
 #include "STriangle.h"
 #include "SSphere.h"
 #include "SQuad.h"
@@ -31,11 +33,11 @@
 //=================================================================================
 
 // image size
-const size_t c_imageWidth = 256;
-const size_t c_imageHeight = 256;
+const size_t c_imageWidth = 512;
+const size_t c_imageHeight = 512;
 
 // sampling parameters
-const size_t c_samplesPerPixel = 100000;
+const size_t c_samplesPerPixel = 100;
 const size_t c_numBounces = 5;
 const float c_rayBounceEpsilon = 0.001f;
 
@@ -69,6 +71,10 @@ const std::vector<STriangle> c_triangles =
 
 const std::vector<SQuad> c_quads = {};
 
+const std::vector<SAABB> c_aabbs = {};
+
+const std::vector<SOBB> c_obbs = {};
+
 const TVector3 c_rayMissColor = { 0.0f, 0.0f, 0.0f };
 
 #elif RENDER_SCENE() == 1
@@ -100,6 +106,10 @@ const std::vector<STriangle> c_triangles =
 };
 
 const std::vector<SQuad> c_quads = {};
+
+const std::vector<SAABB> c_aabbs = {};
+
+const std::vector<SOBB> c_obbs = {};
 
 const TVector3 c_rayMissColor = { 0.1f, 0.4f, 1.0f };
 
@@ -151,6 +161,10 @@ const std::vector<SQuad> c_quads = {
     SQuad({ 265.0f,   0.0f, 296.0f },{ 265.0f, 330.0f, 296.0f },{ 423.0f, 330.0f, 247.0f },{ 423.0f,   0.0f, 247.0f }, SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
 };
 
+const std::vector<SAABB> c_aabbs = {};
+
+const std::vector<SOBB> c_obbs = {};
+
 const TVector3 c_rayMissColor = { 0.0f, 0.0f, 0.0f };
 
 #elif RENDER_SCENE() == 3
@@ -183,19 +197,18 @@ const std::vector<SQuad> c_quads = {
     // right wall
     SQuad({552.8f,   0.0f,   0.0f},{549.6f,   0.0f, 559.2f},{556.0f, 548.8f, 559.2f},{556.0f, 548.8f,   0.0f}, SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 0.0f, 0.0f })),
 
-    // short block
-    SQuad({ 130.0f, 165.0f,  65.0f },{ 82.0f, 165.0f, 225.0f },{ 240.0f, 165.0f, 272.0f },{ 290.0f, 165.0f, 114.0f },SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
-    SQuad({ 290.0f,   0.0f, 114.0f },{ 290.0f, 165.0f, 114.0f },{ 240.0f, 165.0f, 272.0f },{ 240.0f,   0.0f, 272.0f },SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
-    SQuad({ 130.0f,   0.0f,  65.0f },{ 130.0f, 165.0f,  65.0f },{ 290.0f, 165.0f, 114.0f },{ 290.0f,   0.0f, 114.0f },SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
-    SQuad({ 82.0f,   0.0f, 225.0f },{ 82.0f, 165.0f, 225.0f },{ 130.0f, 165.0f,  65.0f },{ 130.0f,   0.0f,  65.0f },SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
-    SQuad({ 240.0f,   0.0f, 272.0f },{ 240.0f, 165.0f, 272.0f },{ 82.0f, 165.0f, 225.0f },{ 82.0f,   0.0f, 225.0f },SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
-
     // tall block
     SQuad({ 423.0f, 330.0f, 247.0f },{ 265.0f, 330.0f, 296.0f },{ 314.0f, 330.0f, 456.0f },{ 472.0f, 330.0f, 406.0f }, SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
     SQuad({ 423.0f,   0.0f, 247.0f },{ 423.0f, 330.0f, 247.0f },{ 472.0f, 330.0f, 406.0f },{ 472.0f,   0.0f, 406.0f }, SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
     SQuad({ 472.0f,   0.0f, 406.0f },{ 472.0f, 330.0f, 406.0f },{ 314.0f, 330.0f, 456.0f },{ 314.0f,   0.0f, 456.0f }, SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
     SQuad({ 314.0f,   0.0f, 456.0f },{ 314.0f, 330.0f, 456.0f },{ 265.0f, 330.0f, 296.0f },{ 265.0f,   0.0f, 296.0f }, SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
     SQuad({ 265.0f,   0.0f, 296.0f },{ 265.0f, 330.0f, 296.0f },{ 423.0f, 330.0f, 247.0f },{ 423.0f,   0.0f, 247.0f }, SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
+};
+
+const std::vector<SAABB> c_aabbs = { };
+
+const std::vector<SOBB> c_obbs = {
+    SOBB( SAABB({ 185.5f, 82.5f, 169.0f },{ 82.5f, 82.5f, 82.5f },SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),{ 0.0f, 1.0f, 0.0f }, -17.0f * c_pi / 180.0f),
 };
 
 const TVector3 c_rayMissColor = { 0.0f, 0.0f, 0.0f };
@@ -219,6 +232,10 @@ const std::vector<STriangle> c_triangles = {};
 
 const std::vector<SQuad> c_quads = {};
 
+const std::vector<SAABB> c_aabbs = {};
+
+const std::vector<SOBB> c_obbs = {};
+
 const TVector3 c_rayMissColor = { 1.0f, 1.0f, 1.0f };
 
 #endif
@@ -241,6 +258,9 @@ const TVector3 c_cameraRight = Cross({ 0.0f, 1.0f, 0.0f }, c_cameraFwd);
 const TVector3 c_cameraUp = Cross(c_cameraFwd, c_cameraRight);
 
 //=================================================================================
+
+
+//=================================================================================
 bool ClosestIntersection (const TVector3& rayPos, const TVector3& rayDir, SRayHitInfo& info)
 {
     bool ret = false;
@@ -248,11 +268,12 @@ bool ClosestIntersection (const TVector3& rayPos, const TVector3& rayDir, SRayHi
         ret |= RayIntersects(rayPos, rayDir, s, info);
     for (const STriangle& t : c_triangles)
         ret |= RayIntersects(rayPos, rayDir, t, info);
-    for (const SQuad& q : c_quads) {
-        ret |= RayIntersects(rayPos, rayDir, q.m_a, info);
-        ret |= RayIntersects(rayPos, rayDir, q.m_b, info);
-    }
-
+    for (const SQuad& q : c_quads)
+        ret |= RayIntersects(rayPos, rayDir, q, info);
+    for (const SAABB& a : c_aabbs)
+        ret |= RayIntersects(rayPos, rayDir, a, info);
+    for (const SOBB& o : c_obbs)
+        ret |= RayIntersects(rayPos, rayDir, o, info);
     return ret;
 }
 
@@ -264,7 +285,9 @@ TVector3 L_out (const SRayHitInfo& X, const TVector3& outDir, size_t bouncesLeft
         return c_rayMissColor;
 
     // start with emissive lighting
-    TVector3 ret = X.m_material->m_emissive;
+    const SMaterial* material = X.m_material;
+
+    TVector3 ret = material->m_emissive;
 
     // add in random recursive samples for global illumination
     {
@@ -272,16 +295,16 @@ TVector3 L_out (const SRayHitInfo& X, const TVector3& outDir, size_t bouncesLeft
         TVector3 newRayDir = CosineSampleHemisphere(X.m_surfaceNormal);
         SRayHitInfo info;
         if (ClosestIntersection(X.m_intersectionPoint + newRayDir * c_rayBounceEpsilon, newRayDir, info))
-            ret += L_out(info, -newRayDir, bouncesLeft - 1) * X.m_material->m_diffuse;
+            ret += L_out(info, -newRayDir, bouncesLeft - 1) * material->m_diffuse;
         else
-            ret += c_rayMissColor * X.m_material->m_diffuse;
+            ret += c_rayMissColor * material->m_diffuse;
 #else
         TVector3 newRayDir = UniformSampleHemisphere(X.m_surfaceNormal);
         SRayHitInfo info;
         if (ClosestIntersection(X.m_intersectionPoint + newRayDir * c_rayBounceEpsilon, newRayDir, info))
-            ret += Dot(newRayDir, X.m_surfaceNormal) * 2.0f * L_out(info, -newRayDir, bouncesLeft - 1) * X.m_material->m_diffuse;
+            ret += Dot(newRayDir, X.m_surfaceNormal) * 2.0f * L_out(info, -newRayDir, bouncesLeft - 1) * material->m_diffuse;
         else
-            ret += Dot(newRayDir, X.m_surfaceNormal) * 2.0f * c_rayMissColor * X.m_material->m_diffuse;
+            ret += Dot(newRayDir, X.m_surfaceNormal) * 2.0f * c_rayMissColor * material->m_diffuse;
 #endif
     }
 
@@ -468,11 +491,39 @@ int main (int argc, char**argv)
 
 TODO:
 
+* convert scene 3 to aabb's fully (not walls? just boxes)
+ * then time it below (and not it for blog)
+ * and convert other scenes
+
+* make tests for quads, aabbs and obbs to make the scenes render faster
+ * perf of Scene 3 512x512 with 5 bounces and 100 spp
+ * 30 Triangles:    12.1 seconds
+ * 15 Quads:         6.2 seconds -> makes sense. half the primitives, and quads are basically same cost as triangles due to how it tests
+ * 5 quads, 2 obbs:  ??
+
+ * convert scenes to using quads instead of triangles (or whatever prim is most efficient)
+ * check for TODO in files
+
+* run some in debug to see if it hits any asserts or uninited vars etc
+
 * remove cosine weighted function from 1st blog post code, that is coming up next! (or, is coming up after AA)
  * and jitter AA, if we aren't keeping it in for the first blog post.  We probably are though.
 
 ----- BLOG -----
 * show images with varying # of samples, and how long it took to render
+ * maybe also vary # of bounces?
+ * could show different axes of quality and how it affects runtime
+  * image resolution
+  * spp
+  * max bounces
+
+* could cache first hit of screen ray, since that will always be the same
+ * not useful long term, as our anti aliasing will kill that speed up.
+ ? should we do this and show differences in timing? or at least real quickly say how much faster something got?
+
+* talk about how you can visualize things, like surface normals, by making them emissive values in the 0-1 range
+ * or have a debugColor passed through that you can set to visualize max # of bounces and things
+ * show debug visualization images
 
 * make small (256x256?) gifs of each scene showing 1,10,100,1000,10000,100000 samples
  ? maybe: https://imgflip.com/images-to-gif -> water marked

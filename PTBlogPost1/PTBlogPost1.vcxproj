@@ -142,7 +142,9 @@
     <ClCompile Include="Source.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="SAABB.h" />
     <ClInclude Include="SMaterial.h" />
+    <ClInclude Include="SOBB.h" />
     <ClInclude Include="SQuad.h" />
     <ClInclude Include="SRayHitInfo.h" />
     <ClInclude Include="SSphere.h" />

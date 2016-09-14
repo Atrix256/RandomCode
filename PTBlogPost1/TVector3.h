@@ -38,6 +38,16 @@ inline TVector3 operator+ (const TVector3& a, const TVector3& b)
     };
 }
 
+inline TVector3 operator+ (const TVector3& a, float b)
+{
+    return
+    {
+        a[0] + b,
+        a[1] + b,
+        a[2] + b
+    };
+}
+
 inline TVector3 operator- (const TVector3& a, const TVector3& b)
 {
     return
@@ -46,6 +56,13 @@ inline TVector3 operator- (const TVector3& a, const TVector3& b)
         a[1] - b[1],
         a[2] - b[2]
     };
+}
+
+inline void operator-= (TVector3& a, const TVector3& b)
+{
+    a[0] -= b[0];
+    a[1] -= b[1];
+    a[2] -= b[2];
 }
 
 inline void operator+= (TVector3& a, const TVector3& b)
@@ -102,7 +119,7 @@ inline void operator*= (TVector3& a, float b)
     a[2] *= b;
 }
 
-inline TVector3 operator - (const TVector3& a)
+inline TVector3 operator- (const TVector3& a)
 {
     return
     {
@@ -126,6 +143,11 @@ inline TVector3 Cross (const TVector3& a, const TVector3& b)
         a[2] * b[0] - a[0] * b[2],
         a[0] * b[1] - a[1] * b[0]
     };
+}
+
+inline float ScalarTriple (const TVector3& a, const TVector3& b, const TVector3& c)
+{
+    return Dot(Cross(a, b), c);
 }
 
 // TODO: remove this after you figure out noise issue
@@ -179,4 +201,26 @@ inline TVector3 UniformSampleHemisphere (const TVector3& N)
         dir *= -1.0f;
 
     return dir;
+}
+
+//=================================================================================
+inline TVector3 ChangeBasis (const TVector3& v, const TVector3& xAxis, const TVector3& yAxis, const TVector3& zAxis)
+{
+    return 
+    {
+        Dot(v, { xAxis[0], yAxis[0], zAxis[0]}),
+        Dot(v, { xAxis[1], yAxis[1], zAxis[1]}),
+        Dot(v, { xAxis[2], yAxis[2], zAxis[2]})
+    };
+}
+
+//=================================================================================
+inline TVector3 UndoChangeBasis (const TVector3& v, const TVector3& xAxis, const TVector3& yAxis, const TVector3& zAxis)
+{
+    return
+    {
+        Dot(v, xAxis),
+        Dot(v, yAxis),
+        Dot(v, zAxis)
+    };
 }

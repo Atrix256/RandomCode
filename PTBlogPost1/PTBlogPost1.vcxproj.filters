@@ -44,5 +44,11 @@
     <ClInclude Include="SQuad.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="SAABB.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SOBB.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
