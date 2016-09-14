@@ -156,18 +156,27 @@ inline TVector3 CosineSampleHemisphere (const TVector3& normal)
 //=================================================================================
 inline TVector3 UniformSampleHemisphere (const TVector3& N)
 {
-    // adapted from @lh0xfb on twitter: https://github.com/gheshu/gputracer/blob/master/depth.glsl
-    TVector3 dir;
-    do
-    {
-        dir[0] = RandomFloat(-1.0f, 1.0f);
-        dir[1] = RandomFloat(-1.0f, 1.0f);
-        dir[2] = RandomFloat(-1.0f, 1.0f);
-    } while (LengthSq(dir) > 1.0f);
+    // Uniform point on sphere
+    // from http://mathworld.wolfram.com/SpherePointPicking.html
+    float u = RandomFloat();
+    float v = RandomFloat();
 
+    float theta = 2.0f * c_pi * u;
+    float phi = acos(2.0f * v - 1.0f);
+
+    float cosTheta = cos(theta);
+    float sinTheta = sin(theta);
+    float cosPhi = cos(phi);
+    float sinPhi = sin(phi);
+
+    TVector3 dir;
+    dir[0] = cosTheta * sinPhi;
+    dir[1] = sinTheta * sinPhi;
+    dir[2] = cosPhi;
+
+    // if our vector is facing the wrong way vs the normal, flip it!
     if (Dot(dir, N) <= 0.0f)
         dir *= -1.0f;
 
-    dir = Normalize(dir);
     return dir;
 }

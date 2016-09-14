@@ -15,10 +15,10 @@
 #define FORCE_SINGLE_THREAD() 0
 
 // TODO: remove these and the associated functions / functionality
-#define COSINE_WEIGHTED_HEMISPHERE_SAMPLES() 1
-#define JITTER_AA() 1
+#define COSINE_WEIGHTED_HEMISPHERE_SAMPLES() 0
+#define JITTER_AA() 0
 
-#define RENDER_SCENE() 2
+#define RENDER_SCENE() 3
 // Scenes:
 //  0 = sphere on plane with wall, small light            (slow convergence)
 //  1 = sphere on plane with wall, small light + blue sky (quick convergence)
@@ -30,16 +30,16 @@
 // User tweakable parameters - Scenes
 //=================================================================================
 
-#if RENDER_SCENE() == 0
-
 // image size
-const size_t c_imageWidth = 512;
-const size_t c_imageHeight = 512;
+const size_t c_imageWidth = 256;
+const size_t c_imageHeight = 256;
 
 // sampling parameters
-const size_t c_samplesPerPixel = 100;
+const size_t c_samplesPerPixel = 100000;
 const size_t c_numBounces = 5;
 const float c_rayBounceEpsilon = 0.001f;
+
+#if RENDER_SCENE() == 0
 
 // camera parameters - assumes no roll (z axis rotation) and assumes that the camera isn't looking straight up
 const TVector3 c_cameraPos = {0.0f, 0.0f, -10.0f};
@@ -73,15 +73,6 @@ const TVector3 c_rayMissColor = { 0.0f, 0.0f, 0.0f };
 
 #elif RENDER_SCENE() == 1
 
-// image size
-const size_t c_imageWidth = 512;
-const size_t c_imageHeight = 512;
-
-// sampling parameters
-const size_t c_samplesPerPixel = 100;
-const size_t c_numBounces = 5;
-const float c_rayBounceEpsilon = 0.001f;
-
 // camera parameters - assumes no roll (z axis rotation) and assumes that the camera isn't looking straight up
 const TVector3 c_cameraPos = {0.0f, 0.0f, -10.0f};
 const TVector3 c_cameraLookAt = { 0.0f, 0.0f, 0.0f };
@@ -113,15 +104,6 @@ const std::vector<SQuad> c_quads = {};
 const TVector3 c_rayMissColor = { 0.1f, 0.4f, 1.0f };
 
 #elif RENDER_SCENE() == 2
-
-// image size
-const size_t c_imageWidth = 512;
-const size_t c_imageHeight = 512;
-
-// sampling parameters
-const size_t c_samplesPerPixel = 100;
-const size_t c_numBounces = 5;
-const float c_rayBounceEpsilon = 0.001f;
 
 // camera parameters - assumes no roll (z axis rotation) and assumes that the camera isn't looking straight up
 const TVector3 c_cameraPos = { 278.0f, 273.0f, -800.0f };
@@ -173,15 +155,6 @@ const TVector3 c_rayMissColor = { 0.0f, 0.0f, 0.0f };
 
 #elif RENDER_SCENE() == 3
 
-// image size
-const size_t c_imageWidth = 512;
-const size_t c_imageHeight = 512;
-
-// sampling parameters
-const size_t c_samplesPerPixel = 100;
-const size_t c_numBounces = 5;
-const float c_rayBounceEpsilon = 0.001f;
-
 // camera parameters - assumes no roll (z axis rotation) and assumes that the camera isn't looking straight up
 const TVector3 c_cameraPos = { 278.0f, 273.0f, -800.0f };
 const TVector3 c_cameraLookAt = { 278.0f, 273.0f, 0.0f };
@@ -228,15 +201,6 @@ const std::vector<SQuad> c_quads = {
 const TVector3 c_rayMissColor = { 0.0f, 0.0f, 0.0f };
 
 #elif RENDER_SCENE() == 4
-
-// image size
-const size_t c_imageWidth = 512;
-const size_t c_imageHeight = 512;
-
-// sampling parameters
-const size_t c_samplesPerPixel = 100;
-const size_t c_numBounces = 3;
-const float c_rayBounceEpsilon = 0.001f;
 
 // camera parameters - assumes no roll (z axis rotation) and assumes that the camera isn't looking straight up
 const TVector3 c_cameraPos = { 0.0f, 0.0f, -10.0f };
@@ -503,14 +467,17 @@ int main (int argc, char**argv)
 /*
 
 TODO:
-* use trig for UniformSampleHemisphere instead of looping
-
-* profile to make sure there's no dumb perf issues
 
 * remove cosine weighted function from 1st blog post code, that is coming up next! (or, is coming up after AA)
  * and jitter AA, if we aren't keeping it in for the first blog post.  We probably are though.
 
 ----- BLOG -----
+* show images with varying # of samples, and how long it took to render
+
+* make small (256x256?) gifs of each scene showing 1,10,100,1000,10000,100000 samples
+ ? maybe: https://imgflip.com/images-to-gif
+ ? maybe : http://makeagif.com
+
 * mention furnace test
 * note how windows likes to cache images if you are viewing with the windows image viewer! delete file or zoom in / out.
  * takes the color out of images and other compression artifacts too!
@@ -525,6 +492,9 @@ TODO:
 * slow convergence discussion:
  * http://computergraphics.stackexchange.com/questions/3972/is-it-expected-that-a-naive-path-tracer-takes-many-many-samples-to-converge/3976#3976
  * the more different that samples are, the longer it will take to converge (could make an example of that if you care to?)
+
+* random point on sphere
+ * http://mathworld.wolfram.com/SpherePointPicking.html
 
 ----- COSINE WEIGHTING -----
 
