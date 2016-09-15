@@ -496,7 +496,7 @@ TODO:
  * and convert other scenes
 
 * make tests for quads, aabbs and obbs to make the scenes render faster
- * perf of Scene 3 512x512 with 5 bounces and 100 spp
+ * perf of Scene 3 512x512 with 5 bounces and 100 spp (on work machine! get specs)
  * 30 Triangles:    12.1 seconds
  * 15 Quads:         6.2 seconds -> makes sense. half the primitives, and quads are basically same cost as triangles due to how it tests
  * 5 quads, 2 obbs:  ??
