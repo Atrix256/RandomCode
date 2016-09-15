@@ -150,7 +150,6 @@ inline float ScalarTriple (const TVector3& a, const TVector3& b, const TVector3&
     return Dot(Cross(a, b), c);
 }
 
-// TODO: remove this after you figure out noise issue
 //=================================================================================
 inline TVector3 CosineSampleHemisphere (const TVector3& normal)
 {

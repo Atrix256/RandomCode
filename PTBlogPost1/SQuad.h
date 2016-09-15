@@ -17,15 +17,6 @@ struct SQuad
         TVector3 e1 = m_b - m_a;
         TVector3 e2 = m_c - m_a;
         m_normal = Normalize(Cross(e1, e2));
-
-        // TODO: temp!
-        float lenAB = Length(e1);
-        float lenAC = Length(e2);
-
-        TVector3 xAxis = Normalize(m_b - m_a);
-        TVector3 yAxis = Normalize(m_d - m_a);
-
-        int ijkl = 0;
     }
 
     TVector3    m_a, m_b, m_c, m_d;

@@ -20,7 +20,7 @@
 #define COSINE_WEIGHTED_HEMISPHERE_SAMPLES() 0
 #define JITTER_AA() 0
 
-#define RENDER_SCENE() 3
+#define RENDER_SCENE() 0
 // Scenes:
 //  0 = sphere on plane with wall, small light            (slow convergence)
 //  1 = sphere on plane with wall, small light + blue sky (quick convergence)
@@ -53,23 +53,18 @@ const float c_cameraVerticalFOV = 40.0f * c_pi / 180.0f;
 const std::vector<SSphere> c_spheres =
 {
     //     Position         | Radius|       Emissive      |      Diffuse
-    { {  4.0f,  4.0f, 6.0f }, 0.5f, { { 1.0f, 1.0f, 1.0f }, { 0.0f, 0.0f, 0.0f } } },   // light
+    { {  4.0f,  4.0f, 6.0f }, 0.5f, { { 10.0f, 10.0f, 10.0f }, { 0.0f, 0.0f, 0.0f } } },   // light
     { {  0.0f,  0.0f, 4.0f }, 2.0f, { { 0.0f, 0.0f, 0.0f }, { 0.5f, 0.5f, 0.5f } } },   // ball
 };
 
-const std::vector<STriangle> c_triangles =
-{
-    //                    A          |           B           |           C          |                Emissive       |      Diffuse
+const std::vector<STriangle> c_triangles = {};
+
+const std::vector<SQuad> c_quads = {
     // floor
-    STriangle({ -15.0f, -2.0f, -15.0f }, { 15.0f, -2.0f, -15.0f }, { 15.0f, -2.0f, 15.0f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 0.9f, 0.1f, 0.1f })),
-    STriangle({ -15.0f, -2.0f, -15.0f }, { 15.0f, -2.0f,  15.0f }, {-15.0f, -2.0f, 15.0f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 0.9f, 0.1f, 0.1f })),
-
+    SQuad({ -4.0f, -3.0f, -4.0f },{ -4.0f,  2.0f, -4.0f },{ -4.0f,  2.0f,  12.0f },{ -4.0f, -3.0f,  12.0f }, SMaterial({ 0.0f, 0.0f, 0.0f },{ 0.1f, 0.9f, 0.1f })),
     // green wall
-    STriangle({  -4.0f, -3.0f,  12.0f }, { -4.0f,  2.0f,  12.0f }, { -4.0f,  2.0f, -4.0f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 0.1f, 0.9f, 0.1f })),
-    STriangle({  -4.0f, -3.0f,  12.0f }, { -4.0f,  2.0f,  -4.0f }, { -4.0f, -3.0f, -4.0f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 0.1f, 0.9f, 0.1f })),
+    SQuad({ -15.0f, -2.0f, 15.0f },{ 15.0f, -2.0f, 15.0f },{ 15.0f, -2.0f, -15.0f },{ -15.0f, -2.0f, -15.0f }, SMaterial({ 0.0f, 0.0f, 0.0f },{ 0.9f, 0.1f, 0.1f })),
 };
-
-const std::vector<SQuad> c_quads = {};
 
 const std::vector<SAABB> c_aabbs = {};
 
@@ -93,19 +88,14 @@ const std::vector<SSphere> c_spheres =
     { {  0.0f,  0.0f, 4.0f }, 2.0f, { { 0.0f, 0.0f, 0.0f }, { 0.5f, 0.5f, 0.5f } } },   // ball
 };
 
-const std::vector<STriangle> c_triangles =
-{
-    //                    A          |           B           |           C          |                Emissive       |      Diffuse
+const std::vector<STriangle> c_triangles = { };
+
+const std::vector<SQuad> c_quads = {
     // floor
-    STriangle({ -15.0f, -2.0f, -15.0f }, { 15.0f, -2.0f, -15.0f }, { 15.0f, -2.0f, 15.0f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 0.9f, 0.1f, 0.1f })),
-    STriangle({ -15.0f, -2.0f, -15.0f }, { 15.0f, -2.0f,  15.0f }, {-15.0f, -2.0f, 15.0f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 0.9f, 0.1f, 0.1f })),
-
+    SQuad({ -4.0f, -3.0f, -4.0f },{ -4.0f,  2.0f, -4.0f },{ -4.0f,  2.0f,  12.0f },{ -4.0f, -3.0f,  12.0f }, SMaterial({ 0.0f, 0.0f, 0.0f },{ 0.1f, 0.9f, 0.1f })),
     // green wall
-    STriangle({  -4.0f, -3.0f,  12.0f }, { -4.0f,  2.0f,  12.0f }, { -4.0f,  2.0f, -4.0f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 0.1f, 0.9f, 0.1f })),
-    STriangle({  -4.0f, -3.0f,  12.0f }, { -4.0f,  2.0f,  -4.0f }, { -4.0f, -3.0f, -4.0f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 0.1f, 0.9f, 0.1f })),
+    SQuad({ -15.0f, -2.0f, 15.0f },{ 15.0f, -2.0f, 15.0f },{ 15.0f, -2.0f, -15.0f },{ -15.0f, -2.0f, -15.0f }, SMaterial({ 0.0f, 0.0f, 0.0f },{ 0.9f, 0.1f, 0.1f })),
 };
-
-const std::vector<SQuad> c_quads = {};
 
 const std::vector<SAABB> c_aabbs = {};
 
@@ -122,11 +112,11 @@ float c_nearPlaneDistance = 0.1f;
 const float c_cameraVerticalFOV = 40.0f * c_pi / 180.0f;
 
 // the scene
+// I slightly modified the cornell box from http://www.graphics.cornell.edu/online/box/data.html
 const std::vector<SSphere> c_spheres = { };
 
 const std::vector<STriangle> c_triangles = { };
 
-// I modified the cornell box from http://www.graphics.cornell.edu/online/box/data.html
 const std::vector<SQuad> c_quads = {
     // floor
     SQuad({ 552.8f, 0.0f, 0.0f }, { 0.0f, 0.0f,   0.0f }, {   0.0f, 0.0f, 559.2f },{ 549.6f, 0.0f, 559.2f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f })),
@@ -145,25 +135,14 @@ const std::vector<SQuad> c_quads = {
 
     // right wall
     SQuad({552.8f,   0.0f,   0.0f},{549.6f,   0.0f, 559.2f},{556.0f, 548.8f, 559.2f},{556.0f, 548.8f,   0.0f}, SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 0.0f, 0.0f })),
-
-    // short block
-    SQuad({ 130.0f, 165.0f,  65.0f },{ 82.0f, 165.0f, 225.0f },{ 240.0f, 165.0f, 272.0f },{ 290.0f, 165.0f, 114.0f },SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
-    SQuad({ 290.0f,   0.0f, 114.0f },{ 290.0f, 165.0f, 114.0f },{ 240.0f, 165.0f, 272.0f },{ 240.0f,   0.0f, 272.0f },SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
-    SQuad({ 130.0f,   0.0f,  65.0f },{ 130.0f, 165.0f,  65.0f },{ 290.0f, 165.0f, 114.0f },{ 290.0f,   0.0f, 114.0f },SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
-    SQuad({ 82.0f,   0.0f, 225.0f },{ 82.0f, 165.0f, 225.0f },{ 130.0f, 165.0f,  65.0f },{ 130.0f,   0.0f,  65.0f },SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
-    SQuad({ 240.0f,   0.0f, 272.0f },{ 240.0f, 165.0f, 272.0f },{ 82.0f, 165.0f, 225.0f },{ 82.0f,   0.0f, 225.0f },SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
-
-    // tall block
-    SQuad({ 423.0f, 330.0f, 247.0f },{ 265.0f, 330.0f, 296.0f },{ 314.0f, 330.0f, 456.0f },{ 472.0f, 330.0f, 406.0f }, SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
-    SQuad({ 423.0f,   0.0f, 247.0f },{ 423.0f, 330.0f, 247.0f },{ 472.0f, 330.0f, 406.0f },{ 472.0f,   0.0f, 406.0f }, SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
-    SQuad({ 472.0f,   0.0f, 406.0f },{ 472.0f, 330.0f, 406.0f },{ 314.0f, 330.0f, 456.0f },{ 314.0f,   0.0f, 456.0f }, SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
-    SQuad({ 314.0f,   0.0f, 456.0f },{ 314.0f, 330.0f, 456.0f },{ 265.0f, 330.0f, 296.0f },{ 265.0f,   0.0f, 296.0f }, SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
-    SQuad({ 265.0f,   0.0f, 296.0f },{ 265.0f, 330.0f, 296.0f },{ 423.0f, 330.0f, 247.0f },{ 423.0f,   0.0f, 247.0f }, SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
 };
 
 const std::vector<SAABB> c_aabbs = {};
 
-const std::vector<SOBB> c_obbs = {};
+const std::vector<SOBB> c_obbs = {
+    SOBB(SAABB({ 185.5f, 82.5f, 169.0f },{ 82.5f, 82.5f, 82.5f },SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),{ 0.0f, 1.0f, 0.0f }, -17.0f * c_pi / 180.0f),
+    SOBB(SAABB({ 368.5f, 165.0f, 351.25 },{ 82.5f, 165.0f, 82.5f }, SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),{ 0.0f, 1.0f, 0.0f }, 107.0f * c_pi / 180.0f),
+};
 
 const TVector3 c_rayMissColor = { 0.0f, 0.0f, 0.0f };
 
@@ -176,11 +155,11 @@ float c_nearPlaneDistance = 0.1f;
 const float c_cameraVerticalFOV = 40.0f * c_pi / 180.0f;
 
 // the scene
+// I slightly modified the cornell box from http://www.graphics.cornell.edu/online/box/data.html
 const std::vector<SSphere> c_spheres = { };
 
 const std::vector<STriangle> c_triangles = { };
 
-// I modified the cornell box from http://www.graphics.cornell.edu/online/box/data.html
 const std::vector<SQuad> c_quads = {
     // floor
     SQuad({ 552.8f, 0.0f, 0.0f }, { 0.0f, 0.0f,   0.0f }, {   0.0f, 0.0f, 559.2f },{ 549.6f, 0.0f, 559.2f }, SMaterial({ 0.0f, 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f })),
@@ -196,19 +175,13 @@ const std::vector<SQuad> c_quads = {
 
     // right wall
     SQuad({552.8f,   0.0f,   0.0f},{549.6f,   0.0f, 559.2f},{556.0f, 548.8f, 559.2f},{556.0f, 548.8f,   0.0f}, SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 0.0f, 0.0f })),
-
-    // tall block
-    SQuad({ 423.0f, 330.0f, 247.0f },{ 265.0f, 330.0f, 296.0f },{ 314.0f, 330.0f, 456.0f },{ 472.0f, 330.0f, 406.0f }, SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
-    SQuad({ 423.0f,   0.0f, 247.0f },{ 423.0f, 330.0f, 247.0f },{ 472.0f, 330.0f, 406.0f },{ 472.0f,   0.0f, 406.0f }, SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
-    SQuad({ 472.0f,   0.0f, 406.0f },{ 472.0f, 330.0f, 406.0f },{ 314.0f, 330.0f, 456.0f },{ 314.0f,   0.0f, 456.0f }, SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
-    SQuad({ 314.0f,   0.0f, 456.0f },{ 314.0f, 330.0f, 456.0f },{ 265.0f, 330.0f, 296.0f },{ 265.0f,   0.0f, 296.0f }, SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
-    SQuad({ 265.0f,   0.0f, 296.0f },{ 265.0f, 330.0f, 296.0f },{ 423.0f, 330.0f, 247.0f },{ 423.0f,   0.0f, 247.0f }, SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),
 };
 
 const std::vector<SAABB> c_aabbs = { };
 
 const std::vector<SOBB> c_obbs = {
     SOBB( SAABB({ 185.5f, 82.5f, 169.0f },{ 82.5f, 82.5f, 82.5f },SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),{ 0.0f, 1.0f, 0.0f }, -17.0f * c_pi / 180.0f),
+    SOBB(SAABB({ 368.5f, 165.0f, 351.25}, {82.5f, 165.0f, 82.5f}, SMaterial({ 0.0f, 0.0f, 0.0f },{ 1.0f, 1.0f, 1.0f })),{ 0.0f, 1.0f, 0.0f }, 107.0f * c_pi / 180.0f),
 };
 
 const TVector3 c_rayMissColor = { 0.0f, 0.0f, 0.0f };
@@ -491,20 +464,6 @@ int main (int argc, char**argv)
 
 TODO:
 
-* convert scene 3 to aabb's fully (not walls? just boxes)
- * then time it below (and not it for blog)
- * and convert other scenes
-
-* make tests for quads, aabbs and obbs to make the scenes render faster
- * perf of Scene 3 512x512 with 5 bounces and 100 spp (on work machine! get specs)
- * 30 Triangles:    12.1 seconds
- * 15 Quads:         6.2 seconds -> makes sense. half the primitives, and quads are basically same cost as triangles due to how it tests
- * 5 quads, 2 obbs:  ??
-
- * convert scenes to using quads instead of triangles (or whatever prim is most efficient)
- * check for TODO in files
-
-* run some in debug to see if it hits any asserts or uninited vars etc
 
 * remove cosine weighted function from 1st blog post code, that is coming up next! (or, is coming up after AA)
  * and jitter AA, if we aren't keeping it in for the first blog post.  We probably are though.
@@ -548,6 +507,14 @@ TODO:
 
 * random point on sphere
  * http://mathworld.wolfram.com/SpherePointPicking.html
+
+* link to smallpt as a 99 lines of code path tracer - if code brevity helps understanding.
+
+* perf test comparisons for primitives in cornell box scene
+ * perf of Scene 3 512x512 with 5 bounces and 100 spp . "on my machine" don't need to give specs
+ * 30 Triangles:    12.1 seconds
+ * 15 Quads:         6.2 seconds -> makes sense. half the primitives, and quads are basically same cost as triangles due to how it tests
+ * 5 quads, 2 obbs:  5.5 seconds
 
 ----- COSINE WEIGHTING -----
 
