@@ -63,21 +63,47 @@ Maybe don't number the posts, but link to them from eachother and have an order 
 + talk about the fact that it's very multithreading friendly
  * and that it runs a lot faster on GPU
 
++ mention rendering with 8 threads?
 
+128x128
+5 bounces
+Scene0
+ - 10spp = 0.0 seconds
+ - 100spp = 0.1 seconds
+ - 1000spp = 1.0 seconds
+ - 10000spp = 9.3 seconds
+ - 100000spp = 89.0 seconds
+Scene1
+ - 10 = 0.0s
+ - 100 = 0.1s
+ - 1k = 1.0s
+ - 10k = 9.1s
+ - 100k = 89.2s
+scene2
+ - 10 = 0.1s
+ - 100 = 0.5s
+ - 1k = 3.7s
+ - 10k = 34.7s
+ - 100k = 341.4s (5.7 minutes)
+scene3
+ - 10 = 0.1s
+ - 100 = 0.4s
+ - 1k = 3.5s
+ - 10k = 32.5s
+ - 100k = 326.2s (5.4 minutes)
 
-
-
-
-- Show images of each scene with varying # of samples and how long it took to render them
++ Show images of each scene with varying # of samples and how long it took to render them
  * maybe also vary # of bounces and show how long it took to render them
  * also image size
  * explain how rendering parameters affect rendering time
  * maybe also how 4x samples = 50% error
  * could explain that with coin toss thing: http://groups.csail.mit.edu/graphics/classes/6.837/F04/lectures/14_Sampling-used6.pdf (page 7)
 
-- slow convergence discussion:
++ slow convergence discussion:
  * http://computergraphics.stackexchange.com/questions/3972/is-it-expected-that-a-naive-path-tracer-takes-many-many-samples-to-converge/3976#3976
  * the more different that samples are, the longer it will take to converge (could make an example of that if you care to?)
+
+
 
 - link to source code -> github (gist? or repo?) and zip file?
 
