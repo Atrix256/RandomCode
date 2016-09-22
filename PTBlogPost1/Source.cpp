@@ -16,11 +16,10 @@
 
 #define FORCE_SINGLE_THREAD() 0
 
-// TODO: remove these and the associated functions / functionality
 #define COSINE_WEIGHTED_HEMISPHERE_SAMPLES() 0
 #define JITTER_AA() 0
 
-#define RENDER_SCENE() 0
+#define RENDER_SCENE() 2
 // Scenes:
 //  0 = sphere on plane with wall, small light            (slow convergence)
 //  1 = sphere on plane with wall, small light + blue sky (quick convergence)
@@ -459,77 +458,3 @@ int main (int argc, char**argv)
     system("pause");
     return 0;
 }
-
-/*
-
-TODO:
-
-
-* remove cosine weighted function from 1st blog post code, that is coming up next! (or, is coming up after AA)
- * and jitter AA, if we aren't keeping it in for the first blog post.  We probably are though.
-
------ BLOG -----
-* show images with varying # of samples, and how long it took to render
- * maybe also vary # of bounces?
- * could show different axes of quality and how it affects runtime
-  * image resolution
-  * spp
-  * max bounces
-
-* could cache first hit of screen ray, since that will always be the same
- * not useful long term, as our anti aliasing will kill that speed up.
- ? should we do this and show differences in timing? or at least real quickly say how much faster something got?
-
-* talk about how you can visualize things, like surface normals, by making them emissive values in the 0-1 range
- * or have a debugColor passed through that you can set to visualize max # of bounces and things
- * show debug visualization images
-
-* make small (256x256?) gifs of each scene showing 1,10,100,1000,10000,100000 samples
- ? maybe: https://imgflip.com/images-to-gif -> water marked
- ? maybe : http://makeagif.com -> didn't work
- ? maybe: http://gifmaker.me/ -> seems to have worked!
- ? DAPSE code also has gif maker built in i think, maybe as command line!
-
-* mention furnace test
-* note how windows likes to cache images if you are viewing with the windows image viewer! delete file or zoom in / out.
- * takes the color out of images and other compression artifacts too!
-* remake images at different levels
-? include AA? it's probably super easy to explain so probably should.
-
-* divide by pi or not
- * https://seblagarde.wordpress.com/2012/01/08/pi-or-not-to-pi-in-game-lighting-equation/
- * more here: https://seblagarde.wordpress.com/2011/08/17/hello-world/
- * and wikipedia (which does): https://en.wikipedia.org/wiki/Path_tracing
-
-* slow convergence discussion:
- * http://computergraphics.stackexchange.com/questions/3972/is-it-expected-that-a-naive-path-tracer-takes-many-many-samples-to-converge/3976#3976
- * the more different that samples are, the longer it will take to converge (could make an example of that if you care to?)
-
-* random point on sphere
- * http://mathworld.wolfram.com/SpherePointPicking.html
-
-* link to smallpt as a 99 lines of code path tracer - if code brevity helps understanding.
-
-* perf test comparisons for primitives in cornell box scene
- * perf of Scene 3 512x512 with 5 bounces and 100 spp . "on my machine" don't need to give specs
- * 30 Triangles:    12.1 seconds
- * 15 Quads:         6.2 seconds -> makes sense. half the primitives, and quads are basically same cost as triangles due to how it tests
- * 5 quads, 2 obbs:  5.5 seconds
-
------ COSINE WEIGHTING -----
-
-? why do we have to take the 2.0 off too, instead of just the cosine?
- * analyze distribution of samples to explain it in that post
-
------ Explicit light rays for larger lights -----
-* https://gist.github.com/breakin/ed737ab44356b76ff21fc0c03e27e811
-* also show how to do point lights!
-* Can look better faster due to direct illumination. things in shadow / refraction / etc still take a while though.
-
------ Refraction -----
-? does cosine law also apply to BSDF? if so, how?
-* have to integrate over full sphere, not just hemisphere then!
- * http://computergraphics.stackexchange.com/questions/2482/choosing-reflection-or-refraction-in-path-tracing
-
-
-*/
