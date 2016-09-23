@@ -308,19 +308,22 @@ int main(int argc, char **argv)
 /*
 
 Blog:
-* Title: exploring the implications of compile time hashing
-* "Never put off til runtime that which can be done at compile time"
-* mention "I didn't test the accuracy or speed of this implementation, just am exploring what compile time hashing can do for us"
- * mention warning 'static_cast': truncation of constant value
-* link to source: https://gist.github.com/oktal/5573082
++ Title: exploring some implications of compile time hashing
++ "Never put off til runtime that which can be done at compile time"
++ mention "I didn't test the accuracy or speed of this implementation, just am exploring what compile time hashing can do for us"
+  - mention warning 'static_cast': truncation of constant value
++ link to source: https://gist.github.com/oktal/5573082
++ Mention using visual studio 2015 professional. looking at both x86 and x64
+ * your compiler or specific code situation might have different results.
+ * x86 / x64 seem to have identical behavior
+- Also get some insights into how optimizer works
+- There are probably some interesting tests I didn't do.  If you think of any and do them, let us know the results! Also, results on different compilers would be interesting to analyze.
+
 * link to github project?
 * put this source.cpp file contents inline in the blog post. Or just the snippets that you want to illustrate.
 * Link to minimally perfect hash article you wrote up.
-* Mention using visual studio 2015 professional. looking at both x86 and x64
- * your compiler or specific code situation might have different results.
- * x86 / x64 seem to have identical behavior
-* Also get some insights into how optimizer works
-* There are probably some interesting tests I didn't do.  If you think of any and do them, let us know the results! Also, results on different compilers would be interesting to analyze.
+
+
 
 * Simple Compile Time Hashing Snippet
  * put code snippet
