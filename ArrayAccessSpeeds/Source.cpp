@@ -8,9 +8,11 @@
 #include <algorithm>
 
 // run time parameters
-#define GENERATE_CODE() 0
-#define DO_TEST()       1
+#define GENERATE_CODE()   0
+#define DO_TEST()         1
+#define VERBOSE_SAMPLES() 0  // Turn on to show info for each sample
 static const size_t c_testRepeatCount = 10000;
+static const size_t c_testSamples = 50;
 
 // code generation parameters
 typedef uint32_t TTestType;
@@ -20,10 +22,62 @@ static const size_t c_generateNumValues = 5000;
 static const size_t c_sparseNumValues = 1000;
 static_assert(c_sparseNumValues <= c_generateNumValues,"c_sparseNumValues must be less than or equation to c_generateNumValues.");
 
+// collects multiple timings of a block of code and calculates the average and standard deviation (variance)
+// incremental average and variance algorithm taken from: https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Online_algorithm
+struct SBlockTimerAggregator {
+    SBlockTimerAggregator(const char* label)
+        : m_label(label)
+        , m_numSamples(0)
+        , m_mean(0.0f)
+        , m_M2(0.0f)
+    {
+
+    }
+
+    void AddSample (float milliseconds)
+    {
+        ++m_numSamples;
+        float delta = milliseconds - m_mean;
+        m_mean += delta / float(m_numSamples);
+        m_M2 += delta * (milliseconds - m_mean);
+    }
+
+    ~SBlockTimerAggregator ()
+    {
+        printf("%s: avg = %0.2f ms. std dev = %0.2f ms\n", m_label, GetAverage(), GetStandardDeviation());
+    }
+
+    float GetAverage () const
+    {
+        return m_mean;
+    }
+
+    float GetVariance () const
+    {
+        // invalid!
+        if (m_numSamples < 2)
+            return -1.0f;
+        
+        return m_M2 / float (m_numSamples - 1);
+    }
+
+    float GetStandardDeviation () const
+    {
+        return sqrt(GetVariance());
+    }
+
+    const char* m_label;
+
+    int         m_numSamples;
+    float       m_mean;
+    float       m_M2;
+};
+
+// times a block of code
 struct SBlockTimer
 {
-    SBlockTimer(const char* label)
-        :m_label(label)
+    SBlockTimer(SBlockTimerAggregator& aggregator)
+        : m_aggregator(aggregator)
     {
         m_start = std::chrono::high_resolution_clock::now();
     }
@@ -31,11 +85,16 @@ struct SBlockTimer
     ~SBlockTimer()
     {
         std::chrono::duration<float> seconds = std::chrono::high_resolution_clock::now() - m_start;
-        printf("%s: %0.2f ms\n", m_label, seconds.count()*1000.0f);
+        float milliseconds = seconds.count() * 1000.0f;
+        m_aggregator.AddSample(milliseconds);
+
+        #if VERBOSE_SAMPLES()
+        printf("%s: %0.2f ms  (avg = %0.2f ms. std dev = %0.2f ms) \n", m_aggregator.m_label, milliseconds, m_aggregator.GetAverage(), m_aggregator.GetStandardDeviation());
+        #endif
     }
 
+    SBlockTimerAggregator&                m_aggregator;
     std::chrono::system_clock::time_point m_start;
-    const char* m_label;
 };
 
 TTestType Random()
@@ -152,34 +211,54 @@ int main(int argc, char **argv)
             printf("Sequential Sum Timings:\n");
 
             {
-                SBlockTimer timer("  c array");
-                for (size_t times = 0; times < c_testRepeatCount; ++times)
-                    for (size_t i = 0; i < c_numValues; ++i)
-                        sum += carray[i];
+                SBlockTimerAggregator timerAgg("  std::vector   ");
+                for (size_t sample = 0; sample < c_testSamples; ++sample)
+                {
+                    SBlockTimer timer(timerAgg);
+                    for (size_t times = 0; times < c_testRepeatCount; ++times)
+                        for (size_t i = 0; i < c_numValues; ++i)
+                            sum += stdvector[i];
+                }
             }
             {
-                SBlockTimer timer("  std::array");
-                for (size_t times = 0; times < c_testRepeatCount; ++times)
-                    for (size_t i = 0; i < c_numValues; ++i)
-                        sum += stdarray[i];
+                SBlockTimerAggregator timerAgg("  std::array    ");
+                for (size_t sample = 0; sample < c_testSamples; ++sample)
+                {
+                    SBlockTimer timer(timerAgg);
+                    for (size_t times = 0; times < c_testRepeatCount; ++times)
+                        for (size_t i = 0; i < c_numValues; ++i)
+                            sum += stdarray[i];
+                }
             }
             {
-                SBlockTimer timer("  std::vector");
-                for (size_t times = 0; times < c_testRepeatCount; ++times)
-                    for (size_t i = 0; i < c_numValues; ++i)
-                        sum += stdvector[i];
+                SBlockTimerAggregator timerAgg("  c array       ");
+                for (size_t sample = 0; sample < c_testSamples; ++sample)
+                {
+                    SBlockTimer timer(timerAgg);
+                    for (size_t times = 0; times < c_testRepeatCount; ++times)
+                        for (size_t i = 0; i < c_numValues; ++i)
+                            sum += carray[i];
+                }
             }
             {
-                SBlockTimer timer("  dynamic memory");
-                for (size_t times = 0; times < c_testRepeatCount; ++times)
-                    for (size_t i = 0; i < c_numValues; ++i)
-                        sum += dynamicmemory[i];
+                SBlockTimerAggregator timerAgg("  dynamic memory");
+                for (size_t sample = 0; sample < c_testSamples; ++sample)
+                {
+                    SBlockTimer timer(timerAgg);
+                    for (size_t times = 0; times < c_testRepeatCount; ++times)
+                        for (size_t i = 0; i < c_numValues; ++i)
+                            sum += dynamicmemory[i];
+                }
             }
             {
-                SBlockTimer timer("  Switch");
-                for (size_t times = 0; times < c_testRepeatCount; ++times)
-                    for (size_t i = 0; i < c_numValues; ++i)
-                        sum += LookupSwitch(i);
+                SBlockTimerAggregator timerAgg("  Switch        ");
+                for (size_t sample = 0; sample < c_testSamples; ++sample)
+                {
+                    SBlockTimer timer(timerAgg);
+                    for (size_t times = 0; times < c_testRepeatCount; ++times)
+                        for (size_t i = 0; i < c_numValues; ++i)
+                            sum += LookupSwitch(i);
+                }
             }
         }
 
@@ -188,34 +267,54 @@ int main(int argc, char **argv)
             printf("\nShuffle Sum Timings:\n");
 
             {
-                SBlockTimer timer("  c array");
-                for (size_t times = 0; times < c_testRepeatCount; ++times)
-                    for (size_t i = 0; i < c_numValues; ++i)
-                        sum += carray[c_shuffleOrder[i]];
+                SBlockTimerAggregator timerAgg("  std::vector   ");
+                for (size_t sample = 0; sample < c_testSamples; ++sample)
+                {
+                    SBlockTimer timer(timerAgg);
+                    for (size_t times = 0; times < c_testRepeatCount; ++times)
+                        for (size_t i = 0; i < c_numValues; ++i)
+                            sum += stdvector[c_shuffleOrder[i]];
+                }
             }
             {
-                SBlockTimer timer("  std::array");
-                for (size_t times = 0; times < c_testRepeatCount; ++times)
-                    for (size_t i = 0; i < c_numValues; ++i)
-                        sum += stdarray[c_shuffleOrder[i]];
+                SBlockTimerAggregator timerAgg("  std::array    ");
+                for (size_t sample = 0; sample < c_testSamples; ++sample)
+                {
+                    SBlockTimer timer(timerAgg);
+                    for (size_t times = 0; times < c_testRepeatCount; ++times)
+                        for (size_t i = 0; i < c_numValues; ++i)
+                            sum += stdarray[c_shuffleOrder[i]];
+                }
             }
             {
-                SBlockTimer timer("  std::vector");
-                for (size_t times = 0; times < c_testRepeatCount; ++times)
-                    for (size_t i = 0; i < c_numValues; ++i)
-                        sum += stdvector[c_shuffleOrder[i]];
+                SBlockTimerAggregator timerAgg("  c array       ");
+                for (size_t sample = 0; sample < c_testSamples; ++sample)
+                {
+                    SBlockTimer timer(timerAgg);
+                    for (size_t times = 0; times < c_testRepeatCount; ++times)
+                        for (size_t i = 0; i < c_numValues; ++i)
+                            sum += carray[c_shuffleOrder[i]];
+                }
             }
             {
-                SBlockTimer timer("  dynamic memory");
-                for (size_t times = 0; times < c_testRepeatCount; ++times)
-                    for (size_t i = 0; i < c_numValues; ++i)
-                        sum += dynamicmemory[c_shuffleOrder[i]];
+                SBlockTimerAggregator timerAgg("  dynamic memory");
+                for (size_t sample = 0; sample < c_testSamples; ++sample)
+                {
+                    SBlockTimer timer(timerAgg);
+                    for (size_t times = 0; times < c_testRepeatCount; ++times)
+                        for (size_t i = 0; i < c_numValues; ++i)
+                            sum += dynamicmemory[c_shuffleOrder[i]];
+                }
             }
             {
-                SBlockTimer timer("  Switch");
-                for (size_t times = 0; times < c_testRepeatCount; ++times)
-                    for (size_t i = 0; i < c_numValues; ++i)
-                        sum += LookupSwitch(c_shuffleOrder[i]);
+                SBlockTimerAggregator timerAgg("  Switch        ");
+                for (size_t sample = 0; sample < c_testSamples; ++sample)
+                {
+                    SBlockTimer timer(timerAgg);
+                    for (size_t times = 0; times < c_testRepeatCount; ++times)
+                        for (size_t i = 0; i < c_numValues; ++i)
+                            sum += LookupSwitch(c_shuffleOrder[i]);
+                }
             }
         }
 
@@ -224,34 +323,54 @@ int main(int argc, char **argv)
             printf("\nSparse Shuffle Sum Timings:\n");
 
             {
-                SBlockTimer timer("  c array");
-                for (size_t times = 0; times < c_testRepeatCount; ++times)
-                    for (size_t i = 0; i < c_sparseNumValues; ++i)
-                        sum += carray[c_sparseShuffleOrder[i]];
+                SBlockTimerAggregator timerAgg("  std::vector   ");
+                for (size_t sample = 0; sample < c_testSamples; ++sample)
+                {
+                    SBlockTimer timer(timerAgg);
+                    for (size_t times = 0; times < c_testRepeatCount; ++times)
+                        for (size_t i = 0; i < c_sparseNumValues; ++i)
+                            sum += stdvector[c_sparseShuffleOrder[i]];
+                }
             }
             {
-                SBlockTimer timer("  std::array");
-                for (size_t times = 0; times < c_testRepeatCount; ++times)
-                    for (size_t i = 0; i < c_sparseNumValues; ++i)
-                        sum += stdarray[c_sparseShuffleOrder[i]];
+                SBlockTimerAggregator timerAgg("  std::array    ");
+                for (size_t sample = 0; sample < c_testSamples; ++sample)
+                {
+                    SBlockTimer timer(timerAgg);
+                    for (size_t times = 0; times < c_testRepeatCount; ++times)
+                        for (size_t i = 0; i < c_sparseNumValues; ++i)
+                            sum += stdarray[c_sparseShuffleOrder[i]];
+                }
             }
             {
-                SBlockTimer timer("  std::vector");
-                for (size_t times = 0; times < c_testRepeatCount; ++times)
-                    for (size_t i = 0; i < c_sparseNumValues; ++i)
-                        sum += stdvector[c_sparseShuffleOrder[i]];
+                SBlockTimerAggregator timerAgg("  c array       ");
+                for (size_t sample = 0; sample < c_testSamples; ++sample)
+                {
+                    SBlockTimer timer(timerAgg);
+                    for (size_t times = 0; times < c_testRepeatCount; ++times)
+                        for (size_t i = 0; i < c_sparseNumValues; ++i)
+                            sum += carray[c_sparseShuffleOrder[i]];
+                }
             }
             {
-                SBlockTimer timer("  dynamic memory");
-                for (size_t times = 0; times < c_testRepeatCount; ++times)
-                    for (size_t i = 0; i < c_sparseNumValues; ++i)
-                        sum += dynamicmemory[c_sparseShuffleOrder[i]];
+                SBlockTimerAggregator timerAgg("  dynamic memory");
+                for (size_t sample = 0; sample < c_testSamples; ++sample)
+                {
+                    SBlockTimer timer(timerAgg);
+                    for (size_t times = 0; times < c_testRepeatCount; ++times)
+                        for (size_t i = 0; i < c_sparseNumValues; ++i)
+                            sum += dynamicmemory[c_sparseShuffleOrder[i]];
+                }
             }
             {
-                SBlockTimer timer("  Switch");
-                for (size_t times = 0; times < c_testRepeatCount; ++times)
-                    for (size_t i = 0; i < c_sparseNumValues; ++i)
-                        sum += LookupSwitch(c_sparseShuffleOrder[i]);
+                SBlockTimerAggregator timerAgg("  Switch        ");
+                for (size_t sample = 0; sample < c_testSamples; ++sample)
+                {
+                    SBlockTimer timer(timerAgg);
+                    for (size_t times = 0; times < c_testRepeatCount; ++times)
+                        for (size_t i = 0; i < c_sparseNumValues; ++i)
+                            sum += SparseLookupSwitch(c_sparseShuffleOrder[i]);
+                }
             }
         }
 
@@ -264,6 +383,14 @@ int main(int argc, char **argv)
 }
 
 /*
+
+TODO:
+* report variance
+* redo timings!
+! update blog post
+ * now report variances
+ * wasn't using sparse lookup function
+
 
 BLOG: Is Code Faster than Data? switch vs array
 Question: how does array access speed compare to switch statement speed?
@@ -309,6 +436,9 @@ Follow up questions:
   * The compile time assurance of no hash collisions is really nice though.
   ? can we get the benefits of both?
 
+
+
+OLD TIMINGS WITHOUT VARIANCE, AND WRONG SWITCH FUNCTION CALLED IN SPARSE CASE:
 
 Win32 Debug
     Sequential Sum Timings:
