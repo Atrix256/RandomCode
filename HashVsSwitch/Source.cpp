@@ -505,6 +505,9 @@ int main(int argc, char** argv) {
 
 TODO:
 
+! Make it generate Tests.cpp as a standalone test, instead of making tests.h and relying on things from source.cpp!
+ * could make it generate code every time, but only re-write code if it isn't different.
+
 ? do we need to shuffle the order that we ask for the strings in? I think so.
  * maybe one test shuffled, one in order? report timings differently
  * this to tease out cache coherency issues
@@ -534,6 +537,7 @@ BLOG:
 * NOTE: could look for a hash that is cheaper at runtime but still has no collisions.  The default hash seems faster for example.  This would help the runtime hashing we have to do before lookup.
 * NOTE: could have the generator program generate different code and then profile the code it generated to decide which is fastest.
 ? mention the FindSalt function?
+* NOTE: hash quality not important. speed and no collisions for given input only matters.
 
 Tests:
     + map
