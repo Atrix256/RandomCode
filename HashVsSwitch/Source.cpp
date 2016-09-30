@@ -505,6 +505,14 @@ int main(int argc, char** argv) {
 
 TODO:
 
+* try __assume in switches and time that?
+
+* also figure out if the high resolution clock is QPC or what, and report it in testing details
+
+* do a series of tests with pre-hashed keys for faster lookup (like, what you would do with cooked data)
+
+* make it show variance like last post
+
 ! Make it generate Tests.cpp as a standalone test, instead of making tests.h and relying on things from source.cpp!
  * could make it generate code every time, but only re-write code if it isn't different.
 
@@ -538,6 +546,7 @@ BLOG:
 * NOTE: could have the generator program generate different code and then profile the code it generated to decide which is fastest.
 ? mention the FindSalt function?
 * NOTE: hash quality not important. speed and no collisions for given input only matters.
+* info about switch statements: http://www.codeproject.com/Articles/100473/Something-You-May-Not-Know-About-the-Switch-Statem
 
 Tests:
     + map
