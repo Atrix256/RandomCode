@@ -12,10 +12,12 @@
 // Note: strange numbered buckets (prime or non powers of two) seem to find salts more easily.
 
 // run time parameters
-#define GENERATE_CODE() 1
-#define DO_TEST()       1
-#define FIND_SALT()     0
+#define GENERATE_CODE()   1
+#define DO_TEST()         1
+#define FIND_SALT()       0
+#define VERBOSE_SAMPLES() 0  // Turn on to show info for each sample
 static const size_t c_testRepeatCount = 100000;
+static const size_t c_testSamples = 50;
 
 // code generation params
 static const size_t c_numWords = 100;
@@ -43,25 +45,80 @@ struct CRC32HasherMinimized {
     }
 };
 
+// collects multiple timings of a block of code and calculates the average and standard deviation (variance)
+// incremental average and variance algorithm taken from: https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Online_algorithm
+struct SBlockTimerAggregator {
+    SBlockTimerAggregator(const char* label)
+        : m_label(label)
+        , m_numSamples(0)
+        , m_mean(0.0f)
+        , m_M2(0.0f)
+    {
+
+    }
+
+    void AddSample (float milliseconds)
+    {
+        ++m_numSamples;
+        float delta = milliseconds - m_mean;
+        m_mean += delta / float(m_numSamples);
+        m_M2 += delta * (milliseconds - m_mean);
+    }
+
+    ~SBlockTimerAggregator ()
+    {
+        printf("%s: avg = %0.2f ms. std dev = %0.2f ms\n", m_label, GetAverage(), GetStandardDeviation());
+    }
+
+    float GetAverage () const
+    {
+        return m_mean;
+    }
+
+    float GetVariance () const
+    {
+        // invalid!
+        if (m_numSamples < 2)
+            return -1.0f;
+        
+        return m_M2 / float (m_numSamples - 1);
+    }
+
+    float GetStandardDeviation () const
+    {
+        return sqrt(GetVariance());
+    }
+
+    const char* m_label;
+
+    int         m_numSamples;
+    float       m_mean;
+    float       m_M2;
+};
+
+// times a block of code
 struct SBlockTimer
 {
-    SBlockTimer(const char* label)
-        : m_label(label)
+    SBlockTimer(SBlockTimerAggregator& aggregator)
+        : m_aggregator(aggregator)
     {
-        std::chrono::high_resolution_clock::now();
         m_start = std::chrono::high_resolution_clock::now();
     }
 
     ~SBlockTimer()
     {
         std::chrono::duration<float> seconds = std::chrono::high_resolution_clock::now() - m_start;
-        printf("%s: %0.2f ms\n", m_label, seconds.count()*1000.0f);
+        float milliseconds = seconds.count() * 1000.0f;
+        m_aggregator.AddSample(milliseconds);
+
+        #if VERBOSE_SAMPLES()
+        printf("%s: %0.2f ms  (avg = %0.2f ms. std dev = %0.2f ms) \n", m_aggregator.m_label, milliseconds, m_aggregator.GetAverage(), m_aggregator.GetStandardDeviation());
+        #endif
     }
 
-    std::chrono::high_resolution_clock::time_point m_start;
-    const char* m_label;
+    SBlockTimerAggregator&                m_aggregator;
+    std::chrono::system_clock::time_point m_start;
 };
-
 void Fail()
 {
     printf("\n\n!!! ERROR !!!\n\n");
@@ -323,132 +380,180 @@ void DoTest()
 
         // std::map
         {
-            SBlockTimer timer("    std::map");
-            for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                for (size_t i = 0; i < c_numWords; ++i) {
-                    auto it = g_map.find(c_words[i]);
-                    if (it != g_map.end())
-                        sum += (*it).second;
+            SBlockTimerAggregator timerAgg("    std::map");
+            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            {
+                SBlockTimer timer(timerAgg);
+                for (size_t times = 0; times < c_testRepeatCount; ++times) {
+                    for (size_t i = 0; i < c_numWords; ++i) {
+                        auto it = g_map.find(c_words[i]);
+                        if (it != g_map.end())
+                            sum += (*it).second;
+                    }
                 }
             }
         }
 
         // std::unordered_map default hash
         {
-            SBlockTimer timer("    std::unordered_map default hash");
-            for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                for (size_t i = 0; i < c_numWords; ++i) {
-                    auto it = g_unorderedMap.find(c_words[i]);
-                    if (it != g_unorderedMap.end())
-                        sum += (*it).second;
+            SBlockTimerAggregator timerAgg("    std::unordered_map default hash");
+            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            {
+                SBlockTimer timer(timerAgg);
+                for (size_t times = 0; times < c_testRepeatCount; ++times) {
+                    for (size_t i = 0; i < c_numWords; ++i) {
+                        auto it = g_unorderedMap.find(c_words[i]);
+                        if (it != g_unorderedMap.end())
+                            sum += (*it).second;
+                    }
                 }
             }
         }
 
         // std::unordered_map crc32
         {
-            SBlockTimer timer("    std::unordered_map crc32");
-            for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                for (size_t i = 0; i < c_numWords; ++i) {
-                    auto it = g_unorderedMapCRC32.find(c_words[i]);
-                    if (it != g_unorderedMapCRC32.end())
-                        sum += (*it).second;
+            SBlockTimerAggregator timerAgg("    std::unordered_map crc32");
+            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            {
+                SBlockTimer timer(timerAgg);
+                for (size_t times = 0; times < c_testRepeatCount; ++times) {
+                    for (size_t i = 0; i < c_numWords; ++i) {
+                        auto it = g_unorderedMapCRC32.find(c_words[i]);
+                        if (it != g_unorderedMapCRC32.end())
+                            sum += (*it).second;
+                    }
                 }
             }
         }
 
         // std::unordered_map crc32 minimized
         {
-            SBlockTimer timer("    std::unordered_map crc32 minimized");
-            for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                for (size_t i = 0; i < c_numWords; ++i) {
-                    auto it = g_unorderedMapCRC32Minimized.find(c_words[i]);
-                    if (it != g_unorderedMapCRC32Minimized.end())
-                        sum += (*it).second;
+            SBlockTimerAggregator timerAgg("    std::unordered_map crc32 minimized");
+            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            {
+                SBlockTimer timer(timerAgg);
+                for (size_t times = 0; times < c_testRepeatCount; ++times) {
+                    for (size_t i = 0; i < c_numWords; ++i) {
+                        auto it = g_unorderedMapCRC32Minimized.find(c_words[i]);
+                        if (it != g_unorderedMapCRC32Minimized.end())
+                            sum += (*it).second;
+                    }
                 }
             }
         }
 
         // SwitchValue()
         {
-            SBlockTimer timer("    SwitchValue()");
-            for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                for (size_t i = 0; i < c_numWords; ++i) {
-                    sum += SwitchValue(c_words[i]);
+            SBlockTimerAggregator timerAgg("    SwitchValue()");
+            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            {
+                SBlockTimer timer(timerAgg);
+                for (size_t times = 0; times < c_testRepeatCount; ++times) {
+                    for (size_t i = 0; i < c_numWords; ++i) {
+                        sum += SwitchValue(c_words[i]);
+                    }
                 }
             }
         }
 
         // SwitchValueValidate()
         {
-            SBlockTimer timer("    SwitchValueValidate()");
-            for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                for (size_t i = 0; i < c_numWords; ++i) {
-                    sum += SwitchValueValidate(c_words[i]);
+            SBlockTimerAggregator timerAgg("    SwitchValueValidate()");
+            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            {
+                SBlockTimer timer(timerAgg);
+                for (size_t times = 0; times < c_testRepeatCount; ++times) {
+                    for (size_t i = 0; i < c_numWords; ++i) {
+                        sum += SwitchValueValidate(c_words[i]);
+                    }
                 }
             }
         }
 
         // SwitchValueMinimized()
         {
-            SBlockTimer timer("    SwitchValueMinimized()");
-            for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                for (size_t i = 0; i < c_numWords; ++i) {
-                    sum += SwitchValueMinimized(c_words[i]);
+            SBlockTimerAggregator timerAgg("    SwitchValueMinimized()");
+            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            {
+                SBlockTimer timer(timerAgg);
+                for (size_t times = 0; times < c_testRepeatCount; ++times) {
+                    for (size_t i = 0; i < c_numWords; ++i) {
+                        sum += SwitchValueMinimized(c_words[i]);
+                    }
                 }
             }
         }
 
         // SwitchValueMinimizedValidate()
         {
-            SBlockTimer timer("    SwitchValueMinimizedValidate()");
-            for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                for (size_t i = 0; i < c_numWords; ++i) {
-                    sum += SwitchValueMinimizedValidate(c_words[i]);
+            SBlockTimerAggregator timerAgg("    SwitchValueMinimizedValidate()");
+            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            {
+                SBlockTimer timer(timerAgg);
+                for (size_t times = 0; times < c_testRepeatCount; ++times) {
+                    for (size_t i = 0; i < c_numWords; ++i) {
+                        sum += SwitchValueMinimizedValidate(c_words[i]);
+                    }
                 }
             }
         }
 
         // g_SwitchValueMinimizedArray
         {
-            SBlockTimer timer("    g_SwitchValueMinimizedArray");
-            for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                for (size_t i = 0; i < c_numWords; ++i) {
-                    sum += g_SwitchValueMinimizedArray[crc32(c_words[i], c_salt) % c_numHashBuckets];
+            SBlockTimerAggregator timerAgg("    g_SwitchValueMinimizedArray");
+            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            {
+                SBlockTimer timer(timerAgg);
+                for (size_t times = 0; times < c_testRepeatCount; ++times) {
+                    for (size_t i = 0; i < c_numWords; ++i) {
+                        sum += g_SwitchValueMinimizedArray[crc32(c_words[i], c_salt) % c_numHashBuckets];
+                    }
                 }
             }
         }
 
         // g_SwitchValueMinimizedArrayValidate
         {
-            SBlockTimer timer("    g_SwitchValueMinimizedArrayValidate");
-            for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                for (size_t i = 0; i < c_numWords; ++i) {
-                    SValidate& item = g_SwitchValueMinimizedArrayValidate[crc32(c_words[i], c_salt) % c_numHashBuckets];
-                    if (!strcmp(c_words[i], item.m_string))
-                        sum += item.m_value;
-                    else
-                        Fail();
+            SBlockTimerAggregator timerAgg("    g_SwitchValueMinimizedArrayValidate");
+            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            {
+                SBlockTimer timer(timerAgg);
+                for (size_t times = 0; times < c_testRepeatCount; ++times) {
+                    for (size_t i = 0; i < c_numWords; ++i) {
+                        SValidate& item = g_SwitchValueMinimizedArrayValidate[crc32(c_words[i], c_salt) % c_numHashBuckets];
+                        if (!strcmp(c_words[i], item.m_string))
+                            sum += item.m_value;
+                        else
+                            Fail();
+                    }
                 }
             }
         }
 
         // BruteForceByStartingLetter()
         {
-            SBlockTimer timer("    BruteForceByStartingLetter()");
-            for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                for (size_t i = 0; i < c_numWords; ++i) {
-                    sum += BruteForceByStartingLetter(c_words[i]);
+            SBlockTimerAggregator timerAgg("    BruteForceByStartingLetter()");
+            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            {
+                SBlockTimer timer(timerAgg);
+                for (size_t times = 0; times < c_testRepeatCount; ++times) {
+                    for (size_t i = 0; i < c_numWords; ++i) {
+                        sum += BruteForceByStartingLetter(c_words[i]);
+                    }
                 }
             }
         }
 
         // BruteForce()
         {
-            SBlockTimer timer("    BruteForce()");
-            for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                for (size_t i = 0; i < c_numWords; ++i) {
-                    sum += BruteForce(c_words[i]);
+            SBlockTimerAggregator timerAgg("    BruteForce()");
+            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            {
+                SBlockTimer timer(timerAgg);
+                for (size_t times = 0; times < c_testRepeatCount; ++times) {
+                    for (size_t i = 0; i < c_numWords; ++i) {
+                        sum += BruteForce(c_words[i]);
+                    }
                 }
             }
         }
@@ -526,9 +631,6 @@ TODO:
  * make the "FindSalt" function and use it
 
 ? maybe run the test multiple times and report average and variance
-
-! instead of dereferencing null, call a macro or function that prints a message, does system pause, and then calls exit()?
- * null deref is UB, so some compilers may do bad things to your code
 
 BLOG:
 * Explain what is being tested
