@@ -1,103 +1,26 @@
 #include <stdio.h>
-#include <array>
-#include <vector>
-#include <random>
 #include <stdint.h>
-#include <limits>
-#include <chrono>
 #include <algorithm>
+#include <random>
 
 // run time parameters
 #define GENERATE_CODE()   0
 #define DO_TEST()         1
-#define VERBOSE_SAMPLES() 0  // Turn on to show info for each sample
-static const size_t c_testRepeatCount = 10000;
-static const size_t c_testSamples = 50;
+bool   c_verboseSamples = false;  // Turn on to show info for each sample
+size_t c_testRepeatCount = 10000; // how many times a test is done for each timing sample
+size_t c_testSamples = 50;        // how many timing samples are taken
 
 // code generation parameters
 typedef uint32_t TTestType;
 #define TTestTypeName "uint32_t"
 #define TTestTypePrintf "%u"
 static const size_t c_generateNumValues = 5000;
-static const size_t c_sparseNumValues = 1000;
-static_assert(c_sparseNumValues <= c_generateNumValues,"c_sparseNumValues must be less than or equation to c_generateNumValues.");
+static const size_t c_generateSparseNumValues = 1000;
+static_assert(c_generateSparseNumValues <= c_generateNumValues, "c_generateSparseNumValues must be less than or equal to c_generateNumValues.");
 
-// collects multiple timings of a block of code and calculates the average and standard deviation (variance)
-// incremental average and variance algorithm taken from: https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Online_algorithm
-struct SBlockTimerAggregator {
-    SBlockTimerAggregator(const char* label)
-        : m_label(label)
-        , m_numSamples(0)
-        , m_mean(0.0f)
-        , m_M2(0.0f)
-    {
+#if GENERATE_CODE()
 
-    }
-
-    void AddSample (float milliseconds)
-    {
-        ++m_numSamples;
-        float delta = milliseconds - m_mean;
-        m_mean += delta / float(m_numSamples);
-        m_M2 += delta * (milliseconds - m_mean);
-    }
-
-    ~SBlockTimerAggregator ()
-    {
-        printf("%s: avg = %0.2f ms. std dev = %0.2f ms\n", m_label, GetAverage(), GetStandardDeviation());
-    }
-
-    float GetAverage () const
-    {
-        return m_mean;
-    }
-
-    float GetVariance () const
-    {
-        // invalid!
-        if (m_numSamples < 2)
-            return -1.0f;
-        
-        return m_M2 / float (m_numSamples - 1);
-    }
-
-    float GetStandardDeviation () const
-    {
-        return sqrt(GetVariance());
-    }
-
-    const char* m_label;
-
-    int         m_numSamples;
-    float       m_mean;
-    float       m_M2;
-};
-
-// times a block of code
-struct SBlockTimer
-{
-    SBlockTimer(SBlockTimerAggregator& aggregator)
-        : m_aggregator(aggregator)
-    {
-        m_start = std::chrono::high_resolution_clock::now();
-    }
-
-    ~SBlockTimer()
-    {
-        std::chrono::duration<float> seconds = std::chrono::high_resolution_clock::now() - m_start;
-        float milliseconds = seconds.count() * 1000.0f;
-        m_aggregator.AddSample(milliseconds);
-
-        #if VERBOSE_SAMPLES()
-        printf("%s: %0.2f ms  (avg = %0.2f ms. std dev = %0.2f ms) \n", m_aggregator.m_label, milliseconds, m_aggregator.GetAverage(), m_aggregator.GetStandardDeviation());
-        #endif
-    }
-
-    SBlockTimerAggregator&                m_aggregator;
-    std::chrono::system_clock::time_point m_start;
-};
-
-TTestType Random()
+inline TTestType Random()
 {
     static std::random_device rd;
     static std::mt19937 mt(rd());
@@ -109,8 +32,9 @@ TTestType Random()
 
 void GenerateCode ()
 {
+    #define WRITECODE fprintf(file,
 
-    FILE *file = fopen("Tests.h", "w+t");
+    FILE *file = fopen("Test.cpp", "w+t");
     if (!file)
         return;
 
@@ -120,8 +44,11 @@ void GenerateCode ()
     for (TTestType& v : randomValues)
         v = Random();
 
+    WRITECODE "#include \"test.h\"\n\n");
+
     // print out how many values there are
-    fprintf(file, "static const size_t c_numValues = %u;\n\n", c_generateNumValues);
+    WRITECODE "static const size_t c_numValues = %u;\n", c_generateNumValues);
+    WRITECODE "static const size_t c_sparseNumValues = %u;\n\n", c_generateSparseNumValues);
 
     // make a shuffle order array
     std::random_device rd;
@@ -131,252 +58,299 @@ void GenerateCode ()
     for (size_t i = 0; i < c_generateNumValues; ++i)
         shuffleOrder[i] = i;
     std::shuffle(shuffleOrder.begin(), shuffleOrder.end(), g);
-    fprintf(file, "static const size_t c_shuffleOrder[%u] = {", c_generateNumValues);
-    fprintf(file, TTestTypePrintf, shuffleOrder[0]);
+    WRITECODE "static const size_t c_shuffleOrder[c_numValues] = {");
+    WRITECODE TTestTypePrintf, shuffleOrder[0]);
     for (size_t index = 1; index < c_generateNumValues; ++index)
-        fprintf(file, ","TTestTypePrintf, shuffleOrder[index]);
-    fprintf(file, "};\n\n");
+        WRITECODE ","TTestTypePrintf, shuffleOrder[index]);
+    WRITECODE "};\n\n");
 
     // make a sparse shuffle order array
-    fprintf(file, "static const size_t c_sparseShuffleOrder[%u] = {", c_sparseNumValues);
-    fprintf(file, TTestTypePrintf, shuffleOrder[0]);
-    for (size_t index = 1; index < c_sparseNumValues; ++index)
-        fprintf(file, ","TTestTypePrintf, shuffleOrder[index]);
-    fprintf(file, "};\n\n");
+    WRITECODE "static const size_t c_sparseShuffleOrder[c_sparseNumValues] = {");
+    WRITECODE TTestTypePrintf, shuffleOrder[0]);
+    for (size_t index = 1; index < c_generateSparseNumValues; ++index)
+        WRITECODE ","TTestTypePrintf, shuffleOrder[index]);
+    WRITECODE "};\n\n");
 
     // make a c style array
-    fprintf(file, "static const " TTestTypeName " carray[%u] = {", c_generateNumValues);
-    fprintf(file, TTestTypePrintf, randomValues[0]);
+    WRITECODE "static const " TTestTypeName " carray[c_numValues] = {");
+    WRITECODE TTestTypePrintf, randomValues[0]);
     for (size_t index = 1; index < c_generateNumValues; ++index)
-        fprintf(file, ","TTestTypePrintf,randomValues[index]);
-    fprintf(file,"};\n\n");
+        WRITECODE ","TTestTypePrintf,randomValues[index]);
+    WRITECODE "};\n\n");
 
     // make a std::array style array
-    fprintf(file, "static const std::array<" TTestTypeName ", %u> stdarray = {", c_generateNumValues);
-    fprintf(file, TTestTypePrintf, randomValues[0]);
+    WRITECODE "static const std::array<" TTestTypeName ", c_numValues> stdarray = {");
+    WRITECODE TTestTypePrintf, randomValues[0]);
     for (size_t index = 1; index < c_generateNumValues; ++index)
-        fprintf(file, ","TTestTypePrintf, randomValues[index]);
-    fprintf(file, "}; \n\n");
+        WRITECODE ","TTestTypePrintf, randomValues[index]);
+    WRITECODE "}; \n\n");
 
     // make a std::vector style array
-    fprintf(file, "static const std::vector<" TTestTypeName "> stdvector = {");
-    fprintf(file, TTestTypePrintf, randomValues[0]);
+    WRITECODE "static const std::vector<" TTestTypeName "> stdvector = {");
+    WRITECODE TTestTypePrintf, randomValues[0]);
     for (size_t index = 1; index < c_generateNumValues; ++index)
-        fprintf(file, ","TTestTypePrintf, randomValues[index]);
-    fprintf(file, "}; \n\n");
+        WRITECODE ","TTestTypePrintf, randomValues[index]);
+    WRITECODE "}; \n\n");
 
     // make the switch statement function
-    fprintf(file, "inline " TTestTypeName " LookupSwitch (size_t index) {\n");
-    fprintf(file, "    switch(index) {\n");
+    WRITECODE "inline " TTestTypeName " LookupSwitch (size_t index) {\n");
+    WRITECODE "    switch(index) {\n");
     for (size_t index = 0; index < c_generateNumValues; ++index)
-        fprintf(file, "        case %u: return " TTestTypePrintf ";\n", index, randomValues[index]);
-    fprintf(file, "    }\n    ((int*)0)[0] = 0; return -1;\n}\n\n");
+        WRITECODE "        case %u: return " TTestTypePrintf ";\n", index, randomValues[index]);
+    WRITECODE "    }\n    Fail(); return -1;\n}\n\n");
+
+    // make the switch statement function with assume 0
+    WRITECODE "inline " TTestTypeName " LookupSwitchAssume0 (size_t index) {\n");
+    WRITECODE "    switch(index) {\n");
+    for (size_t index = 0; index < c_generateNumValues; ++index)
+        WRITECODE "        case %u: return " TTestTypePrintf ";\n", index, randomValues[index]);
+    WRITECODE "        default: __assume(0);\n");
+    WRITECODE "    }\n}\n\n");
 
     // make the sparse switch statement function
     std::vector<size_t> sparseRandomValues;
     for (size_t i = 0; i < c_generateNumValues; ++i)
     {
-        if (std::find(&shuffleOrder[0], &shuffleOrder[c_sparseNumValues], i) != &shuffleOrder[c_sparseNumValues])
+        if (std::find(&shuffleOrder[0], &shuffleOrder[c_generateSparseNumValues], i) != &shuffleOrder[c_generateSparseNumValues])
             sparseRandomValues.push_back(i);
     }
-    fprintf(file, "inline " TTestTypeName " SparseLookupSwitch (size_t index) {\n");
-    fprintf(file, "    switch(index) {\n");
-    for (size_t index = 0; index < c_sparseNumValues; ++index)
-        fprintf(file, "        case %u: return " TTestTypePrintf ";\n", sparseRandomValues[index], randomValues[sparseRandomValues[index]]);
-    fprintf(file, "    }\n    ((int*)0)[0] = 0; return -1;\n}\n");
+    WRITECODE "inline " TTestTypeName " SparseLookupSwitch (size_t index) {\n");
+    WRITECODE "    switch(index) {\n");
+    for (size_t index = 0; index < c_generateSparseNumValues; ++index)
+        WRITECODE "        case %u: return " TTestTypePrintf ";\n", sparseRandomValues[index], randomValues[sparseRandomValues[index]]);
+    WRITECODE "    }\n    Fail(); return -1;\n}\n");
+
+    // make the sparse switch statement function with assume 0
+    WRITECODE "inline " TTestTypeName " SparseLookupSwitchAssume0 (size_t index) {\n");
+    WRITECODE "    switch(index) {\n");
+    for (size_t index = 0; index < c_generateSparseNumValues; ++index)
+        WRITECODE "        case %u: return " TTestTypePrintf ";\n", sparseRandomValues[index], randomValues[sparseRandomValues[index]]);
+    WRITECODE "        default: __assume(0);\n");
+    WRITECODE "    }\n}\n");
+
+    // write the DoTest function
+    WRITECODE "void DoTests () {\n");
+    WRITECODE "    // make our dynamic memory\n");
+    WRITECODE "    " TTestTypeName "* dynamicmemory = new " TTestTypeName "[c_numValues];\n");
+    WRITECODE "    memcpy(dynamicmemory, &stdvector[0], sizeof(" TTestTypeName ")*c_numValues);\n");
+    WRITECODE "    // Sequential Sum Tests\n");
+    WRITECODE "    " TTestTypeName " sum = 0;\n");
+    WRITECODE "    {\n");
+    WRITECODE "        printf(\"Sequential Sum Timings : \\n\");\n");
+    WRITECODE "        {\n");
+    WRITECODE "            SBlockTimerAggregator timerAgg(\"  std::vector   \");\n");
+    WRITECODE "            for (size_t sample = 0; sample < c_testSamples; ++sample)\n");
+    WRITECODE "            {\n");
+    WRITECODE "                SBlockTimer timer(timerAgg);\n");
+    WRITECODE "                for (size_t times = 0; times < c_testRepeatCount; ++times)\n");
+    WRITECODE "                    for (size_t i = 0; i < c_numValues; ++i)\n");
+    WRITECODE "                        sum += stdvector[i];\n");
+    WRITECODE "            }\n");
+    WRITECODE "        }\n");
+    WRITECODE "        {\n");
+    WRITECODE "            SBlockTimerAggregator timerAgg(\"  std::array    \");\n");
+    WRITECODE "            for (size_t sample = 0; sample < c_testSamples; ++sample)\n");
+    WRITECODE "            {\n");
+    WRITECODE "                SBlockTimer timer(timerAgg);\n");
+    WRITECODE "                for (size_t times = 0; times < c_testRepeatCount; ++times)\n");
+    WRITECODE "                    for (size_t i = 0; i < c_numValues; ++i)\n");
+    WRITECODE "                        sum += stdarray[i];\n");
+    WRITECODE "            }\n");
+    WRITECODE "        }\n");
+    WRITECODE "        {\n");
+    WRITECODE "            SBlockTimerAggregator timerAgg(\"  c array       \");\n");
+    WRITECODE "            for (size_t sample = 0; sample < c_testSamples; ++sample)\n");
+    WRITECODE "            {\n");
+    WRITECODE "                SBlockTimer timer(timerAgg);\n");
+    WRITECODE "                for (size_t times = 0; times < c_testRepeatCount; ++times)\n");
+    WRITECODE "                    for (size_t i = 0; i < c_numValues; ++i)\n");
+    WRITECODE "                        sum += carray[i];\n");
+    WRITECODE "            }\n");
+    WRITECODE "        }\n");
+    WRITECODE "        {\n");
+    WRITECODE "            SBlockTimerAggregator timerAgg(\"  dynamic memory\");\n");
+    WRITECODE "            for (size_t sample = 0; sample < c_testSamples; ++sample)\n");
+    WRITECODE "            {\n");
+    WRITECODE "                SBlockTimer timer(timerAgg);\n");
+    WRITECODE "                for (size_t times = 0; times < c_testRepeatCount; ++times)\n");
+    WRITECODE "                    for (size_t i = 0; i < c_numValues; ++i)\n");
+    WRITECODE "                        sum += dynamicmemory[i];\n");
+    WRITECODE "            }\n");
+    WRITECODE "        }\n");
+    WRITECODE "        {\n");
+    WRITECODE "            SBlockTimerAggregator timerAgg(\"  Switch        \");\n");
+    WRITECODE "            for (size_t sample = 0; sample < c_testSamples; ++sample)\n");
+    WRITECODE "            {\n");
+    WRITECODE "                SBlockTimer timer(timerAgg);\n");
+    WRITECODE "                for (size_t times = 0; times < c_testRepeatCount; ++times)\n");
+    WRITECODE "                    for (size_t i = 0; i < c_numValues; ++i)\n");
+    WRITECODE "                        sum += LookupSwitch(i);\n");
+    WRITECODE "            }\n");
+    WRITECODE "        }\n");
+    WRITECODE "        {\n");
+    WRITECODE "            SBlockTimerAggregator timerAgg(\"  Switch Assume0\");\n");
+    WRITECODE "            for (size_t sample = 0; sample < c_testSamples; ++sample)\n");
+    WRITECODE "            {\n");
+    WRITECODE "                SBlockTimer timer(timerAgg);\n");
+    WRITECODE "                for (size_t times = 0; times < c_testRepeatCount; ++times)\n");
+    WRITECODE "                    for (size_t i = 0; i < c_numValues; ++i)\n");
+    WRITECODE "                        sum += LookupSwitchAssume0(i);\n");
+    WRITECODE "            }\n");
+    WRITECODE "        }\n");
+    WRITECODE "    }\n");
+    WRITECODE "    // shuffle sum tests\n");
+    WRITECODE "    {\n");
+    WRITECODE "        printf(\"\\nShuffle Sum Timings : \\n\");\n");
+    WRITECODE "        {\n");
+    WRITECODE "            SBlockTimerAggregator timerAgg(\"  std::vector   \");\n");
+    WRITECODE "            for (size_t sample = 0; sample < c_testSamples; ++sample)\n");
+    WRITECODE "            {\n");
+    WRITECODE "                SBlockTimer timer(timerAgg);\n");
+    WRITECODE "                for (size_t times = 0; times < c_testRepeatCount; ++times)\n");
+    WRITECODE "                    for (size_t i = 0; i < c_numValues; ++i)\n");
+    WRITECODE "                        sum += stdvector[c_shuffleOrder[i]];\n");
+    WRITECODE "            }\n");
+    WRITECODE "        }\n");
+    WRITECODE "        {\n");
+    WRITECODE "            SBlockTimerAggregator timerAgg(\"  std::array    \");\n");
+    WRITECODE "            for (size_t sample = 0; sample < c_testSamples; ++sample)\n");
+    WRITECODE "            {\n");
+    WRITECODE "                SBlockTimer timer(timerAgg);\n");
+    WRITECODE "                for (size_t times = 0; times < c_testRepeatCount; ++times)\n");
+    WRITECODE "                    for (size_t i = 0; i < c_numValues; ++i)\n");
+    WRITECODE "                        sum += stdarray[c_shuffleOrder[i]];\n");
+    WRITECODE "            }\n");
+    WRITECODE "        }\n");
+    WRITECODE "        {\n");
+    WRITECODE "            SBlockTimerAggregator timerAgg(\"  c array       \");\n");
+    WRITECODE "            for (size_t sample = 0; sample < c_testSamples; ++sample)\n");
+    WRITECODE "            {\n");
+    WRITECODE "                SBlockTimer timer(timerAgg);\n");
+    WRITECODE "                for (size_t times = 0; times < c_testRepeatCount; ++times)\n");
+    WRITECODE "                    for (size_t i = 0; i < c_numValues; ++i)\n");
+    WRITECODE "                        sum += carray[c_shuffleOrder[i]];\n");
+    WRITECODE "            }\n");
+    WRITECODE "        }\n");
+    WRITECODE "        {\n");
+    WRITECODE "            SBlockTimerAggregator timerAgg(\"  dynamic memory\");\n");
+    WRITECODE "            for (size_t sample = 0; sample < c_testSamples; ++sample)\n");
+    WRITECODE "            {\n");
+    WRITECODE "                SBlockTimer timer(timerAgg);\n");
+    WRITECODE "                for (size_t times = 0; times < c_testRepeatCount; ++times)\n");
+    WRITECODE "                    for (size_t i = 0; i < c_numValues; ++i)\n");
+    WRITECODE "                        sum += dynamicmemory[c_shuffleOrder[i]];\n");
+    WRITECODE "            }\n");
+    WRITECODE "        }\n");
+    WRITECODE "        {\n");
+    WRITECODE "            SBlockTimerAggregator timerAgg(\"  Switch        \");\n");
+    WRITECODE "            for (size_t sample = 0; sample < c_testSamples; ++sample)\n");
+    WRITECODE "            {\n");
+    WRITECODE "                SBlockTimer timer(timerAgg);\n");
+    WRITECODE "                for (size_t times = 0; times < c_testRepeatCount; ++times)\n");
+    WRITECODE "                    for (size_t i = 0; i < c_numValues; ++i)\n");
+    WRITECODE "                        sum += LookupSwitch(c_shuffleOrder[i]);\n");
+    WRITECODE "            }\n");
+    WRITECODE "        }\n");
+    WRITECODE "        {\n");
+    WRITECODE "            SBlockTimerAggregator timerAgg(\"  Switch Assume0\");\n");
+    WRITECODE "            for (size_t sample = 0; sample < c_testSamples; ++sample)\n");
+    WRITECODE "            {\n");
+    WRITECODE "                SBlockTimer timer(timerAgg);\n");
+    WRITECODE "                for (size_t times = 0; times < c_testRepeatCount; ++times)\n");
+    WRITECODE "                    for (size_t i = 0; i < c_numValues; ++i)\n");
+    WRITECODE "                        sum += LookupSwitchAssume0(c_shuffleOrder[i]);\n");
+    WRITECODE "            }\n");
+    WRITECODE "        }\n");
+    WRITECODE "    }\n");
+    WRITECODE "    // sparse shuffle sum tests\n");
+    WRITECODE "    {\n");
+    WRITECODE "        printf(\"\\nSparse Shuffle Sum Timings : \\n\");\n");
+    WRITECODE "        {\n");
+    WRITECODE "            SBlockTimerAggregator timerAgg(\"  std::vector   \");\n");
+    WRITECODE "            for (size_t sample = 0; sample < c_testSamples; ++sample)\n");
+    WRITECODE "            {\n");
+    WRITECODE "                SBlockTimer timer(timerAgg);\n");
+    WRITECODE "                for (size_t times = 0; times < c_testRepeatCount; ++times)\n");
+    WRITECODE "                    for (size_t i = 0; i < c_sparseNumValues; ++i)\n");
+    WRITECODE "                        sum += stdvector[c_sparseShuffleOrder[i]];\n");
+    WRITECODE "            }\n");
+    WRITECODE "        }\n");
+    WRITECODE "        {\n");
+    WRITECODE "            SBlockTimerAggregator timerAgg(\"  std::array    \");\n");
+    WRITECODE "            for (size_t sample = 0; sample < c_testSamples; ++sample)\n");
+    WRITECODE "            {\n");
+    WRITECODE "                SBlockTimer timer(timerAgg);\n");
+    WRITECODE "                for (size_t times = 0; times < c_testRepeatCount; ++times)\n");
+    WRITECODE "                    for (size_t i = 0; i < c_sparseNumValues; ++i)\n");
+    WRITECODE "                        sum += stdarray[c_sparseShuffleOrder[i]];\n");
+    WRITECODE "            }\n");
+    WRITECODE "        }\n");
+    WRITECODE "        {\n");
+    WRITECODE "            SBlockTimerAggregator timerAgg(\"  c array       \");\n");
+    WRITECODE "            for (size_t sample = 0; sample < c_testSamples; ++sample)\n");
+    WRITECODE "            {\n");
+    WRITECODE "                SBlockTimer timer(timerAgg);\n");
+    WRITECODE "                for (size_t times = 0; times < c_testRepeatCount; ++times)\n");
+    WRITECODE "                    for (size_t i = 0; i < c_sparseNumValues; ++i)\n");
+    WRITECODE "                        sum += carray[c_sparseShuffleOrder[i]];\n");
+    WRITECODE "            }\n");
+    WRITECODE "        }\n");
+    WRITECODE "        {\n");
+    WRITECODE "            SBlockTimerAggregator timerAgg(\"  dynamic memory\");\n");
+    WRITECODE "            for (size_t sample = 0; sample < c_testSamples; ++sample)\n");
+    WRITECODE "            {\n");
+    WRITECODE "                SBlockTimer timer(timerAgg);\n");
+    WRITECODE "                for (size_t times = 0; times < c_testRepeatCount; ++times)\n");
+    WRITECODE "                    for (size_t i = 0; i < c_sparseNumValues; ++i)\n");
+    WRITECODE "                        sum += dynamicmemory[c_sparseShuffleOrder[i]];\n");
+    WRITECODE "            }\n");
+    WRITECODE "        }\n");
+    WRITECODE "        {\n");
+    WRITECODE "            SBlockTimerAggregator timerAgg(\"  Switch        \");\n");
+    WRITECODE "            for (size_t sample = 0; sample < c_testSamples; ++sample)\n");
+    WRITECODE "            {\n");
+    WRITECODE "                SBlockTimer timer(timerAgg);\n");
+    WRITECODE "                for (size_t times = 0; times < c_testRepeatCount; ++times)\n");
+    WRITECODE "                    for (size_t i = 0; i < c_sparseNumValues; ++i)\n");
+    WRITECODE "                        sum += SparseLookupSwitch(c_sparseShuffleOrder[i]);\n");
+    WRITECODE "            }\n");
+    WRITECODE "        }\n");
+    WRITECODE "        {\n");
+    WRITECODE "            SBlockTimerAggregator timerAgg(\"  Switch Assume0\");\n");
+    WRITECODE "            for (size_t sample = 0; sample < c_testSamples; ++sample)\n");
+    WRITECODE "            {\n");
+    WRITECODE "                SBlockTimer timer(timerAgg);\n");
+    WRITECODE "                for (size_t times = 0; times < c_testRepeatCount; ++times)\n");
+    WRITECODE "                    for (size_t i = 0; i < c_sparseNumValues; ++i)\n");
+    WRITECODE "                        sum += SparseLookupSwitchAssume0(c_sparseShuffleOrder[i]);\n");
+    WRITECODE "            }\n");
+    WRITECODE "        }\n");
+    WRITECODE "    }\n");
+    WRITECODE "    printf(\"\\n\");\n");
+    WRITECODE "    system(\"pause\");\n");
+    WRITECODE "    printf(\"Sum = %%i\\n\", sum); // to keep sum, and all the things that calculate it from getting optimized away!\n");
+    WRITECODE "}\n\n");
 
     // close the file
     fclose(file);
+
+    #undef WRITECODE
 }
 
+#endif // GENERATE_CODE()
+
 #if DO_TEST()
-    #include "Tests.h"
+    extern void DoTests(); 
 #endif
 
 int main(int argc, char **argv)
 {
     #if GENERATE_CODE()
-        // To make the comparison code
         GenerateCode();
     #endif
 
     #if DO_TEST()
-        // make our dynamic memory
-        TTestType* dynamicmemory = new TTestType[c_numValues];
-        memcpy(dynamicmemory, &stdvector[0], sizeof(TTestType)*c_numValues);
-
-        // Sequential Sum Tests
-        TTestType sum = 0;
-        {
-            printf("Sequential Sum Timings:\n");
-
-            {
-                SBlockTimerAggregator timerAgg("  std::vector   ");
-                for (size_t sample = 0; sample < c_testSamples; ++sample)
-                {
-                    SBlockTimer timer(timerAgg);
-                    for (size_t times = 0; times < c_testRepeatCount; ++times)
-                        for (size_t i = 0; i < c_numValues; ++i)
-                            sum += stdvector[i];
-                }
-            }
-            {
-                SBlockTimerAggregator timerAgg("  std::array    ");
-                for (size_t sample = 0; sample < c_testSamples; ++sample)
-                {
-                    SBlockTimer timer(timerAgg);
-                    for (size_t times = 0; times < c_testRepeatCount; ++times)
-                        for (size_t i = 0; i < c_numValues; ++i)
-                            sum += stdarray[i];
-                }
-            }
-            {
-                SBlockTimerAggregator timerAgg("  c array       ");
-                for (size_t sample = 0; sample < c_testSamples; ++sample)
-                {
-                    SBlockTimer timer(timerAgg);
-                    for (size_t times = 0; times < c_testRepeatCount; ++times)
-                        for (size_t i = 0; i < c_numValues; ++i)
-                            sum += carray[i];
-                }
-            }
-            {
-                SBlockTimerAggregator timerAgg("  dynamic memory");
-                for (size_t sample = 0; sample < c_testSamples; ++sample)
-                {
-                    SBlockTimer timer(timerAgg);
-                    for (size_t times = 0; times < c_testRepeatCount; ++times)
-                        for (size_t i = 0; i < c_numValues; ++i)
-                            sum += dynamicmemory[i];
-                }
-            }
-            {
-                SBlockTimerAggregator timerAgg("  Switch        ");
-                for (size_t sample = 0; sample < c_testSamples; ++sample)
-                {
-                    SBlockTimer timer(timerAgg);
-                    for (size_t times = 0; times < c_testRepeatCount; ++times)
-                        for (size_t i = 0; i < c_numValues; ++i)
-                            sum += LookupSwitch(i);
-                }
-            }
-        }
-
-        // shuffle sum tests
-        {
-            printf("\nShuffle Sum Timings:\n");
-
-            {
-                SBlockTimerAggregator timerAgg("  std::vector   ");
-                for (size_t sample = 0; sample < c_testSamples; ++sample)
-                {
-                    SBlockTimer timer(timerAgg);
-                    for (size_t times = 0; times < c_testRepeatCount; ++times)
-                        for (size_t i = 0; i < c_numValues; ++i)
-                            sum += stdvector[c_shuffleOrder[i]];
-                }
-            }
-            {
-                SBlockTimerAggregator timerAgg("  std::array    ");
-                for (size_t sample = 0; sample < c_testSamples; ++sample)
-                {
-                    SBlockTimer timer(timerAgg);
-                    for (size_t times = 0; times < c_testRepeatCount; ++times)
-                        for (size_t i = 0; i < c_numValues; ++i)
-                            sum += stdarray[c_shuffleOrder[i]];
-                }
-            }
-            {
-                SBlockTimerAggregator timerAgg("  c array       ");
-                for (size_t sample = 0; sample < c_testSamples; ++sample)
-                {
-                    SBlockTimer timer(timerAgg);
-                    for (size_t times = 0; times < c_testRepeatCount; ++times)
-                        for (size_t i = 0; i < c_numValues; ++i)
-                            sum += carray[c_shuffleOrder[i]];
-                }
-            }
-            {
-                SBlockTimerAggregator timerAgg("  dynamic memory");
-                for (size_t sample = 0; sample < c_testSamples; ++sample)
-                {
-                    SBlockTimer timer(timerAgg);
-                    for (size_t times = 0; times < c_testRepeatCount; ++times)
-                        for (size_t i = 0; i < c_numValues; ++i)
-                            sum += dynamicmemory[c_shuffleOrder[i]];
-                }
-            }
-            {
-                SBlockTimerAggregator timerAgg("  Switch        ");
-                for (size_t sample = 0; sample < c_testSamples; ++sample)
-                {
-                    SBlockTimer timer(timerAgg);
-                    for (size_t times = 0; times < c_testRepeatCount; ++times)
-                        for (size_t i = 0; i < c_numValues; ++i)
-                            sum += LookupSwitch(c_shuffleOrder[i]);
-                }
-            }
-        }
-
-        // sparse shuffle sum tests
-        {
-            printf("\nSparse Shuffle Sum Timings:\n");
-
-            {
-                SBlockTimerAggregator timerAgg("  std::vector   ");
-                for (size_t sample = 0; sample < c_testSamples; ++sample)
-                {
-                    SBlockTimer timer(timerAgg);
-                    for (size_t times = 0; times < c_testRepeatCount; ++times)
-                        for (size_t i = 0; i < c_sparseNumValues; ++i)
-                            sum += stdvector[c_sparseShuffleOrder[i]];
-                }
-            }
-            {
-                SBlockTimerAggregator timerAgg("  std::array    ");
-                for (size_t sample = 0; sample < c_testSamples; ++sample)
-                {
-                    SBlockTimer timer(timerAgg);
-                    for (size_t times = 0; times < c_testRepeatCount; ++times)
-                        for (size_t i = 0; i < c_sparseNumValues; ++i)
-                            sum += stdarray[c_sparseShuffleOrder[i]];
-                }
-            }
-            {
-                SBlockTimerAggregator timerAgg("  c array       ");
-                for (size_t sample = 0; sample < c_testSamples; ++sample)
-                {
-                    SBlockTimer timer(timerAgg);
-                    for (size_t times = 0; times < c_testRepeatCount; ++times)
-                        for (size_t i = 0; i < c_sparseNumValues; ++i)
-                            sum += carray[c_sparseShuffleOrder[i]];
-                }
-            }
-            {
-                SBlockTimerAggregator timerAgg("  dynamic memory");
-                for (size_t sample = 0; sample < c_testSamples; ++sample)
-                {
-                    SBlockTimer timer(timerAgg);
-                    for (size_t times = 0; times < c_testRepeatCount; ++times)
-                        for (size_t i = 0; i < c_sparseNumValues; ++i)
-                            sum += dynamicmemory[c_sparseShuffleOrder[i]];
-                }
-            }
-            {
-                SBlockTimerAggregator timerAgg("  Switch        ");
-                for (size_t sample = 0; sample < c_testSamples; ++sample)
-                {
-                    SBlockTimer timer(timerAgg);
-                    for (size_t times = 0; times < c_testRepeatCount; ++times)
-                        for (size_t i = 0; i < c_sparseNumValues; ++i)
-                            sum += SparseLookupSwitch(c_sparseShuffleOrder[i]);
-                }
-            }
-        }
-
-        printf("\n");
-        system("pause");
-        printf("Sum = %i\n", sum); // to keep sum, and all the things that calculate it from getting optimized away!
+        DoTests();
     #endif
 
     return 0;
@@ -385,12 +359,11 @@ int main(int argc, char **argv)
 /*
 
 TODO:
-* report variance
-* redo timings!
-! update blog post
- * now report variances
- * wasn't using sparse lookup function
-
+! redo timings on blog, and explanation of tests, analyzing results.
+* NOTE:
+ * added variance reporting
+ * sparse switch statement wasn't being called
+ * added __assume(0) versions of the switch statements.
 
 BLOG: Is Code Faster than Data? switch vs array
 Question: how does array access speed compare to switch statement speed?

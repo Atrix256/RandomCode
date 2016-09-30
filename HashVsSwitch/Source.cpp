@@ -16,7 +16,7 @@
 #define DO_TEST()         1
 #define FIND_SALT()       0
 #define VERBOSE_SAMPLES() 0  // Turn on to show info for each sample
-static const size_t c_testRepeatCount = 100000;
+static const size_t c_testRepeatCount = 10000;
 static const size_t c_testSamples = 50;
 
 // code generation params
@@ -117,8 +117,9 @@ struct SBlockTimer
     }
 
     SBlockTimerAggregator&                m_aggregator;
-    std::chrono::system_clock::time_point m_start;
+    std::chrono::high_resolution_clock::time_point m_start;
 };
+
 void Fail()
 {
     printf("\n\n!!! ERROR !!!\n\n");
@@ -611,6 +612,8 @@ int main(int argc, char** argv) {
 TODO:
 
 * try __assume in switches and time that?
+
+* align the output for easier reading, like we do in last post
 
 * also figure out if the high resolution clock is QPC or what, and report it in testing details
 
