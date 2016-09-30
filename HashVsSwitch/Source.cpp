@@ -178,14 +178,20 @@ void GenerateCode()
         WRITECODE "    \"%s\",\n", c_words[shuffleOrder[i]]);
     WRITECODE "};\n\n");
 
+    // make a shuffled index list for pre-hashed key test to use
+    WRITECODE "size_t c_wordsShuffledOrder[c_numWords] = {\n");
+    for (size_t i = 0; i < c_numWords; ++i)
+        WRITECODE "    %zu,\n", shuffleOrder[i]);
+    WRITECODE "};\n\n");
+
     // Make g_stringHashes
-    WRITECODE "static const unsigned int g_stringHashes[%u] = {\n", c_numWords);
+    WRITECODE "static const unsigned int g_stringHashes[%zu] = {\n", c_numWords);
     for (int i = 0; i < c_numWords; ++i)
         WRITECODE "    %u,\n", crc32(c_words[i]));
     WRITECODE "};\n\n");
 
     // Make g_stringHashesMinimized
-    WRITECODE "static const unsigned int g_stringHashesMinimized[%u] = {\n", c_numWords);
+    WRITECODE "static const unsigned int g_stringHashesMinimized[%zu] = {\n", c_numWords);
     for (int i = 0; i < c_numWords; ++i)
         WRITECODE "    %u,\n", crc32(c_words[i], c_salt)%c_numHashBuckets);
     WRITECODE "};\n\n");
@@ -685,7 +691,7 @@ void DoTest()
             }
         }
     }
-    // Lookup by prehashed keys
+    // In Order Lookup by prehashed keys
     {
         printf("In Order Pre hashed keys:\n");
 
@@ -772,6 +778,93 @@ void DoTest()
             }
         }
     }
+    // Shuffled lookup by prehashed keys
+    {
+        printf("Shuffled Pre hashed keys:\n");
+
+        // SwitchValue()
+        {
+            SBlockTimerAggregator timerAgg("    SwitchValue()                      ");
+            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            {
+                SBlockTimer timer(timerAgg);
+                for (size_t times = 0; times < c_testRepeatCount; ++times) {
+                    for (size_t i = 0; i < c_numWords; ++i) {
+                        sum += SwitchValueRaw(g_stringHashes[c_wordsShuffledOrder[i]]);
+                    }
+                }
+            }
+        }
+        // SwitchValueValidate()
+        {
+            SBlockTimerAggregator timerAgg("    SwitchValueValidate()              ");
+            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            {
+                SBlockTimer timer(timerAgg);
+                for (size_t times = 0; times < c_testRepeatCount; ++times) {
+                    for (size_t i = 0; i < c_numWords; ++i) {
+                        sum += SwitchValueValidateRaw(c_words[i], g_stringHashes[c_wordsShuffledOrder[i]]);
+                    }
+                }
+            }
+        }
+        // SwitchValueMinimized()
+        {
+            SBlockTimerAggregator timerAgg("    SwitchValueMinimized()             ");
+            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            {
+                SBlockTimer timer(timerAgg);
+                for (size_t times = 0; times < c_testRepeatCount; ++times) {
+                    for (size_t i = 0; i < c_numWords; ++i) {
+                        sum += SwitchValueMinimizedRaw(g_stringHashesMinimized[c_wordsShuffledOrder[i]]);
+                    }
+                }
+            }
+        }
+        // SwitchValueMinimizedValidate()
+        {
+            SBlockTimerAggregator timerAgg("    SwitchValueMinimizedValidate()     ");
+            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            {
+                SBlockTimer timer(timerAgg);
+                for (size_t times = 0; times < c_testRepeatCount; ++times) {
+                    for (size_t i = 0; i < c_numWords; ++i) {
+                        sum += SwitchValueMinimizedValidateRaw(c_words[c_wordsShuffledOrder[i]], g_stringHashesMinimized[c_wordsShuffledOrder[i]]);
+                    }
+                }
+            }
+        }
+        // g_SwitchValueMinimizedArray
+        {
+            SBlockTimerAggregator timerAgg("    g_SwitchValueMinimizedArray        ");
+            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            {
+                SBlockTimer timer(timerAgg);
+                for (size_t times = 0; times < c_testRepeatCount; ++times) {
+                    for (size_t i = 0; i < c_numWords; ++i) {
+                        sum += g_SwitchValueMinimizedArray[g_stringHashesMinimized[c_wordsShuffledOrder[i]]];
+                    }
+                }
+            }
+        }
+        // g_SwitchValueMinimizedArrayValidate
+        {
+            SBlockTimerAggregator timerAgg("    g_SwitchValueMinimizedArrayValidate");
+            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            {
+                SBlockTimer timer(timerAgg);
+                for (size_t times = 0; times < c_testRepeatCount; ++times) {
+                    for (size_t i = 0; i < c_numWords; ++i) {
+                        SValidate& item = g_SwitchValueMinimizedArrayValidate[g_stringHashesMinimized[c_wordsShuffledOrder[i]]];
+                        if (!strcmp(c_words[c_wordsShuffledOrder[i]], item.m_string))
+                            sum += item.m_value;
+                        else
+                            Fail();
+                    }
+                }
+            }
+        }
+    }
 
     system("pause");
     printf("sum = %i\n", sum); // To keep sum and everything used to calculate it from getting optimized away.
@@ -800,7 +893,6 @@ void FindSalt () {
             return;
         }
     }
-
     printf("No salt found!!\n");
     system("pause");
 }
@@ -828,19 +920,7 @@ int main(int argc, char** argv) {
 
 TODO:
 
-? this is a bit nutty, but could try switching on first letter, then doing a hash.
- * NOTE maybe that "perfect algorithm" is probably going to be multilevel like that.
- * link to switch statements again.
-
 * make a self contained tests.cpp like how the array speed code works?
-
-* should we do a shuffle and prehash lookup pass?
-
-? should we bother with a "sparse" search test?
- * i don't think so
-
-? how bout a hash function based on the input features?
- * that's what a prefix tree is about
 
 * try to find a smaller number of buckets than 337 if you can. Use FindSalt()
 
@@ -851,11 +931,11 @@ BLOG:
 * Talk about how chance of finding good hash salt are affected by bucket size and number of items in the buckets.  make a graph if you can!
 * debug/release x86/x64 timing
 * compare timings of what we see now vs last post.  understand and explain any discrepancies.
- * mention that the timings were a bit erratic even at 100k test runs
 * NOTE: the switching on first letter function only does strcmp on the rest of the string after the first letter, to be slightly more efficient
 * NOTE: brute force my starting letter looks pretty good, but that isn't a nail in the coffin for "code is faster than data".  This shows that this construct is faster than a general hash table by a decent amount.
  * could generate code based on heuristics similarly to how the compiler decides how to implement a switch statement.
  * could switch on multiple first letters if you had a lot of items.  switch(first four letters) for instance.
+ * permutation explosion though so likely not worth it
 * NOTE: could look for a hash that is cheaper at runtime but still has no collisions.  The default hash seems faster for example.  This would help the runtime hashing we have to do before lookup.
 * NOTE: could have the generator program generate different code and then profile the code it generated to decide which is fastest.
 ? mention the FindSalt function?
@@ -863,22 +943,20 @@ BLOG:
 * info about switch statements: http://www.codeproject.com/Articles/100473/Something-You-May-Not-Know-About-the-Switch-Statem
 * NOTE: switch validate functions check string for comparison. They return 0 if no match found.  Other switch functions __assume(0) in default case.  Passing invalid input gives undefined behavior.
  * if they don't validate, they will give wrong answer when given invalid input anyways.
+* If profiling at home, note that it is a different computer than the last post
 
-Tests:
-    + map
-    + unordered map with default hash function
-    + unordered map with crc32 function
-    + unordered map with crc32 minimized function
-    + Compile time hash switch function
-    + Compile time hash switch function minimized
-    + array based solution, instead of switch based
-    + brute force (if !strcmp, else if !strcmp)
-    + switch on first character, then brute force in those buckets
-    + checked version of switch (1 strcmp)
-    + checked version of switch minimized (1 strcmp)
-    + checked version of array switch minimized (1 strcmp)
+? memory comparisons? or talk about memory considerations?
+ * static arrays are definitely smaller than hash tables that contain the same amount of data!
+
+? this is a bit nutty, but could try switching on first letter, then doing a hash.
+ * NOTE maybe that "perfect algorithm" is probably going to be multilevel like that.
+ * could switch on first byte, then some cases will be empty, some might have an if/else if in it, others may have a hash lookup in it, maybe others have another switch inside it?
+ * link to switch statements again.
+
+* NOTE: I think more complex data structures have more room for improvement by being made into code.
 
 UP NEXT:
 * Trie? maybe some other similar data structures?
+* what is the AI behavior tree like?
  
 */
