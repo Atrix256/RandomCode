@@ -1,3 +1,314 @@
+#include "Test.h"
+
+const char* c_wordsShuffled[c_numWords] = {
+    "punch",
+    "anticipation",
+    "timber",
+    "maze",
+    "exile",
+    "spend",
+    "reproduce",
+    "abortion",
+    "conviction",
+    "drawer",
+    "golf",
+    "decade",
+    "log",
+    "ignite",
+    "aids",
+    "human body",
+    "arch",
+    "virus",
+    "nuance",
+    "pride",
+    "clock",
+    "qualification",
+    "compromise",
+    "old age",
+    "tell",
+    "shot",
+    "album",
+    "shop",
+    "stop",
+    "projection",
+    "lifestyle",
+    "assault",
+    "retire",
+    "glide",
+    "situation",
+    "particle",
+    "suspect",
+    "explain",
+    "jealous",
+    "observation",
+    "parameter",
+    "recognize",
+    "candidate",
+    "hay",
+    "bishop",
+    "depend",
+    "shake",
+    "empirical",
+    "refund",
+    "commemorate",
+    "describe",
+    "nap",
+    "resort",
+    "speed",
+    "dairy",
+    "discriminate",
+    "excess",
+    "oven",
+    "fade",
+    "productive",
+    "session",
+    "talented",
+    "vertical",
+    "pole",
+    "frozen",
+    "correspond",
+    "peace",
+    "stunning",
+    "belief",
+    "deck",
+    "magnitude",
+    "bird",
+    "bell",
+    "plaintiff",
+    "constraint",
+    "balance",
+    "siege",
+    "television",
+    "lake",
+    "neutral",
+    "information",
+    "noise",
+    "weave",
+    "please",
+    "salt",
+    "purpose",
+    "daughter",
+    "support",
+    "barrier",
+    "momentum",
+    "betray",
+    "cutting",
+    "perfume",
+    "iron",
+    "enhance",
+    "winner",
+    "pig",
+    "tradition",
+    "ethics",
+    "facade",
+};
+
+static const unsigned int g_stringHashes[100] = {
+    1323836821,
+    850088970,
+    2624675759,
+    818418853,
+    3006320226,
+    1926327361,
+    4124799387,
+    2910896228,
+    2498678083,
+    376567357,
+    2582578764,
+    2010773322,
+    1975298136,
+    3307029194,
+    3159670012,
+    218542360,
+    2275849840,
+    3729971138,
+    3000497493,
+    503482051,
+    1846800485,
+    1306213536,
+    213715623,
+    3333932401,
+    3276429049,
+    4253659474,
+    3437736890,
+    2888405513,
+    2212354601,
+    1765834955,
+    3757054582,
+    2551027225,
+    2118574069,
+    2848587953,
+    719550841,
+    3654258635,
+    2603442269,
+    2544792989,
+    3170981520,
+    2113965805,
+    601580034,
+    291656586,
+    4219017010,
+    862026305,
+    1636272128,
+    2637644114,
+    3453436996,
+    2238531027,
+    3017153966,
+    3042782881,
+    1201228211,
+    3486293662,
+    1661049943,
+    3594062093,
+    1998347422,
+    3438919543,
+    57819922,
+    3801598756,
+    3295977163,
+    1875295169,
+    3574542303,
+    356284602,
+    2434209492,
+    2026503389,
+    3304427917,
+    2780335853,
+    3959748121,
+    922482196,
+    1363197972,
+    624892283,
+    2748307244,
+    1639729672,
+    4093514003,
+    2798370943,
+    1743599189,
+    3892795994,
+    3560468918,
+    2927294093,
+    648610473,
+    2514227384,
+    2438279695,
+    1120616018,
+    745641552,
+    3510920469,
+    192628605,
+    253105636,
+    3658781546,
+    2104957113,
+    4548257,
+    1800266447,
+    1170633146,
+    2407616040,
+    244607687,
+    353454596,
+    2561115702,
+    1359910387,
+    2093691368,
+    1591458837,
+    3462872959,
+    3639789607,
+};
+
+static const unsigned int g_stringHashesMinimized[100] = {
+    149,
+    123,
+    37,
+    298,
+    317,
+    109,
+    296,
+    279,
+    293,
+    65,
+    119,
+    64,
+    21,
+    195,
+    117,
+    197,
+    150,
+    277,
+    55,
+    44,
+    135,
+    175,
+    181,
+    180,
+    168,
+    307,
+    153,
+    260,
+    4,
+    286,
+    133,
+    159,
+    76,
+    212,
+    139,
+    74,
+    29,
+    318,
+    14,
+    141,
+    225,
+    115,
+    267,
+    26,
+    283,
+    311,
+    128,
+    254,
+    229,
+    75,
+    289,
+    194,
+    78,
+    287,
+    68,
+    274,
+    127,
+    156,
+    56,
+    80,
+    114,
+    121,
+    73,
+    187,
+    325,
+    164,
+    303,
+    278,
+    282,
+    235,
+    223,
+    15,
+    18,
+    89,
+    154,
+    301,
+    280,
+    174,
+    312,
+    35,
+    200,
+    291,
+    63,
+    16,
+    258,
+    126,
+    48,
+    155,
+    184,
+    321,
+    2,
+    207,
+    268,
+    143,
+    62,
+    20,
+    222,
+    43,
+    158,
+    103,
+};
+
 static const std::unordered_map<std::string, int> g_unorderedMap = {
     { "nuance", 1 },
     { "vertical", 2 },
@@ -410,8 +721,8 @@ static const std::map<std::string, int> g_map = {
     { "tell", 100 },
 };
 
-int SwitchValue (const char* s) {
-    switch(crc32(s)) {
+inline int SwitchValueRaw (unsigned int hash) {
+    switch(hash) {
         case crc32("nuance"): return 1;
         case crc32("vertical"): return 2;
         case crc32("projection"): return 3;
@@ -512,12 +823,16 @@ int SwitchValue (const char* s) {
         case crc32("siege"): return 98;
         case crc32("balance"): return 99;
         case crc32("tell"): return 100;
+        default: __assume(0);
     }
-    Fail(); return -1;
 }
 
-int SwitchValueValidate (const char* s) {
-    switch(crc32(s)) {
+inline int SwitchValue (const char* s) {
+    return SwitchValueRaw(crc32(s));
+}
+
+inline int SwitchValueValidateRaw (const char* s, unsigned int hash) {
+    switch(hash) {
         case crc32("nuance"): if (!strcmp(s, "nuance")) return 1; else break;
         case crc32("vertical"): if (!strcmp(s, "vertical")) return 2; else break;
         case crc32("projection"): if (!strcmp(s, "projection")) return 3; else break;
@@ -619,11 +934,15 @@ int SwitchValueValidate (const char* s) {
         case crc32("balance"): if (!strcmp(s, "balance")) return 99; else break;
         case crc32("tell"): if (!strcmp(s, "tell")) return 100; else break;
     }
-    Fail(); return -1;
+    return 0;
 }
 
-int SwitchValueMinimized (const char* s) {
-    switch(crc32(s, c_salt) % c_numHashBuckets) {
+inline int SwitchValueValidate (const char* s) {
+    return SwitchValueValidateRaw(s, crc32(s));
+}
+
+inline int SwitchValueMinimizedRaw (unsigned int hash) {
+    switch(hash) {
         case (crc32("nuance", c_salt) % c_numHashBuckets): return 1;
         case (crc32("vertical", c_salt) % c_numHashBuckets): return 2;
         case (crc32("projection", c_salt) % c_numHashBuckets): return 3;
@@ -724,12 +1043,16 @@ int SwitchValueMinimized (const char* s) {
         case (crc32("siege", c_salt) % c_numHashBuckets): return 98;
         case (crc32("balance", c_salt) % c_numHashBuckets): return 99;
         case (crc32("tell", c_salt) % c_numHashBuckets): return 100;
+        default: __assume(0);
     }
-    Fail(); return -1;
 }
 
-int SwitchValueMinimizedValidate (const char* s) {
-    switch(crc32(s, c_salt) % c_numHashBuckets) {
+inline int SwitchValueMinimized (const char* s) {
+    return SwitchValueMinimizedRaw(crc32(s, c_salt) % c_numHashBuckets);
+}
+
+inline int SwitchValueMinimizedValidateRaw (const char* s, unsigned int hash) {
+    switch(hash) {
         case (crc32("nuance", c_salt) % c_numHashBuckets): if (!strcmp(s, "nuance")) return 1; else break;
         case (crc32("vertical", c_salt) % c_numHashBuckets): if (!strcmp(s, "vertical")) return 2; else break;
         case (crc32("projection", c_salt) % c_numHashBuckets): if (!strcmp(s, "projection")) return 3; else break;
@@ -831,7 +1154,11 @@ int SwitchValueMinimizedValidate (const char* s) {
         case (crc32("balance", c_salt) % c_numHashBuckets): if (!strcmp(s, "balance")) return 99; else break;
         case (crc32("tell", c_salt) % c_numHashBuckets): if (!strcmp(s, "tell")) return 100; else break;
     }
-    Fail(); return -1;
+    return 0;
+}
+
+inline int SwitchValueMinimizedValidate (const char* s) {
+    return SwitchValueMinimizedValidateRaw(s, crc32(s, c_salt) % c_numHashBuckets);
 }
 
 int g_SwitchValueMinimizedArray[c_numHashBuckets] = {

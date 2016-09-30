@@ -5,6 +5,9 @@
 #include <map>
 #include <string>
 #include <array>
+#include "test.h"
+#include <random>
+#include <algorithm>
 
 // To generate new test code, turn on GENERATE_CODE, turn off DO_TEST, run the program, then turn off GENERATE_CODE and turn on DO_TEST
 
@@ -15,9 +18,9 @@
 #define GENERATE_CODE()   1
 #define DO_TEST()         1
 #define FIND_SALT()       0
-#define VERBOSE_SAMPLES() 0  // Turn on to show info for each sample
-static const size_t c_testRepeatCount = 10000;
-static const size_t c_testSamples = 50;
+bool   c_verboseSamples = false;  // Turn on to show info for each sample
+size_t c_testRepeatCount = 5000;  // how many times a test is done for each timing sample
+size_t c_testSamples = 50;        // how many timing samples are taken
 
 // code generation params
 static const size_t c_numWords = 100;
@@ -44,88 +47,6 @@ struct CRC32HasherMinimized {
         return crc32(s.c_str(), c_salt) % c_numHashBuckets;
     }
 };
-
-// collects multiple timings of a block of code and calculates the average and standard deviation (variance)
-// incremental average and variance algorithm taken from: https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Online_algorithm
-struct SBlockTimerAggregator {
-    SBlockTimerAggregator(const char* label)
-        : m_label(label)
-        , m_numSamples(0)
-        , m_mean(0.0f)
-        , m_M2(0.0f)
-    {
-
-    }
-
-    void AddSample (float milliseconds)
-    {
-        ++m_numSamples;
-        float delta = milliseconds - m_mean;
-        m_mean += delta / float(m_numSamples);
-        m_M2 += delta * (milliseconds - m_mean);
-    }
-
-    ~SBlockTimerAggregator ()
-    {
-        printf("%s: avg = %0.2f ms. std dev = %0.2f ms\n", m_label, GetAverage(), GetStandardDeviation());
-    }
-
-    float GetAverage () const
-    {
-        return m_mean;
-    }
-
-    float GetVariance () const
-    {
-        // invalid!
-        if (m_numSamples < 2)
-            return -1.0f;
-        
-        return m_M2 / float (m_numSamples - 1);
-    }
-
-    float GetStandardDeviation () const
-    {
-        return sqrt(GetVariance());
-    }
-
-    const char* m_label;
-
-    int         m_numSamples;
-    float       m_mean;
-    float       m_M2;
-};
-
-// times a block of code
-struct SBlockTimer
-{
-    SBlockTimer(SBlockTimerAggregator& aggregator)
-        : m_aggregator(aggregator)
-    {
-        m_start = std::chrono::high_resolution_clock::now();
-    }
-
-    ~SBlockTimer()
-    {
-        std::chrono::duration<float> seconds = std::chrono::high_resolution_clock::now() - m_start;
-        float milliseconds = seconds.count() * 1000.0f;
-        m_aggregator.AddSample(milliseconds);
-
-        #if VERBOSE_SAMPLES()
-        printf("%s: %0.2f ms  (avg = %0.2f ms. std dev = %0.2f ms) \n", m_aggregator.m_label, milliseconds, m_aggregator.GetAverage(), m_aggregator.GetStandardDeviation());
-        #endif
-    }
-
-    SBlockTimerAggregator&                m_aggregator;
-    std::chrono::high_resolution_clock::time_point m_start;
-};
-
-void Fail()
-{
-    printf("\n\n!!! ERROR !!!\n\n");
-    system("pause");
-    exit(1);
-}
 
 // from http://www.randomwordgenerator.com/
 const char* c_words[c_numWords] =
@@ -232,6 +153,8 @@ const char* c_words[c_numWords] =
     "tell"
 };
 
+#if GENERATE_CODE()
+
 void GenerateCode()
 {
     // open file / setup
@@ -239,6 +162,33 @@ void GenerateCode()
     if (!file)
         return;
     #define WRITECODE fprintf(file,
+
+    WRITECODE "#include \"Test.h\"\n\n");
+
+    // make a shuffled word list
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::vector<size_t> shuffleOrder;
+    shuffleOrder.resize(c_numWords);
+    for (size_t i = 0; i < c_numWords; ++i)
+        shuffleOrder[i] = i;
+    std::shuffle(shuffleOrder.begin(), shuffleOrder.end(), g);
+    WRITECODE "const char* c_wordsShuffled[c_numWords] = {\n");
+    for (size_t i = 0; i < c_numWords; ++i)
+        WRITECODE "    \"%s\",\n", c_words[shuffleOrder[i]]);
+    WRITECODE "};\n\n");
+
+    // Make g_stringHashes
+    WRITECODE "static const unsigned int g_stringHashes[%u] = {\n", c_numWords);
+    for (int i = 0; i < c_numWords; ++i)
+        WRITECODE "    %u,\n", crc32(c_words[i]));
+    WRITECODE "};\n\n");
+
+    // Make g_stringHashesMinimized
+    WRITECODE "static const unsigned int g_stringHashesMinimized[%u] = {\n", c_numWords);
+    for (int i = 0; i < c_numWords; ++i)
+        WRITECODE "    %u,\n", crc32(c_words[i], c_salt)%c_numHashBuckets);
+    WRITECODE "};\n\n");
 
     // Make g_unorderedMap
     WRITECODE "static const std::unordered_map<std::string, int> g_unorderedMap = {\n");
@@ -264,33 +214,47 @@ void GenerateCode()
         WRITECODE "    { \"%s\", %i },\n", c_words[i], i + 1);
     WRITECODE "};\n\n");
 
-    // make SwitchValue() function
-    WRITECODE "int SwitchValue (const char* s) {\n");
-    WRITECODE "    switch(crc32(s)) {\n");
+    // make SwitchValue() and SwitchValueRaw() functions
+    WRITECODE "inline int SwitchValueRaw (unsigned int hash) {\n");
+    WRITECODE "    switch(hash) {\n");
     for (int i = 0; i < c_numWords; ++i)
         WRITECODE "        case crc32(\"%s\"): return %i;\n", c_words[i], i+1);
-    WRITECODE "    }\n    Fail(); return -1;\n}\n\n");
+    WRITECODE "        default: __assume(0);\n");
+    WRITECODE "    }\n}\n\n");
+    WRITECODE "inline int SwitchValue (const char* s) {\n");
+    WRITECODE "    return SwitchValueRaw(crc32(s));\n");
+    WRITECODE "}\n\n");
 
-    // make SwitchValueValidate() function
-    WRITECODE "int SwitchValueValidate (const char* s) {\n");
-    WRITECODE "    switch(crc32(s)) {\n");
+    // make SwitchValueValidate() and SwitchValueValidateRaw() functions
+    WRITECODE "inline int SwitchValueValidateRaw (const char* s, unsigned int hash) {\n");
+    WRITECODE "    switch(hash) {\n");
     for (int i = 0; i < c_numWords; ++i)
         WRITECODE "        case crc32(\"%s\"): if (!strcmp(s, \"%s\")) return %i; else break;\n", c_words[i], c_words[i], i+1);
-    WRITECODE "    }\n    Fail(); return -1;\n}\n\n");
+    WRITECODE "    }\n    return 0;\n}\n\n");
+    WRITECODE "inline int SwitchValueValidate (const char* s) {\n");
+    WRITECODE "    return SwitchValueValidateRaw(s, crc32(s));\n");
+    WRITECODE "}\n\n");
 
-    // make SwitchValueMinimized() function
-    WRITECODE "int SwitchValueMinimized (const char* s) {\n");
-    WRITECODE "    switch(crc32(s, c_salt) %% c_numHashBuckets) {\n");
+    // make SwitchValueMinimized() and SwitchValueMinimizedRaw() functions
+    WRITECODE "inline int SwitchValueMinimizedRaw (unsigned int hash) {\n");
+    WRITECODE "    switch(hash) {\n");
     for (int i = 0; i < c_numWords; ++i)
         WRITECODE "        case (crc32(\"%s\", c_salt) %% c_numHashBuckets): return %i;\n", c_words[i], i+1);
-    WRITECODE "    }\n    Fail(); return -1;\n}\n\n");
+    WRITECODE "        default: __assume(0);\n");
+    WRITECODE "    }\n}\n\n");
+    WRITECODE "inline int SwitchValueMinimized (const char* s) {\n");
+    WRITECODE "    return SwitchValueMinimizedRaw(crc32(s, c_salt) %% c_numHashBuckets);\n");
+    WRITECODE "}\n\n");
 
-    // make SwitchValueMinimizedValidate() function
-    WRITECODE "int SwitchValueMinimizedValidate (const char* s) {\n");
-    WRITECODE "    switch(crc32(s, c_salt) %% c_numHashBuckets) {\n");
+    // make SwitchValueMinimizedValidate() and SwitchValueMinimizedValidateRaw() functions
+    WRITECODE "inline int SwitchValueMinimizedValidateRaw (const char* s, unsigned int hash) {\n");
+    WRITECODE "    switch(hash) {\n");
     for (int i = 0; i < c_numWords; ++i)
         WRITECODE "        case (crc32(\"%s\", c_salt) %% c_numHashBuckets): if (!strcmp(s, \"%s\")) return %i; else break;\n", c_words[i], c_words[i], i + 1);
-    WRITECODE "    }\n    Fail(); return -1;\n}\n\n");
+    WRITECODE "    }\n    return 0;\n}\n\n");
+    WRITECODE "inline int SwitchValueMinimizedValidate (const char* s) {\n");
+    WRITECODE "    return SwitchValueMinimizedValidateRaw(s, crc32(s, c_salt) %% c_numHashBuckets);\n");
+    WRITECODE "}\n\n");
 
     // make array based version of SwitchValueMinimized() function
     WRITECODE "int g_SwitchValueMinimizedArray[c_numHashBuckets] = {\n");
@@ -369,6 +333,8 @@ void GenerateCode()
     #undef WRITECODE
 }
 
+#endif //GENERATE_CODE()
+
 #if DO_TEST()
 #include "Tests.h"
 
@@ -378,10 +344,9 @@ void DoTest()
 
     {
         printf("In Order:\n");
-
         // std::map
         {
-            SBlockTimerAggregator timerAgg("    std::map");
+            SBlockTimerAggregator timerAgg("    std::map                           ");
             for (size_t sample = 0; sample < c_testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
@@ -394,10 +359,9 @@ void DoTest()
                 }
             }
         }
-
         // std::unordered_map default hash
         {
-            SBlockTimerAggregator timerAgg("    std::unordered_map default hash");
+            SBlockTimerAggregator timerAgg("    std::unordered_map default hash    ");
             for (size_t sample = 0; sample < c_testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
@@ -410,10 +374,9 @@ void DoTest()
                 }
             }
         }
-
         // std::unordered_map crc32
         {
-            SBlockTimerAggregator timerAgg("    std::unordered_map crc32");
+            SBlockTimerAggregator timerAgg("    std::unordered_map crc32           ");
             for (size_t sample = 0; sample < c_testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
@@ -426,10 +389,9 @@ void DoTest()
                 }
             }
         }
-
         // std::unordered_map crc32 minimized
         {
-            SBlockTimerAggregator timerAgg("    std::unordered_map crc32 minimized");
+            SBlockTimerAggregator timerAgg("    std::unordered_map crc32 minimized ");
             for (size_t sample = 0; sample < c_testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
@@ -442,10 +404,9 @@ void DoTest()
                 }
             }
         }
-
         // SwitchValue()
         {
-            SBlockTimerAggregator timerAgg("    SwitchValue()");
+            SBlockTimerAggregator timerAgg("    SwitchValue()                      ");
             for (size_t sample = 0; sample < c_testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
@@ -456,10 +417,9 @@ void DoTest()
                 }
             }
         }
-
         // SwitchValueValidate()
         {
-            SBlockTimerAggregator timerAgg("    SwitchValueValidate()");
+            SBlockTimerAggregator timerAgg("    SwitchValueValidate()              ");
             for (size_t sample = 0; sample < c_testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
@@ -470,10 +430,9 @@ void DoTest()
                 }
             }
         }
-
         // SwitchValueMinimized()
         {
-            SBlockTimerAggregator timerAgg("    SwitchValueMinimized()");
+            SBlockTimerAggregator timerAgg("    SwitchValueMinimized()             ");
             for (size_t sample = 0; sample < c_testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
@@ -484,10 +443,9 @@ void DoTest()
                 }
             }
         }
-
         // SwitchValueMinimizedValidate()
         {
-            SBlockTimerAggregator timerAgg("    SwitchValueMinimizedValidate()");
+            SBlockTimerAggregator timerAgg("    SwitchValueMinimizedValidate()     ");
             for (size_t sample = 0; sample < c_testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
@@ -498,10 +456,9 @@ void DoTest()
                 }
             }
         }
-
         // g_SwitchValueMinimizedArray
         {
-            SBlockTimerAggregator timerAgg("    g_SwitchValueMinimizedArray");
+            SBlockTimerAggregator timerAgg("    g_SwitchValueMinimizedArray        ");
             for (size_t sample = 0; sample < c_testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
@@ -512,7 +469,6 @@ void DoTest()
                 }
             }
         }
-
         // g_SwitchValueMinimizedArrayValidate
         {
             SBlockTimerAggregator timerAgg("    g_SwitchValueMinimizedArrayValidate");
@@ -530,10 +486,9 @@ void DoTest()
                 }
             }
         }
-
         // BruteForceByStartingLetter()
         {
-            SBlockTimerAggregator timerAgg("    BruteForceByStartingLetter()");
+            SBlockTimerAggregator timerAgg("    BruteForceByStartingLetter()       ");
             for (size_t sample = 0; sample < c_testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
@@ -544,10 +499,9 @@ void DoTest()
                 }
             }
         }
-
         // BruteForce()
         {
-            SBlockTimerAggregator timerAgg("    BruteForce()");
+            SBlockTimerAggregator timerAgg("    BruteForce()                       ");
             for (size_t sample = 0; sample < c_testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
@@ -559,11 +513,272 @@ void DoTest()
             }
         }
     }
+    // Shuffled word lookup
+    {
+        printf("Shuffled:\n");
+        // std::map
+        {
+            SBlockTimerAggregator timerAgg("    std::map                           ");
+            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            {
+                SBlockTimer timer(timerAgg);
+                for (size_t times = 0; times < c_testRepeatCount; ++times) {
+                    for (size_t i = 0; i < c_numWords; ++i) {
+                        auto it = g_map.find(c_wordsShuffled[i]);
+                        if (it != g_map.end())
+                            sum += (*it).second;
+                    }
+                }
+            }
+        }
+        // std::unordered_map default hash
+        {
+            SBlockTimerAggregator timerAgg("    std::unordered_map default hash    ");
+            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            {
+                SBlockTimer timer(timerAgg);
+                for (size_t times = 0; times < c_testRepeatCount; ++times) {
+                    for (size_t i = 0; i < c_numWords; ++i) {
+                        auto it = g_unorderedMap.find(c_words[i]);
+                        if (it != g_unorderedMap.end())
+                            sum += (*it).second;
+                    }
+                }
+            }
+        }
+        // std::unordered_map crc32
+        {
+            SBlockTimerAggregator timerAgg("    std::unordered_map crc32           ");
+            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            {
+                SBlockTimer timer(timerAgg);
+                for (size_t times = 0; times < c_testRepeatCount; ++times) {
+                    for (size_t i = 0; i < c_numWords; ++i) {
+                        auto it = g_unorderedMapCRC32.find(c_wordsShuffled[i]);
+                        if (it != g_unorderedMapCRC32.end())
+                            sum += (*it).second;
+                    }
+                }
+            }
+        }
+        // std::unordered_map crc32 minimized
+        {
+            SBlockTimerAggregator timerAgg("    std::unordered_map crc32 minimized ");
+            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            {
+                SBlockTimer timer(timerAgg);
+                for (size_t times = 0; times < c_testRepeatCount; ++times) {
+                    for (size_t i = 0; i < c_numWords; ++i) {
+                        auto it = g_unorderedMapCRC32Minimized.find(c_wordsShuffled[i]);
+                        if (it != g_unorderedMapCRC32Minimized.end())
+                            sum += (*it).second;
+                    }
+                }
+            }
+        }
+        // SwitchValue()
+        {
+            SBlockTimerAggregator timerAgg("    SwitchValue()                      ");
+            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            {
+                SBlockTimer timer(timerAgg);
+                for (size_t times = 0; times < c_testRepeatCount; ++times) {
+                    for (size_t i = 0; i < c_numWords; ++i) {
+                        sum += SwitchValue(c_wordsShuffled[i]);
+                    }
+                }
+            }
+        }
+        // SwitchValueValidate()
+        {
+            SBlockTimerAggregator timerAgg("    SwitchValueValidate()              ");
+            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            {
+                SBlockTimer timer(timerAgg);
+                for (size_t times = 0; times < c_testRepeatCount; ++times) {
+                    for (size_t i = 0; i < c_numWords; ++i) {
+                        sum += SwitchValueValidate(c_wordsShuffled[i]);
+                    }
+                }
+            }
+        }
+        // SwitchValueMinimized()
+        {
+            SBlockTimerAggregator timerAgg("    SwitchValueMinimized()             ");
+            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            {
+                SBlockTimer timer(timerAgg);
+                for (size_t times = 0; times < c_testRepeatCount; ++times) {
+                    for (size_t i = 0; i < c_numWords; ++i) {
+                        sum += SwitchValueMinimized(c_wordsShuffled[i]);
+                    }
+                }
+            }
+        }
+        // SwitchValueMinimizedValidate()
+        {
+            SBlockTimerAggregator timerAgg("    SwitchValueMinimizedValidate()     ");
+            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            {
+                SBlockTimer timer(timerAgg);
+                for (size_t times = 0; times < c_testRepeatCount; ++times) {
+                    for (size_t i = 0; i < c_numWords; ++i) {
+                        sum += SwitchValueMinimizedValidate(c_wordsShuffled[i]);
+                    }
+                }
+            }
+        }
+        // g_SwitchValueMinimizedArray
+        {
+            SBlockTimerAggregator timerAgg("    g_SwitchValueMinimizedArray        ");
+            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            {
+                SBlockTimer timer(timerAgg);
+                for (size_t times = 0; times < c_testRepeatCount; ++times) {
+                    for (size_t i = 0; i < c_numWords; ++i) {
+                        sum += g_SwitchValueMinimizedArray[crc32(c_wordsShuffled[i], c_salt) % c_numHashBuckets];
+                    }
+                }
+            }
+        }
+        // g_SwitchValueMinimizedArrayValidate
+        {
+            SBlockTimerAggregator timerAgg("    g_SwitchValueMinimizedArrayValidate");
+            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            {
+                SBlockTimer timer(timerAgg);
+                for (size_t times = 0; times < c_testRepeatCount; ++times) {
+                    for (size_t i = 0; i < c_numWords; ++i) {
+                        SValidate& item = g_SwitchValueMinimizedArrayValidate[crc32(c_wordsShuffled[i], c_salt) % c_numHashBuckets];
+                        if (!strcmp(c_wordsShuffled[i], item.m_string))
+                            sum += item.m_value;
+                        else
+                            Fail();
+                    }
+                }
+            }
+        }
+        // BruteForceByStartingLetter()
+        {
+            SBlockTimerAggregator timerAgg("    BruteForceByStartingLetter()       ");
+            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            {
+                SBlockTimer timer(timerAgg);
+                for (size_t times = 0; times < c_testRepeatCount; ++times) {
+                    for (size_t i = 0; i < c_numWords; ++i) {
+                        sum += BruteForceByStartingLetter(c_wordsShuffled[i]);
+                    }
+                }
+            }
+        }
+        // BruteForce()
+        {
+            SBlockTimerAggregator timerAgg("    BruteForce()                       ");
+            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            {
+                SBlockTimer timer(timerAgg);
+                for (size_t times = 0; times < c_testRepeatCount; ++times) {
+                    for (size_t i = 0; i < c_numWords; ++i) {
+                        sum += BruteForce(c_wordsShuffled[i]);
+                    }
+                }
+            }
+        }
+    }
+    // Lookup by prehashed keys
+    {
+        printf("In Order Pre hashed keys:\n");
+
+        // SwitchValue()
+        {
+            SBlockTimerAggregator timerAgg("    SwitchValue()                      ");
+            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            {
+                SBlockTimer timer(timerAgg);
+                for (size_t times = 0; times < c_testRepeatCount; ++times) {
+                    for (size_t i = 0; i < c_numWords; ++i) {
+                        sum += SwitchValueRaw(g_stringHashes[i]);
+                    }
+                }
+            }
+        }
+        // SwitchValueValidate()
+        {
+            SBlockTimerAggregator timerAgg("    SwitchValueValidate()              ");
+            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            {
+                SBlockTimer timer(timerAgg);
+                for (size_t times = 0; times < c_testRepeatCount; ++times) {
+                    for (size_t i = 0; i < c_numWords; ++i) {
+                        sum += SwitchValueValidateRaw(c_words[i], g_stringHashes[i]);
+                    }
+                }
+            }
+        }
+        // SwitchValueMinimized()
+        {
+            SBlockTimerAggregator timerAgg("    SwitchValueMinimized()             ");
+            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            {
+                SBlockTimer timer(timerAgg);
+                for (size_t times = 0; times < c_testRepeatCount; ++times) {
+                    for (size_t i = 0; i < c_numWords; ++i) {
+                        sum += SwitchValueMinimizedRaw(g_stringHashesMinimized[i]);
+                    }
+                }
+            }
+        }
+        // SwitchValueMinimizedValidate()
+        {
+            SBlockTimerAggregator timerAgg("    SwitchValueMinimizedValidate()     ");
+            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            {
+                SBlockTimer timer(timerAgg);
+                for (size_t times = 0; times < c_testRepeatCount; ++times) {
+                    for (size_t i = 0; i < c_numWords; ++i) {
+                        sum += SwitchValueMinimizedValidateRaw(c_words[i], g_stringHashesMinimized[i]);
+                    }
+                }
+            }
+        }
+        // g_SwitchValueMinimizedArray
+        {
+            SBlockTimerAggregator timerAgg("    g_SwitchValueMinimizedArray        ");
+            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            {
+                SBlockTimer timer(timerAgg);
+                for (size_t times = 0; times < c_testRepeatCount; ++times) {
+                    for (size_t i = 0; i < c_numWords; ++i) {
+                        sum += g_SwitchValueMinimizedArray[g_stringHashesMinimized[i]];
+                    }
+                }
+            }
+        }
+        // g_SwitchValueMinimizedArrayValidate
+        {
+            SBlockTimerAggregator timerAgg("    g_SwitchValueMinimizedArrayValidate");
+            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            {
+                SBlockTimer timer(timerAgg);
+                for (size_t times = 0; times < c_testRepeatCount; ++times) {
+                    for (size_t i = 0; i < c_numWords; ++i) {
+                        SValidate& item = g_SwitchValueMinimizedArrayValidate[g_stringHashesMinimized[i]];
+                        if (!strcmp(c_words[i], item.m_string))
+                            sum += item.m_value;
+                        else
+                            Fail();
+                    }
+                }
+            }
+        }
+    }
 
     system("pause");
     printf("sum = %i\n", sum); // To keep sum and everything used to calculate it from getting optimized away.
 }
-#endif
+#endif //DO_TEST()
+
+#if FIND_SALT()
 
 bool SaltCausesCollision (unsigned int salt) {
     std::array<bool, c_numHashBuckets> collisions;
@@ -590,6 +805,8 @@ void FindSalt () {
     system("pause");
 }
 
+#endif // FIND_SALT()
+
 int main(int argc, char** argv) {
 
     #if GENERATE_CODE()
@@ -611,29 +828,21 @@ int main(int argc, char** argv) {
 
 TODO:
 
-* try __assume in switches and time that?
+? this is a bit nutty, but could try switching on first letter, then doing a hash.
+ * NOTE maybe that "perfect algorithm" is probably going to be multilevel like that.
+ * link to switch statements again.
 
-* align the output for easier reading, like we do in last post
+* make a self contained tests.cpp like how the array speed code works?
 
-* also figure out if the high resolution clock is QPC or what, and report it in testing details
+* should we do a shuffle and prehash lookup pass?
 
-* do a series of tests with pre-hashed keys for faster lookup (like, what you would do with cooked data)
+? should we bother with a "sparse" search test?
+ * i don't think so
 
-* make it show variance like last post
+? how bout a hash function based on the input features?
+ * that's what a prefix tree is about
 
-! Make it generate Tests.cpp as a standalone test, instead of making tests.h and relying on things from source.cpp!
- * could make it generate code every time, but only re-write code if it isn't different.
-
-? do we need to shuffle the order that we ask for the strings in? I think so.
- * maybe one test shuffled, one in order? report timings differently
- * this to tease out cache coherency issues
-
-? can we make the # of buckets smaller? if so, the array will be smaller.
- * brute force try it before getting timings
- ! maybe the code generator could try and find salt, or abort if there is a collision with the salt?
- * make the "FindSalt" function and use it
-
-? maybe run the test multiple times and report average and variance
+* try to find a smaller number of buckets than 337 if you can. Use FindSalt()
 
 BLOG:
 * Explain what is being tested
@@ -652,6 +861,8 @@ BLOG:
 ? mention the FindSalt function?
 * NOTE: hash quality not important. speed and no collisions for given input only matters.
 * info about switch statements: http://www.codeproject.com/Articles/100473/Something-You-May-Not-Know-About-the-Switch-Statem
+* NOTE: switch validate functions check string for comparison. They return 0 if no match found.  Other switch functions __assume(0) in default case.  Passing invalid input gives undefined behavior.
+ * if they don't validate, they will give wrong answer when given invalid input anyways.
 
 Tests:
     + map
