@@ -344,7 +344,7 @@ void GenerateCode()
 #if DO_TEST()
 #include "Tests.h"
 
-void DoTest()
+void DoTest(size_t testSamples, size_t testRepeatCount, size_t numWords)
 {
     int sum = 0;
 
@@ -353,11 +353,11 @@ void DoTest()
         // std::map
         {
             SBlockTimerAggregator timerAgg("    std::map                           ");
-            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            for (size_t sample = 0; sample < testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
-                for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                    for (size_t i = 0; i < c_numWords; ++i) {
+                for (size_t times = 0; times < testRepeatCount; ++times) {
+                    for (size_t i = 0; i < numWords; ++i) {
                         auto it = g_map.find(c_words[i]);
                         if (it != g_map.end())
                             sum += (*it).second;
@@ -368,11 +368,11 @@ void DoTest()
         // std::unordered_map default hash
         {
             SBlockTimerAggregator timerAgg("    std::unordered_map default hash    ");
-            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            for (size_t sample = 0; sample < testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
-                for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                    for (size_t i = 0; i < c_numWords; ++i) {
+                for (size_t times = 0; times < testRepeatCount; ++times) {
+                    for (size_t i = 0; i < numWords; ++i) {
                         auto it = g_unorderedMap.find(c_words[i]);
                         if (it != g_unorderedMap.end())
                             sum += (*it).second;
@@ -383,11 +383,11 @@ void DoTest()
         // std::unordered_map crc32
         {
             SBlockTimerAggregator timerAgg("    std::unordered_map crc32           ");
-            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            for (size_t sample = 0; sample < testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
-                for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                    for (size_t i = 0; i < c_numWords; ++i) {
+                for (size_t times = 0; times < testRepeatCount; ++times) {
+                    for (size_t i = 0; i < numWords; ++i) {
                         auto it = g_unorderedMapCRC32.find(c_words[i]);
                         if (it != g_unorderedMapCRC32.end())
                             sum += (*it).second;
@@ -398,11 +398,11 @@ void DoTest()
         // std::unordered_map crc32 minimized
         {
             SBlockTimerAggregator timerAgg("    std::unordered_map crc32 minimized ");
-            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            for (size_t sample = 0; sample < testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
-                for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                    for (size_t i = 0; i < c_numWords; ++i) {
+                for (size_t times = 0; times < testRepeatCount; ++times) {
+                    for (size_t i = 0; i < numWords; ++i) {
                         auto it = g_unorderedMapCRC32Minimized.find(c_words[i]);
                         if (it != g_unorderedMapCRC32Minimized.end())
                             sum += (*it).second;
@@ -413,11 +413,11 @@ void DoTest()
         // SwitchValue()
         {
             SBlockTimerAggregator timerAgg("    SwitchValue()                      ");
-            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            for (size_t sample = 0; sample < testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
-                for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                    for (size_t i = 0; i < c_numWords; ++i) {
+                for (size_t times = 0; times < testRepeatCount; ++times) {
+                    for (size_t i = 0; i < numWords; ++i) {
                         sum += SwitchValue(c_words[i]);
                     }
                 }
@@ -426,11 +426,11 @@ void DoTest()
         // SwitchValueValidate()
         {
             SBlockTimerAggregator timerAgg("    SwitchValueValidate()              ");
-            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            for (size_t sample = 0; sample < testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
-                for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                    for (size_t i = 0; i < c_numWords; ++i) {
+                for (size_t times = 0; times < testRepeatCount; ++times) {
+                    for (size_t i = 0; i < numWords; ++i) {
                         sum += SwitchValueValidate(c_words[i]);
                     }
                 }
@@ -439,11 +439,11 @@ void DoTest()
         // SwitchValueMinimized()
         {
             SBlockTimerAggregator timerAgg("    SwitchValueMinimized()             ");
-            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            for (size_t sample = 0; sample < testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
-                for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                    for (size_t i = 0; i < c_numWords; ++i) {
+                for (size_t times = 0; times < testRepeatCount; ++times) {
+                    for (size_t i = 0; i < numWords; ++i) {
                         sum += SwitchValueMinimized(c_words[i]);
                     }
                 }
@@ -452,11 +452,11 @@ void DoTest()
         // SwitchValueMinimizedValidate()
         {
             SBlockTimerAggregator timerAgg("    SwitchValueMinimizedValidate()     ");
-            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            for (size_t sample = 0; sample < testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
-                for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                    for (size_t i = 0; i < c_numWords; ++i) {
+                for (size_t times = 0; times < testRepeatCount; ++times) {
+                    for (size_t i = 0; i < numWords; ++i) {
                         sum += SwitchValueMinimizedValidate(c_words[i]);
                     }
                 }
@@ -465,11 +465,11 @@ void DoTest()
         // g_SwitchValueMinimizedArray
         {
             SBlockTimerAggregator timerAgg("    g_SwitchValueMinimizedArray        ");
-            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            for (size_t sample = 0; sample < testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
-                for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                    for (size_t i = 0; i < c_numWords; ++i) {
+                for (size_t times = 0; times < testRepeatCount; ++times) {
+                    for (size_t i = 0; i < numWords; ++i) {
                         sum += g_SwitchValueMinimizedArray[crc32(c_words[i], c_salt) % c_numHashBuckets];
                     }
                 }
@@ -478,11 +478,11 @@ void DoTest()
         // g_SwitchValueMinimizedArrayValidate
         {
             SBlockTimerAggregator timerAgg("    g_SwitchValueMinimizedArrayValidate");
-            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            for (size_t sample = 0; sample < testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
-                for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                    for (size_t i = 0; i < c_numWords; ++i) {
+                for (size_t times = 0; times < testRepeatCount; ++times) {
+                    for (size_t i = 0; i < numWords; ++i) {
                         SValidate& item = g_SwitchValueMinimizedArrayValidate[crc32(c_words[i], c_salt) % c_numHashBuckets];
                         if (!strcmp(c_words[i], item.m_string))
                             sum += item.m_value;
@@ -495,11 +495,11 @@ void DoTest()
         // BruteForceByStartingLetter()
         {
             SBlockTimerAggregator timerAgg("    BruteForceByStartingLetter()       ");
-            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            for (size_t sample = 0; sample < testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
-                for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                    for (size_t i = 0; i < c_numWords; ++i) {
+                for (size_t times = 0; times < testRepeatCount; ++times) {
+                    for (size_t i = 0; i < numWords; ++i) {
                         sum += BruteForceByStartingLetter(c_words[i]);
                     }
                 }
@@ -508,11 +508,11 @@ void DoTest()
         // BruteForce()
         {
             SBlockTimerAggregator timerAgg("    BruteForce()                       ");
-            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            for (size_t sample = 0; sample < testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
-                for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                    for (size_t i = 0; i < c_numWords; ++i) {
+                for (size_t times = 0; times < testRepeatCount; ++times) {
+                    for (size_t i = 0; i < numWords; ++i) {
                         sum += BruteForce(c_words[i]);
                     }
                 }
@@ -525,11 +525,11 @@ void DoTest()
         // std::map
         {
             SBlockTimerAggregator timerAgg("    std::map                           ");
-            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            for (size_t sample = 0; sample < testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
-                for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                    for (size_t i = 0; i < c_numWords; ++i) {
+                for (size_t times = 0; times < testRepeatCount; ++times) {
+                    for (size_t i = 0; i < numWords; ++i) {
                         auto it = g_map.find(c_wordsShuffled[i]);
                         if (it != g_map.end())
                             sum += (*it).second;
@@ -540,11 +540,11 @@ void DoTest()
         // std::unordered_map default hash
         {
             SBlockTimerAggregator timerAgg("    std::unordered_map default hash    ");
-            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            for (size_t sample = 0; sample < testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
-                for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                    for (size_t i = 0; i < c_numWords; ++i) {
+                for (size_t times = 0; times < testRepeatCount; ++times) {
+                    for (size_t i = 0; i < numWords; ++i) {
                         auto it = g_unorderedMap.find(c_words[i]);
                         if (it != g_unorderedMap.end())
                             sum += (*it).second;
@@ -555,11 +555,11 @@ void DoTest()
         // std::unordered_map crc32
         {
             SBlockTimerAggregator timerAgg("    std::unordered_map crc32           ");
-            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            for (size_t sample = 0; sample < testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
-                for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                    for (size_t i = 0; i < c_numWords; ++i) {
+                for (size_t times = 0; times < testRepeatCount; ++times) {
+                    for (size_t i = 0; i < numWords; ++i) {
                         auto it = g_unorderedMapCRC32.find(c_wordsShuffled[i]);
                         if (it != g_unorderedMapCRC32.end())
                             sum += (*it).second;
@@ -570,11 +570,11 @@ void DoTest()
         // std::unordered_map crc32 minimized
         {
             SBlockTimerAggregator timerAgg("    std::unordered_map crc32 minimized ");
-            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            for (size_t sample = 0; sample < testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
-                for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                    for (size_t i = 0; i < c_numWords; ++i) {
+                for (size_t times = 0; times < testRepeatCount; ++times) {
+                    for (size_t i = 0; i < numWords; ++i) {
                         auto it = g_unorderedMapCRC32Minimized.find(c_wordsShuffled[i]);
                         if (it != g_unorderedMapCRC32Minimized.end())
                             sum += (*it).second;
@@ -585,11 +585,11 @@ void DoTest()
         // SwitchValue()
         {
             SBlockTimerAggregator timerAgg("    SwitchValue()                      ");
-            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            for (size_t sample = 0; sample < testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
-                for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                    for (size_t i = 0; i < c_numWords; ++i) {
+                for (size_t times = 0; times < testRepeatCount; ++times) {
+                    for (size_t i = 0; i < numWords; ++i) {
                         sum += SwitchValue(c_wordsShuffled[i]);
                     }
                 }
@@ -598,11 +598,11 @@ void DoTest()
         // SwitchValueValidate()
         {
             SBlockTimerAggregator timerAgg("    SwitchValueValidate()              ");
-            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            for (size_t sample = 0; sample < testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
-                for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                    for (size_t i = 0; i < c_numWords; ++i) {
+                for (size_t times = 0; times < testRepeatCount; ++times) {
+                    for (size_t i = 0; i < numWords; ++i) {
                         sum += SwitchValueValidate(c_wordsShuffled[i]);
                     }
                 }
@@ -611,11 +611,11 @@ void DoTest()
         // SwitchValueMinimized()
         {
             SBlockTimerAggregator timerAgg("    SwitchValueMinimized()             ");
-            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            for (size_t sample = 0; sample < testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
-                for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                    for (size_t i = 0; i < c_numWords; ++i) {
+                for (size_t times = 0; times < testRepeatCount; ++times) {
+                    for (size_t i = 0; i < numWords; ++i) {
                         sum += SwitchValueMinimized(c_wordsShuffled[i]);
                     }
                 }
@@ -624,11 +624,11 @@ void DoTest()
         // SwitchValueMinimizedValidate()
         {
             SBlockTimerAggregator timerAgg("    SwitchValueMinimizedValidate()     ");
-            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            for (size_t sample = 0; sample < testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
-                for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                    for (size_t i = 0; i < c_numWords; ++i) {
+                for (size_t times = 0; times < testRepeatCount; ++times) {
+                    for (size_t i = 0; i < numWords; ++i) {
                         sum += SwitchValueMinimizedValidate(c_wordsShuffled[i]);
                     }
                 }
@@ -637,11 +637,11 @@ void DoTest()
         // g_SwitchValueMinimizedArray
         {
             SBlockTimerAggregator timerAgg("    g_SwitchValueMinimizedArray        ");
-            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            for (size_t sample = 0; sample < testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
-                for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                    for (size_t i = 0; i < c_numWords; ++i) {
+                for (size_t times = 0; times < testRepeatCount; ++times) {
+                    for (size_t i = 0; i < numWords; ++i) {
                         sum += g_SwitchValueMinimizedArray[crc32(c_wordsShuffled[i], c_salt) % c_numHashBuckets];
                     }
                 }
@@ -650,11 +650,11 @@ void DoTest()
         // g_SwitchValueMinimizedArrayValidate
         {
             SBlockTimerAggregator timerAgg("    g_SwitchValueMinimizedArrayValidate");
-            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            for (size_t sample = 0; sample < testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
-                for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                    for (size_t i = 0; i < c_numWords; ++i) {
+                for (size_t times = 0; times < testRepeatCount; ++times) {
+                    for (size_t i = 0; i < numWords; ++i) {
                         SValidate& item = g_SwitchValueMinimizedArrayValidate[crc32(c_wordsShuffled[i], c_salt) % c_numHashBuckets];
                         if (!strcmp(c_wordsShuffled[i], item.m_string))
                             sum += item.m_value;
@@ -667,11 +667,11 @@ void DoTest()
         // BruteForceByStartingLetter()
         {
             SBlockTimerAggregator timerAgg("    BruteForceByStartingLetter()       ");
-            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            for (size_t sample = 0; sample < testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
-                for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                    for (size_t i = 0; i < c_numWords; ++i) {
+                for (size_t times = 0; times < testRepeatCount; ++times) {
+                    for (size_t i = 0; i < numWords; ++i) {
                         sum += BruteForceByStartingLetter(c_wordsShuffled[i]);
                     }
                 }
@@ -680,11 +680,11 @@ void DoTest()
         // BruteForce()
         {
             SBlockTimerAggregator timerAgg("    BruteForce()                       ");
-            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            for (size_t sample = 0; sample < testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
-                for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                    for (size_t i = 0; i < c_numWords; ++i) {
+                for (size_t times = 0; times < testRepeatCount; ++times) {
+                    for (size_t i = 0; i < numWords; ++i) {
                         sum += BruteForce(c_wordsShuffled[i]);
                     }
                 }
@@ -698,11 +698,11 @@ void DoTest()
         // SwitchValue()
         {
             SBlockTimerAggregator timerAgg("    SwitchValue()                      ");
-            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            for (size_t sample = 0; sample < testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
-                for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                    for (size_t i = 0; i < c_numWords; ++i) {
+                for (size_t times = 0; times < testRepeatCount; ++times) {
+                    for (size_t i = 0; i < numWords; ++i) {
                         sum += SwitchValueRaw(g_stringHashes[i]);
                     }
                 }
@@ -711,11 +711,11 @@ void DoTest()
         // SwitchValueValidate()
         {
             SBlockTimerAggregator timerAgg("    SwitchValueValidate()              ");
-            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            for (size_t sample = 0; sample < testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
-                for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                    for (size_t i = 0; i < c_numWords; ++i) {
+                for (size_t times = 0; times < testRepeatCount; ++times) {
+                    for (size_t i = 0; i < numWords; ++i) {
                         sum += SwitchValueValidateRaw(c_words[i], g_stringHashes[i]);
                     }
                 }
@@ -724,11 +724,11 @@ void DoTest()
         // SwitchValueMinimized()
         {
             SBlockTimerAggregator timerAgg("    SwitchValueMinimized()             ");
-            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            for (size_t sample = 0; sample < testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
-                for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                    for (size_t i = 0; i < c_numWords; ++i) {
+                for (size_t times = 0; times < testRepeatCount; ++times) {
+                    for (size_t i = 0; i < numWords; ++i) {
                         sum += SwitchValueMinimizedRaw(g_stringHashesMinimized[i]);
                     }
                 }
@@ -737,11 +737,11 @@ void DoTest()
         // SwitchValueMinimizedValidate()
         {
             SBlockTimerAggregator timerAgg("    SwitchValueMinimizedValidate()     ");
-            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            for (size_t sample = 0; sample < testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
-                for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                    for (size_t i = 0; i < c_numWords; ++i) {
+                for (size_t times = 0; times < testRepeatCount; ++times) {
+                    for (size_t i = 0; i < numWords; ++i) {
                         sum += SwitchValueMinimizedValidateRaw(c_words[i], g_stringHashesMinimized[i]);
                     }
                 }
@@ -750,11 +750,11 @@ void DoTest()
         // g_SwitchValueMinimizedArray
         {
             SBlockTimerAggregator timerAgg("    g_SwitchValueMinimizedArray        ");
-            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            for (size_t sample = 0; sample < testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
-                for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                    for (size_t i = 0; i < c_numWords; ++i) {
+                for (size_t times = 0; times < testRepeatCount; ++times) {
+                    for (size_t i = 0; i < numWords; ++i) {
                         sum += g_SwitchValueMinimizedArray[g_stringHashesMinimized[i]];
                     }
                 }
@@ -763,11 +763,11 @@ void DoTest()
         // g_SwitchValueMinimizedArrayValidate
         {
             SBlockTimerAggregator timerAgg("    g_SwitchValueMinimizedArrayValidate");
-            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            for (size_t sample = 0; sample < testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
-                for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                    for (size_t i = 0; i < c_numWords; ++i) {
+                for (size_t times = 0; times < testRepeatCount; ++times) {
+                    for (size_t i = 0; i < numWords; ++i) {
                         SValidate& item = g_SwitchValueMinimizedArrayValidate[g_stringHashesMinimized[i]];
                         if (!strcmp(c_words[i], item.m_string))
                             sum += item.m_value;
@@ -785,11 +785,11 @@ void DoTest()
         // SwitchValue()
         {
             SBlockTimerAggregator timerAgg("    SwitchValue()                      ");
-            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            for (size_t sample = 0; sample < testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
-                for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                    for (size_t i = 0; i < c_numWords; ++i) {
+                for (size_t times = 0; times < testRepeatCount; ++times) {
+                    for (size_t i = 0; i < numWords; ++i) {
                         sum += SwitchValueRaw(g_stringHashes[c_wordsShuffledOrder[i]]);
                     }
                 }
@@ -798,11 +798,11 @@ void DoTest()
         // SwitchValueValidate()
         {
             SBlockTimerAggregator timerAgg("    SwitchValueValidate()              ");
-            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            for (size_t sample = 0; sample < testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
-                for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                    for (size_t i = 0; i < c_numWords; ++i) {
+                for (size_t times = 0; times < testRepeatCount; ++times) {
+                    for (size_t i = 0; i < numWords; ++i) {
                         sum += SwitchValueValidateRaw(c_words[i], g_stringHashes[c_wordsShuffledOrder[i]]);
                     }
                 }
@@ -811,11 +811,11 @@ void DoTest()
         // SwitchValueMinimized()
         {
             SBlockTimerAggregator timerAgg("    SwitchValueMinimized()             ");
-            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            for (size_t sample = 0; sample < testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
-                for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                    for (size_t i = 0; i < c_numWords; ++i) {
+                for (size_t times = 0; times < testRepeatCount; ++times) {
+                    for (size_t i = 0; i < numWords; ++i) {
                         sum += SwitchValueMinimizedRaw(g_stringHashesMinimized[c_wordsShuffledOrder[i]]);
                     }
                 }
@@ -824,11 +824,11 @@ void DoTest()
         // SwitchValueMinimizedValidate()
         {
             SBlockTimerAggregator timerAgg("    SwitchValueMinimizedValidate()     ");
-            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            for (size_t sample = 0; sample < testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
-                for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                    for (size_t i = 0; i < c_numWords; ++i) {
+                for (size_t times = 0; times < testRepeatCount; ++times) {
+                    for (size_t i = 0; i < numWords; ++i) {
                         sum += SwitchValueMinimizedValidateRaw(c_words[c_wordsShuffledOrder[i]], g_stringHashesMinimized[c_wordsShuffledOrder[i]]);
                     }
                 }
@@ -837,11 +837,11 @@ void DoTest()
         // g_SwitchValueMinimizedArray
         {
             SBlockTimerAggregator timerAgg("    g_SwitchValueMinimizedArray        ");
-            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            for (size_t sample = 0; sample < testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
-                for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                    for (size_t i = 0; i < c_numWords; ++i) {
+                for (size_t times = 0; times < testRepeatCount; ++times) {
+                    for (size_t i = 0; i < numWords; ++i) {
                         sum += g_SwitchValueMinimizedArray[g_stringHashesMinimized[c_wordsShuffledOrder[i]]];
                     }
                 }
@@ -850,11 +850,11 @@ void DoTest()
         // g_SwitchValueMinimizedArrayValidate
         {
             SBlockTimerAggregator timerAgg("    g_SwitchValueMinimizedArrayValidate");
-            for (size_t sample = 0; sample < c_testSamples; ++sample)
+            for (size_t sample = 0; sample < testSamples; ++sample)
             {
                 SBlockTimer timer(timerAgg);
-                for (size_t times = 0; times < c_testRepeatCount; ++times) {
-                    for (size_t i = 0; i < c_numWords; ++i) {
+                for (size_t times = 0; times < testRepeatCount; ++times) {
+                    for (size_t i = 0; i < numWords; ++i) {
                         SValidate& item = g_SwitchValueMinimizedArrayValidate[g_stringHashesMinimized[c_wordsShuffledOrder[i]]];
                         if (!strcmp(c_words[c_wordsShuffledOrder[i]], item.m_string))
                             sum += item.m_value;
@@ -906,7 +906,8 @@ int main(int argc, char** argv) {
     #endif
 
     #if DO_TEST()
-        DoTest();
+		size_t multiplier = argc < 10 ? 1 : argc; // to make sure it doesn't optimize the loops into not doing the full amount of work (eg. multiplying result by c_testRepeatCount)
+		DoTest(c_testSamples * multiplier, c_testRepeatCount * multiplier, c_numWords * multiplier);
     #endif
 
     #if FIND_SALT()
