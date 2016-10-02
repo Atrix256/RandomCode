@@ -15,7 +15,7 @@
 // Note: strange numbered buckets (prime or non powers of two) seem to find salts more easily.
 
 // run time parameters
-#define GENERATE_CODE()   1
+#define GENERATE_CODE()   0
 #define DO_TEST()         1
 #define FIND_SALT()       0
 bool   c_verboseSamples = false;  // Turn on to show info for each sample
@@ -920,10 +920,6 @@ int main(int argc, char** argv) {
 /*
 
 TODO:
-
-* make a self contained tests.cpp like how the array speed code works?
-
-* try to find a smaller number of buckets than 337 if you can. Use FindSalt()
 
 BLOG:
 * Explain what is being tested
