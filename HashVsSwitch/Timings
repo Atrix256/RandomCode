@@ -1,0 +1,174 @@
+Debug x86
+In Order:
+    std::map                           : <td>7036.77 (126.41)</td>
+    std::unordered_map default hash    : <td>4235.31 (24.41)</td>
+    std::unordered_map crc32           : <td>4236.38 (80.72)</td>
+    std::unordered_map crc32 minimized : <td>4034.50 (12.72)</td>
+    SwitchValue()                      : <td>123.28 (0.98)</td>
+    SwitchValueValidate()              : <td>127.59 (1.22)</td>
+    SwitchValueMinimized()             : <td>128.83 (0.95)</td>
+    SwitchValueMinimizedValidate()     : <td>132.44 (1.02)</td>
+    g_SwitchValueMinimizedArray        : <td>104.15 (1.13)</td>
+    g_SwitchValueMinimizedArrayValidate: <td>107.75 (1.07)</td>
+    BruteForceByStartingLetter()       : <td>19.92 (0.63)</td>
+    BruteForce()                       : <td>118.65 (1.09)</td>
+Shuffled:
+    std::map                           : <td>7082.92 (214.13)</td>
+    std::unordered_map default hash    : <td>4155.85 (133.00)</td>
+    std::unordered_map crc32           : <td>4286.44 (95.39)</td>
+    std::unordered_map crc32 minimized : <td>4186.27 (75.35)</td>
+    SwitchValue()                      : <td>127.93 (3.85)</td>
+    SwitchValueValidate()              : <td>131.46 (2.34)</td>
+    SwitchValueMinimized()             : <td>133.03 (2.93)</td>
+    SwitchValueMinimizedValidate()     : <td>135.47 (2.27)</td>
+    g_SwitchValueMinimizedArray        : <td>106.38 (2.70)</td>
+    g_SwitchValueMinimizedArrayValidate: <td>109.32 (2.34)</td>
+    BruteForceByStartingLetter()       : <td>20.45 (0.92)</td>
+    BruteForce()                       : <td>120.70 (2.16)</td>
+In Order Pre hashed keys:
+    SwitchValue()                      : <td>12.49 (0.61)</td>
+    SwitchValueValidate()              : <td>17.08 (1.06)</td>
+    SwitchValueMinimized()             : <td>11.83 (0.69)</td>
+    SwitchValueMinimizedValidate()     : <td>16.02 (0.84)</td>
+    g_SwitchValueMinimizedArray        : <td>1.23 (0.06)</td>
+    g_SwitchValueMinimizedArrayValidate: <td>4.21 (0.32)</td>
+Shuffled Pre hashed keys:
+    SwitchValue()                      : <td>12.96 (1.37)</td>
+    SwitchValueValidate()              : <td>16.27 (2.01)</td>
+    SwitchValueMinimized()             : <td>11.75 (0.63)</td>
+    SwitchValueMinimizedValidate()     : <td>16.44 (0.99)</td>
+    g_SwitchValueMinimizedArray        : <td>1.13 (0.06)</td>
+    g_SwitchValueMinimizedArrayValidate: <td>4.50 (0.32)</td>
+
+
+Debug x64
+In Order:
+    std::map                           : <td>7070.18 (155.49)</td>
+    std::unordered_map default hash    : <td>4261.36 (145.16)</td>
+    std::unordered_map crc32           : <td>4275.36 (116.65)</td>
+    std::unordered_map crc32 minimized : <td>4323.67 (170.55)</td>
+    SwitchValue()                      : <td>144.29 (4.91)</td>
+    SwitchValueValidate()              : <td>147.41 (5.20)</td>
+    SwitchValueMinimized()             : <td>151.48 (4.66)</td>
+    SwitchValueMinimizedValidate()     : <td>159.85 (6.73)</td>
+    g_SwitchValueMinimizedArray        : <td>122.94 (5.98)</td>
+    g_SwitchValueMinimizedArrayValidate: <td>120.75 (2.80)</td>
+    BruteForceByStartingLetter()       : <td>22.01 (0.86)</td>
+    BruteForce()                       : <td>140.20 (2.28)</td>
+Shuffled:
+    std::map                           : <td>6999.90 (193.82)</td>
+    std::unordered_map default hash    : <td>4221.84 (124.70)</td>
+    std::unordered_map crc32           : <td>4300.81 (64.37)</td>
+    std::unordered_map crc32 minimized : <td>4111.73 (43.36)</td>
+    SwitchValue()                      : <td>137.63 (1.31)</td>
+    SwitchValueValidate()              : <td>141.38 (1.47)</td>
+    SwitchValueMinimized()             : <td>145.74 (1.50)</td>
+    SwitchValueMinimizedValidate()     : <td>151.58 (1.48)</td>
+    g_SwitchValueMinimizedArray        : <td>118.61 (3.73)</td>
+    g_SwitchValueMinimizedArrayValidate: <td>120.94 (3.02)</td>
+    BruteForceByStartingLetter()       : <td>21.64 (0.76)</td>
+    BruteForce()                       : <td>140.95 (1.71)</td>
+In Order Pre hashed keys:
+    SwitchValue()                      : <td>13.23 (0.37)</td>
+    SwitchValueValidate()              : <td>16.72 (0.57)</td>
+    SwitchValueMinimized()             : <td>12.06 (0.51)</td>
+    SwitchValueMinimizedValidate()     : <td>15.84 (0.66)</td>
+    g_SwitchValueMinimizedArray        : <td>1.15 (0.10)</td>
+    g_SwitchValueMinimizedArrayValidate: <td>2.99 (0.20)</td>
+Shuffled Pre hashed keys:
+    SwitchValue()                      : <td>13.45 (0.47)</td>
+    SwitchValueValidate()              : <td>16.57 (0.63)</td>
+    SwitchValueMinimized()             : <td>12.15 (0.45)</td>
+    SwitchValueMinimizedValidate()     : <td>16.33 (0.58)</td>
+    g_SwitchValueMinimizedArray        : <td>1.18 (0.10)</td>
+    g_SwitchValueMinimizedArrayValidate: <td>3.31 (0.18)</td>
+
+
+Release x86
+In Order:
+    std::map                           : <td>33.02 (2.68)</td>
+    std::unordered_map default hash    : <td>19.97 (0.45)</td>
+    std::unordered_map crc32           : <td>24.36 (0.47)</td>
+    std::unordered_map crc32 minimized : <td>26.39 (0.50)</td>
+    SwitchValue()                      : <td>6.81 (0.30)</td>
+    SwitchValueValidate()              : <td>8.84 (0.35)</td>
+    SwitchValueMinimized()             : <td>8.28 (0.38)</td>
+    SwitchValueMinimizedValidate()     : <td>12.65 (0.40)</td>
+    g_SwitchValueMinimizedArray        : <td>7.68 (0.36)</td>
+    g_SwitchValueMinimizedArrayValidate: <td>10.49 (0.37)</td>
+    BruteForceByStartingLetter()       : <td>4.85 (0.24)</td>
+    BruteForce()                       : <td>31.53 (0.56)</td>
+Shuffled:
+    std::map                           : <td>32.14 (0.59)</td>
+    std::unordered_map default hash    : <td>20.21 (0.42)</td>
+    std::unordered_map crc32           : <td>24.55 (0.57)</td>
+    std::unordered_map crc32 minimized : <td>26.36 (0.56)</td>
+    SwitchValue()                      : <td>6.97 (0.32)</td>
+    SwitchValueValidate()              : <td>8.92 (0.38)</td>
+    SwitchValueMinimized()             : <td>9.16 (0.37)</td>
+    SwitchValueMinimizedValidate()     : <td>12.13 (0.40)</td>
+    g_SwitchValueMinimizedArray        : <td>8.18 (0.31)</td>
+    g_SwitchValueMinimizedArrayValidate: <td>10.49 (0.55)</td>
+    BruteForceByStartingLetter()       : <td>4.90 (0.31)</td>
+    BruteForce()                       : <td>32.50 (0.47)</td>
+In Order Pre hashed keys:
+    SwitchValue()                      : <td>1.94 (0.17)</td>
+    SwitchValueValidate()              : <td>4.32 (0.30)</td>
+    SwitchValueMinimized()             : <td>1.29 (0.13)</td>
+    SwitchValueMinimizedValidate()     : <td>3.25 (0.24)</td>
+    g_SwitchValueMinimizedArray        : <td>0.00 (0.00)</td>
+    g_SwitchValueMinimizedArrayValidate: <td>2.45 (0.17)</td>
+Shuffled Pre hashed keys:
+    SwitchValue()                      : <td>1.84 (0.11)</td>
+    SwitchValueValidate()              : <td>2.65 (0.19)</td>
+    SwitchValueMinimized()             : <td>1.07 (0.07)</td>
+    SwitchValueMinimizedValidate()     : <td>3.43 (0.18)</td>
+    g_SwitchValueMinimizedArray        : <td>0.32 (0.05)</td>
+    g_SwitchValueMinimizedArrayValidate: <td>2.82 (0.16)</td>
+
+
+Release x64
+In Order:
+    std::map                           : <td>35.40 (1.43)</td>
+    std::unordered_map default hash    : <td>20.12 (0.62)</td>
+    std::unordered_map crc32           : <td>23.47 (0.86)</td>
+    std::unordered_map crc32 minimized : <td>23.68 (0.71)</td>
+    SwitchValue()                      : <td>5.47 (0.29)</td>
+    SwitchValueValidate()              : <td>7.99 (0.36)</td>
+    SwitchValueMinimized()             : <td>10.18 (0.37)</td>
+    SwitchValueMinimizedValidate()     : <td>10.89 (0.36)</td>
+    g_SwitchValueMinimizedArray        : <td>6.08 (0.36)</td>
+    g_SwitchValueMinimizedArrayValidate: <td>8.95 (0.32)</td>
+    BruteForceByStartingLetter()       : <td>5.81 (0.26)</td>
+    BruteForce()                       : <td>46.47 (0.83)</td>
+Shuffled:
+    std::map                           : <td>34.20 (0.62)</td>
+    std::unordered_map default hash    : <td>20.09 (0.47)</td>
+    std::unordered_map crc32           : <td>23.06 (0.57)</td>
+    std::unordered_map crc32 minimized : <td>23.65 (0.54)</td>
+    SwitchValue()                      : <td>5.47 (0.27)</td>
+    SwitchValueValidate()              : <td>7.86 (0.37)</td>
+    SwitchValueMinimized()             : <td>10.50 (0.41)</td>
+    SwitchValueMinimizedValidate()     : <td>10.13 (0.43)</td>
+    g_SwitchValueMinimizedArray        : <td>5.19 (0.29)</td>
+    g_SwitchValueMinimizedArrayValidate: <td>9.00 (0.40)</td>
+    BruteForceByStartingLetter()       : <td>5.87 (0.32)</td>
+    BruteForce()                       : <td>45.90 (0.79)</td>
+In Order Pre hashed keys:
+    SwitchValue()                      : <td>1.81 (0.12)</td>
+    SwitchValueValidate()              : <td>4.05 (0.21)</td>
+    SwitchValueMinimized()             : <td>1.58 (0.17)</td>
+    SwitchValueMinimizedValidate()     : <td>3.47 (0.27)</td>
+    g_SwitchValueMinimizedArray        : <td>0.00 (0.00)</td>
+    g_SwitchValueMinimizedArrayValidate: <td>2.66 (0.20)</td>
+Shuffled Pre hashed keys:
+    SwitchValue()                      : <td>1.81 (0.16)</td>
+    SwitchValueValidate()              : <td>2.85 (0.17)</td>
+    SwitchValueMinimized()             : <td>1.06 (0.11)</td>
+    SwitchValueMinimizedValidate()     : <td>3.41 (0.22)</td>
+    g_SwitchValueMinimizedArray        : <td>0.31 (0.04)</td>
+    g_SwitchValueMinimizedArrayValidate: <td>3.29 (0.18)</td>
+
+
+
+

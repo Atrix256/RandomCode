@@ -78,7 +78,7 @@ struct SBlockTimer
     }
 
     SBlockTimerAggregator&                m_aggregator;
-    std::chrono::system_clock::time_point m_start;
+    std::chrono::high_resolution_clock::time_point m_start;
 };
 
 inline void Fail()
