@@ -19,7 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{228C5CCB-204F-41F4-8E2F-640D4501C15F}</ProjectGuid>
+    <ProjectGuid>{EBF1C49A-DAF0-4BB0-873B-15F34AB2B9A2}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>LTHE</RootNamespace>
     <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>

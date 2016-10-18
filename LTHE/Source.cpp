@@ -1,26 +1,59 @@
 #include <stdio.h>
 #include "LTHE.h"
 
+float TransformData (float value)
+{
+    return (float)sqrt(value * 2.17f + 0.132);
+}
+
 int main (int argc, char **argv)
 {
-	// encrypt the data
-	std::vector<float> secretValues = { 3.14159265359f, 435.0f };
-	std::vector<size_t> keys;
-	if (!LTHE::Encrypt(secretValues, 1000000, "Encrypted.dat", keys))
-	{
-		printf("Could not encrypt data\n");
-		return -1;
-	}
+    // Encrypt the data
+    printf("Encrypting data...\n");
+    std::vector<float> secretValues = { 3.14159265359f, 435.0f };
+    std::vector<size_t> keys;
+    if (!LTHE::Encrypt(secretValues, 100000000, "Encrypted.dat", keys))
+    {
+        fprintf(stderr, "Could not encrypt data.\n");
+        return -1;
+    }
 
-	return 0;
+    // Transform the data
+    printf("Transforming data...\n");
+    if (!LTHE::TransformHomomorphically("Encrypted.dat", TransformData))
+    {
+        fprintf(stderr, "Could not transform encrypt data.\n");
+        return -2;
+    }
+
+    // Decrypt the data
+    printf("Decrypting data...\n");
+    std::vector<float> decryptedValues;
+    if (!LTHE::Decrypt("Encrypted.dat", decryptedValues, keys))
+    {
+        fprintf(stderr, "Could not decrypt data.\n");
+        return -3;
+    }
+
+    // Verify the data
+    printf("Verifying data...\n");
+    for (size_t i = 0, c = secretValues.size(); i < c; ++i)
+    {
+        if (TransformData(secretValues[i]) != decryptedValues[i])
+        {
+            fprintf(stderr, "decrypted value mismatch!\n");
+            return -4;
+        }
+    }
+
+    printf("Finished, everything checked out!\n");
+    return 0;
 }
 
 /*
 
 TODO:
-* Encrypt M items to a file of N items
-* Process a file
-* Decrypt a file
+* instrument with timing!
 
 Blog:
 * Can encrypt M items by having the be in a list of N items
@@ -32,7 +65,10 @@ Blog:
  * the larger the N, the more secure.
  * up to having the full space of values possible represented.
  * show how big that is in bytes for some value types.
+ * when doing that, you don't even need to send the values to the person doing the computation, they can just send the results back.
+  * could maybe even send back some of the data (like 2/3) and you could use the data if there, else call it a failed calculation and handle the failure gracefully, without asking again, to not give a hint if you got it or not.
  * The larger the M, the less secure
+ * report some timing on your blog.
 
 * For faster processing:
  * SIMD / multithreaded.
