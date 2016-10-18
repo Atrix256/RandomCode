@@ -8,3 +8,5 @@
 *.pdb
 **/Debug/*.*
 **/Release/*.*
+*.vc.db
+*.vc.opendb
