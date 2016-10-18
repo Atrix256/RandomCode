@@ -1,11 +1,39 @@
 #include <stdio.h>
 #include "LTHE.h"
 
+//=================================================================================
+/*
+// times a block of code
+struct SBlockTimer
+{
+    SBlockTimer(SBlockTimerAggregator& aggregator)
+        : m_aggregator(aggregator)
+    {
+        m_start = std::chrono::high_resolution_clock::now();
+    }
+
+    ~SBlockTimer()
+    {
+        std::chrono::duration<float> seconds = std::chrono::high_resolution_clock::now() - m_start;
+        float milliseconds = seconds.count() * 1000.0f;
+        m_aggregator.AddSample(milliseconds);
+
+        if (c_verboseSamples)
+            printf("%s %i/%u: %0.2f ms  (avg = %0.2f ms. std dev = %0.2f ms) \n", m_aggregator.m_label, m_aggregator.m_numSamples, c_testSamples, milliseconds, m_aggregator.GetAverage(), m_aggregator.GetStandardDeviation());
+    }
+
+    SBlockTimerAggregator&                m_aggregator;
+    std::chrono::high_resolution_clock::time_point m_start;
+};
+*/
+
+//=================================================================================
 float TransformData (float value)
 {
     return (float)sqrt(value * 2.17f + 0.132);
 }
 
+//=================================================================================
 int main (int argc, char **argv)
 {
     // Encrypt the data
@@ -54,6 +82,7 @@ int main (int argc, char **argv)
 
 TODO:
 * instrument with timing!
+* make it template based, not just floats! it'll be a header only library then.
 
 Blog:
 * Can encrypt M items by having the be in a list of N items

@@ -83,13 +83,7 @@ namespace LTHE
         return true;
     }
 
-    template <size_t NUMELEMENTS>
-    static bool ReadBuffer (FILE* file, float (&buffer)[NUMELEMENTS], size_t& elementsRead)
-    {
-        
-        return elementsRead > 0;
-    }
-
+    //=================================================================================
     bool TransformHomomorphically (const char* fileName, TTransformationFN function)
     {
         // open the file if we can
@@ -131,6 +125,7 @@ namespace LTHE
         return true;
     }
 
+    //=================================================================================
     bool Decrypt(const char* fileName, std::vector<float>& values, std::vector<size_t>& keys)
     {
         // Open the file if we can
