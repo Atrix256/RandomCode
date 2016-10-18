@@ -1,13 +1,12 @@
 #include <stdio.h>
 #include "LTHE.h"
+#include <chrono>
 
 //=================================================================================
-/*
 // times a block of code
 struct SBlockTimer
 {
-    SBlockTimer(SBlockTimerAggregator& aggregator)
-        : m_aggregator(aggregator)
+    SBlockTimer()
     {
         m_start = std::chrono::high_resolution_clock::now();
     }
@@ -15,17 +14,11 @@ struct SBlockTimer
     ~SBlockTimer()
     {
         std::chrono::duration<float> seconds = std::chrono::high_resolution_clock::now() - m_start;
-        float milliseconds = seconds.count() * 1000.0f;
-        m_aggregator.AddSample(milliseconds);
-
-        if (c_verboseSamples)
-            printf("%s %i/%u: %0.2f ms  (avg = %0.2f ms. std dev = %0.2f ms) \n", m_aggregator.m_label, m_aggregator.m_numSamples, c_testSamples, milliseconds, m_aggregator.GetAverage(), m_aggregator.GetStandardDeviation());
+        printf("    %0.2f second\n", seconds.count());
     }
 
-    SBlockTimerAggregator&                m_aggregator;
     std::chrono::high_resolution_clock::time_point m_start;
 };
-*/
 
 //=================================================================================
 float TransformData (float value)
@@ -40,37 +33,49 @@ int main (int argc, char **argv)
     printf("Encrypting data...\n");
     std::vector<float> secretValues = { 3.14159265359f, 435.0f };
     std::vector<size_t> keys;
-    if (!LTHE::Encrypt(secretValues, 100000000, "Encrypted.dat", keys))
     {
-        fprintf(stderr, "Could not encrypt data.\n");
-        return -1;
+        SBlockTimer timer;
+        if (!LTHE::Encrypt(secretValues, 100000000, "Encrypted.dat", keys))
+        {
+            fprintf(stderr, "Could not encrypt data.\n");
+            return -1;
+        }
     }
 
     // Transform the data
     printf("Transforming data...\n");
-    if (!LTHE::TransformHomomorphically("Encrypted.dat", TransformData))
     {
-        fprintf(stderr, "Could not transform encrypt data.\n");
-        return -2;
+        SBlockTimer timer;
+        if (!LTHE::TransformHomomorphically("Encrypted.dat", TransformData))
+        {
+            fprintf(stderr, "Could not transform encrypt data.\n");
+            return -2;
+        }
     }
 
     // Decrypt the data
     printf("Decrypting data...\n");
     std::vector<float> decryptedValues;
-    if (!LTHE::Decrypt("Encrypted.dat", decryptedValues, keys))
     {
-        fprintf(stderr, "Could not decrypt data.\n");
-        return -3;
+        SBlockTimer timer;
+        if (!LTHE::Decrypt("Encrypted.dat", decryptedValues, keys))
+        {
+            fprintf(stderr, "Could not decrypt data.\n");
+            return -3;
+        }
     }
 
     // Verify the data
     printf("Verifying data...\n");
-    for (size_t i = 0, c = secretValues.size(); i < c; ++i)
     {
-        if (TransformData(secretValues[i]) != decryptedValues[i])
+        SBlockTimer timer;
+        for (size_t i = 0, c = secretValues.size(); i < c; ++i)
         {
-            fprintf(stderr, "decrypted value mismatch!\n");
-            return -4;
+            if (TransformData(secretValues[i]) != decryptedValues[i])
+            {
+                fprintf(stderr, "decrypted value mismatch!\n");
+                return -4;
+            }
         }
     }
 
@@ -81,7 +86,6 @@ int main (int argc, char **argv)
 /*
 
 TODO:
-* instrument with timing!
 * make it template based, not just floats! it'll be a header only library then.
 
 Blog:
