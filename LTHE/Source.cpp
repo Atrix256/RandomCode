@@ -29,6 +29,7 @@ float TransformData (float value)
 //=================================================================================
 int main (int argc, char **argv)
 {
+    /*
     // Encrypt the data
     printf("Encrypting data...\n");
     std::vector<float> secretValues = { 3.14159265359f, 435.0f };
@@ -46,7 +47,7 @@ int main (int argc, char **argv)
     printf("Transforming data...\n");
     {
         SBlockTimer timer;
-        if (!LTHE::TransformHomomorphically("Encrypted.dat", TransformData))
+        if (!LTHE::TransformHomomorphically<float>("Encrypted.dat", TransformData))
         {
             fprintf(stderr, "Could not transform encrypt data.\n");
             return -2;
@@ -78,6 +79,72 @@ int main (int argc, char **argv)
             }
         }
     }
+    */
+
+    struct SBlah
+    {
+        uint8_t x, y, z;
+
+        static SBlah Transform (SBlah b)
+        {
+            return SBlah{ uint8_t(b.x * 2), uint8_t(b.y * 3), uint8_t(b.z * 4) };
+        }
+
+        bool operator != (const SBlah& b) const
+        {
+            return b.x != x || b.y != y || b.z != z;
+        }
+    };
+
+    // Encrypt the data
+    printf("Encrypting data...\n");
+    std::vector<SBlah> secretValues = { {0,1,2},{ 3,4,5 },{ 6,7,8 } };
+    std::vector<size_t> keys;
+    {
+        SBlockTimer timer;
+        if (!LTHE::Encrypt(secretValues, 1000002, "Encrypted.dat", keys))
+        {
+            fprintf(stderr, "Could not encrypt data.\n");
+            return -1;
+        }
+    }
+
+    // Transform the data
+    printf("Transforming data...\n");
+    {
+        SBlockTimer timer;
+        if (!LTHE::TransformHomomorphically<SBlah>("Encrypted.dat", SBlah::Transform))
+        {
+            fprintf(stderr, "Could not transform encrypt data.\n");
+            return -2;
+        }
+    }
+
+    // Decrypt the data
+    printf("Decrypting data...\n");
+    std::vector<SBlah> decryptedValues;
+    {
+        SBlockTimer timer;
+        if (!LTHE::Decrypt("Encrypted.dat", decryptedValues, keys))
+        {
+            fprintf(stderr, "Could not decrypt data.\n");
+            return -3;
+        }
+    }
+
+    // Verify the data
+    printf("Verifying data...\n");
+    {
+        SBlockTimer timer;
+        for (size_t i = 0, c = secretValues.size(); i < c; ++i)
+        {
+            if (SBlah::Transform(secretValues[i]) != decryptedValues[i])
+            {
+                fprintf(stderr, "decrypted value mismatch!\n");
+                return -4;
+            }
+        }
+    }
 
     printf("Finished, everything checked out!\n");
     return 0;
@@ -86,7 +153,8 @@ int main (int argc, char **argv)
 /*
 
 TODO:
-* make it template based, not just floats! it'll be a header only library then.
+* 3 byte struct has issues, not surviving round trip! need to see why
+* make sure the file is the exact right size each time
 
 Blog:
 * Can encrypt M items by having the be in a list of N items
