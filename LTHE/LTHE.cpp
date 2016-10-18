@@ -47,7 +47,7 @@ namespace LTHE
 			size_t newKey;
 			do
 			{
-				newKey = RandomSizeT(0, c-1);
+				newKey = RandomSizeT(0, listSize-1);
 			} while (std::find(keys.begin(), keys.end(), newKey) != keys.end());
 			keys.push_back(newKey);
 		}
