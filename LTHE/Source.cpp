@@ -14,29 +14,56 @@ struct SBlockTimer
     ~SBlockTimer()
     {
         std::chrono::duration<float> seconds = std::chrono::high_resolution_clock::now() - m_start;
-        printf("    %0.2f second\n", seconds.count());
+        printf("    %0.2f seconds\n", seconds.count());
     }
 
     std::chrono::high_resolution_clock::time_point m_start;
 };
 
 //=================================================================================
-float TransformData (float value)
+float TransformDataUnitary (float& value)
 {
     return (float)sqrt(value * 2.17f + 0.132);
 }
 
 //=================================================================================
-int main (int argc, char **argv)
+float TransformDataBinary (float& value1, float value2)
 {
-    /*
+    return (float)sqrt(value1 * value1 + value2 * value2);
+}
+
+//=================================================================================
+struct SStruct
+{
+    uint8_t x, y, z;
+
+    static SStruct Transform (const SStruct& b)
+    {
+        SStruct ret;
+        ret.x = b.x * 2;
+        ret.y = b.y * 3;
+        ret.z = b.z * 4;
+        return ret;
+    }
+
+    bool operator != (const SStruct& b) const
+    {
+        return b.x != x || b.y != y || b.z != z;
+    }
+};
+
+//=================================================================================
+int Test_FloatUnitaryOperation ()
+{
+    printf("\n----- " __FUNCTION__ " -----\n");
+
     // Encrypt the data
-    printf("Encrypting data...\n");
+    printf("Encrypting data:  ");
     std::vector<float> secretValues = { 3.14159265359f, 435.0f };
     std::vector<size_t> keys;
     {
         SBlockTimer timer;
-        if (!LTHE::Encrypt(secretValues, 100000000, "Encrypted.dat", keys))
+        if (!LTHE::Encrypt(secretValues, 10000000, "Encrypted.dat", keys))
         {
             fprintf(stderr, "Could not encrypt data.\n");
             return -1;
@@ -44,10 +71,10 @@ int main (int argc, char **argv)
     }
 
     // Transform the data
-    printf("Transforming data...\n");
+    printf("Transforming data:");
     {
         SBlockTimer timer;
-        if (!LTHE::TransformHomomorphically<float>("Encrypted.dat", TransformData))
+        if (!LTHE::TransformHomomorphically<float>("Encrypted.dat", "Transformed.dat", TransformDataUnitary))
         {
             fprintf(stderr, "Could not transform encrypt data.\n");
             return -2;
@@ -55,11 +82,11 @@ int main (int argc, char **argv)
     }
 
     // Decrypt the data
-    printf("Decrypting data...\n");
+    printf("Decrypting data:  ");
     std::vector<float> decryptedValues;
     {
         SBlockTimer timer;
-        if (!LTHE::Decrypt("Encrypted.dat", decryptedValues, keys))
+        if (!LTHE::Decrypt("Transformed.dat", decryptedValues, keys))
         {
             fprintf(stderr, "Could not decrypt data.\n");
             return -3;
@@ -67,42 +94,40 @@ int main (int argc, char **argv)
     }
 
     // Verify the data
-    printf("Verifying data...\n");
+    printf("Verifying data:   ");
     {
         SBlockTimer timer;
         for (size_t i = 0, c = secretValues.size(); i < c; ++i)
         {
-            if (TransformData(secretValues[i]) != decryptedValues[i])
+            if (TransformDataUnitary(secretValues[i]) != decryptedValues[i])
             {
                 fprintf(stderr, "decrypted value mismatch!\n");
                 return -4;
             }
         }
     }
-    */
 
-    struct SBlah
-    {
-        uint8_t x, y, z;
+    return 0;
+}
 
-        static SBlah Transform (SBlah b)
-        {
-            return SBlah{ uint8_t(b.x * 2), uint8_t(b.y * 3), uint8_t(b.z * 4) };
-        }
-
-        bool operator != (const SBlah& b) const
-        {
-            return b.x != x || b.y != y || b.z != z;
-        }
-    };
+//=================================================================================
+int Test_FloatBinaryOperation ()
+{
+    printf("\n----- " __FUNCTION__ " -----\n");
 
     // Encrypt the data
-    printf("Encrypting data...\n");
-    std::vector<SBlah> secretValues = { {0,1,2},{ 3,4,5 },{ 6,7,8 } };
+    printf("Encrypting data:  ");
+    std::vector<float> secretValues1 = { 3.14159265359f, 435.0f, 1.0f };
+    std::vector<float> secretValues2 = { 1.0f, 5.0f, 9.0f };
     std::vector<size_t> keys;
     {
         SBlockTimer timer;
-        if (!LTHE::Encrypt(secretValues, 1000002, "Encrypted.dat", keys))
+        if (!LTHE::Encrypt(secretValues1, 10000000, "Encrypted1.dat", keys))
+        {
+            fprintf(stderr, "Could not encrypt data.\n");
+            return -1;
+        }
+        if (!LTHE::Encrypt(secretValues2, 10000000, "Encrypted2.dat", keys, false)) // reuse the keys made for secretValues1
         {
             fprintf(stderr, "Could not encrypt data.\n");
             return -1;
@@ -110,10 +135,10 @@ int main (int argc, char **argv)
     }
 
     // Transform the data
-    printf("Transforming data...\n");
+    printf("Transforming data:");
     {
         SBlockTimer timer;
-        if (!LTHE::TransformHomomorphically<SBlah>("Encrypted.dat", SBlah::Transform))
+        if (!LTHE::TransformHomomorphically<float>("Encrypted1.dat", "Encrypted2.dat", "Transformed.dat", TransformDataBinary))
         {
             fprintf(stderr, "Could not transform encrypt data.\n");
             return -2;
@@ -121,11 +146,11 @@ int main (int argc, char **argv)
     }
 
     // Decrypt the data
-    printf("Decrypting data...\n");
-    std::vector<SBlah> decryptedValues;
+    printf("Decrypting data:  ");
+    std::vector<float> decryptedValues;
     {
         SBlockTimer timer;
-        if (!LTHE::Decrypt("Encrypted.dat", decryptedValues, keys))
+        if (!LTHE::Decrypt("Transformed.dat", decryptedValues, keys))
         {
             fprintf(stderr, "Could not decrypt data.\n");
             return -3;
@@ -133,12 +158,12 @@ int main (int argc, char **argv)
     }
 
     // Verify the data
-    printf("Verifying data...\n");
+    printf("Verifying data:   ");
     {
         SBlockTimer timer;
-        for (size_t i = 0, c = secretValues.size(); i < c; ++i)
+        for (size_t i = 0, c = secretValues1.size(); i < c; ++i)
         {
-            if (SBlah::Transform(secretValues[i]) != decryptedValues[i])
+            if (TransformDataBinary(secretValues1[i], secretValues2[i]) != decryptedValues[i])
             {
                 fprintf(stderr, "decrypted value mismatch!\n");
                 return -4;
@@ -146,15 +171,100 @@ int main (int argc, char **argv)
         }
     }
 
-    printf("Finished, everything checked out!\n");
+    return 0;
+}
+
+//=================================================================================
+int Test_StructUnitaryOperation ()
+{
+    printf("\n----- " __FUNCTION__ " -----\n");
+
+    // Encrypt the data
+    printf("Encrypting data:  ");
+    std::vector<SStruct> secretValues = { {0,1,2},{ 3,4,5 },{ 6,7,8 } };
+    std::vector<size_t> keys;
+    {
+        SBlockTimer timer;
+        if (!LTHE::Encrypt(secretValues, 10000000, "Encrypted.dat", keys))
+        {
+            fprintf(stderr, "Could not encrypt data.\n");
+            return -1;
+        }
+    }
+
+    // Transform the data
+    printf("Transforming data:");
+    {
+        SBlockTimer timer;
+        if (!LTHE::TransformHomomorphically<SStruct>("Encrypted.dat", "Transformed.dat", SStruct::Transform))
+        {
+            fprintf(stderr, "Could not transform encrypt data.\n");
+            return -2;
+        }
+    }
+
+    // Decrypt the data
+    printf("Decrypting data:  ");
+    std::vector<SStruct> decryptedValues;
+    {
+        SBlockTimer timer;
+        if (!LTHE::Decrypt("Transformed.dat", decryptedValues, keys))
+        {
+            fprintf(stderr, "Could not decrypt data.\n");
+            return -3;
+        }
+    }
+
+    // Verify the data
+    printf("Verifying data:   ");
+    {
+        SBlockTimer timer;
+        for (size_t i = 0, c = secretValues.size(); i < c; ++i)
+        {
+            if (SStruct::Transform(secretValues[i]) != decryptedValues[i])
+            {
+                fprintf(stderr, "decrypted value mismatch!\n");
+                return -4;
+            }
+        }
+    }
+
+    return 0;
+}
+
+//=================================================================================
+int main (int argc, char **argv)
+{
+    // test doing an operation on a single encrypted float
+    int ret = Test_FloatUnitaryOperation();
+    if (ret != 0)
+    {
+        system("pause");
+        return ret;
+    }
+
+    // test doing an operation on two encrypted floats
+    ret = Test_FloatBinaryOperation();
+    if (ret != 0)
+    {
+        system("pause");
+        return ret;
+    }
+
+    // test doing an operation on a single 3 byte struct
+    ret = Test_StructUnitaryOperation();
+    if (ret != 0)
+    {
+        system("pause");
+        return ret;
+    }
+    
+    printf("\nAll Tests Passed!\n\n");
+    system("pause");
     return 0;
 }
 
 /*
-
-TODO:
-* 3 byte struct has issues, not surviving round trip! need to see why
-* make sure the file is the exact right size each time
 
 Blog:
 * Can encrypt M items by having the be in a list of N items
@@ -170,6 +280,8 @@ Blog:
   * could maybe even send back some of the data (like 2/3) and you could use the data if there, else call it a failed calculation and handle the failure gracefully, without asking again, to not give a hint if you got it or not.
  * The larger the M, the less secure
  * report some timing on your blog.
+ * report file sizes - also report what they compress to, to show some amount of randomness?
+ * When doing operations between multiple encrypted values, they need to be encrypted using the same keys! So thus, should also have the same number of encrypted and random items!
 
 * For faster processing:
  * SIMD / multithreaded.
