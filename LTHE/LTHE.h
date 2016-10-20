@@ -1,3 +1,11 @@
+/*
+
+Written by Alan Wolfe
+http://blog.demofox.org
+https://twitter.com/Atrix256
+
+*/
+
 #pragma once
 #include <vector>
 #include <random>
