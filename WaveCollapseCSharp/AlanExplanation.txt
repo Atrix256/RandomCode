@@ -1,0 +1,46 @@
+* Two modes of operation:
+ 1) Overlapping Model
+ 2) Simple Tiled Model
+
+======================== OVERLAPPING MODEL ========================
+
+* Constructor Params
+ * name -> name of the source image file, "chess" becomes "sampes\chess.png"
+ * N -> The size of tiles considered (2 for chess). NxN
+ * width, height -> output image dimensions (48, 48 for chess, which is really 8x8)
+ * periodicInput -> says whether to consider the source image wrapping around or not
+ ? periodicOutput
+ ? symmetry
+ ? ground
+
+---Constructor---
+* make a unique list of colors found in the image.  in "colors" member.
+ ? why, where is this used?
+* For each pixel in the source image (taking periodicInput into account)
+ 0) get an NxN pattern
+ 1) reflect 0
+ 2) rotate 0
+ 3) reflect 2
+ 4) rotate 2
+ 5) reflect 4
+ 6) rotate 4
+ 7) reflect 6
+ * for i = 0 to symmetry parameter
+  * calculate some weights and ordering
+  ? whats this do?
+ * store how many weights there are in member "T"
+ * calculate member "ground"
+ * stores off some other stuff like patterns, stationary (?) propagator (?)
+
+---Run---
+* does 10 tries of run(), in case there are contradictions.
+* Clear() is called (?)
+ ? has special work if ground is not 0.
+* limit param is used to limit how many times it observes and propogates. chess used 0 which means "go forever"
+* for i = 0 to limit
+ * Observe()
+ * return out if if observe returned a result
+ * Propogate()
+
+? Observe()
+? Propogate()
