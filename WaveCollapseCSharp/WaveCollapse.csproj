@@ -57,6 +57,7 @@
     <Compile Include="Stuff.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="AlanExplanation.txt" />
     <Content Include="samples.xml" />
     <Content Include="samples\3Bricks.png" />
     <Content Include="samples\Castle\bridge.png" />

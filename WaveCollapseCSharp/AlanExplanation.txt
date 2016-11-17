@@ -9,13 +9,12 @@
  * N -> The size of tiles considered (2 for chess). NxN
  * width, height -> output image dimensions (48, 48 for chess, which is really 8x8)
  * periodicInput -> says whether to consider the source image wrapping around or not
- ? periodicOutput
- ? symmetry
- ? ground
+ * periodicOutput -> says whether the output should be scrollable (wrap around)
+ * symmetry -> (8 for chess). Specifies how many of the symetries to add to the possible tiles. 8 = all reflection / rotations.
+ * ground -> (-1 for city, -4 for flowers).  It seems to preserve there being a ground. it sets the bottom row of pixels to the pattern specified by "ground" and then propagates those changes.
 
 ---Constructor---
-* make a unique list of colors found in the image.  in "colors" member.
- ? why, where is this used?
+* make a unique list of colors found in the image.  in "colors" member. This is used for mapping RGB to an index.
 * For each pixel in the source image (taking periodicInput into account)
  0) get an NxN pattern
  1) reflect 0
@@ -34,13 +33,34 @@
 
 ---Run---
 * does 10 tries of run(), in case there are contradictions.
-* Clear() is called (?)
- ? has special work if ground is not 0.
+* Clear() is called
+ * has special work if ground is not 0. Draws the ground and propogates changes.
 * limit param is used to limit how many times it observes and propogates. chess used 0 which means "go forever"
 * for i = 0 to limit
  * Observe()
  * return out if if observe returned a result
  * Propogate()
 
-? Observe()
-? Propogate()
+* Observe()
+ * for each pixel
+  * if the pixel + N on width or height is out of bounds, continue.
+  * wave has an entry per pixel.  an entry for a wave is an array of booleans for which pattern it could be (true/false)
+  * for this pixel, we count how many of the patterns it could be into amount.
+  * we accumulate the weights of the ones it could be into sum.
+  * if sum is 0 (not possible!) return false (failure)
+  * calculates an entropy amount.
+  * finds smallest non zero entropy pixel, but adds a small amount of noise to it. (not sure if adding noise is required)
+ * if there was no non zero entropy, return success after filling in some arrays.
+ * else chooses one of the possibilities randomly based on the weights of the items it could be.
+ * sets a bool that said this pixel has changes.
+ * returns neither true nor false.
+
+* Propogate()
+ * for each pixel that has changes[][] set to true (just 1 pixel in most cases)
+  * set changes[][] to false for this pixel
+  * for ix,iy = -N+1 to N  (aka -1 to 2) 
+   * get pixel location (with wrap around & periodic flag handling)
+   * for each pattern
+    * if the current pixel (offset by ix,iy) can't be the current pattern, continue.
+    ? does something where it turns off a possibility in the current pixel. don't really understand
+ * returns whether it made any changes or not.
