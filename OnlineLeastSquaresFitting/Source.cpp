@@ -28,6 +28,15 @@ float DotProduct (const TVector<N>& A, const TVector<N>& B)
 
 //====================================================================
 template <size_t M, size_t N>
+void TransposeMatrix (const TMatrix<M, N>& in, TMatrix<N, M>& result)
+{
+    for (size_t j = 0; j < M; ++j)
+        for (size_t k = 0; k < N; ++k)
+            result[k][j] = in[j][k];
+}
+
+//====================================================================
+template <size_t M, size_t N>
 void MinorMatrix (const TMatrix<M, N>& in, TMatrix<M-1, N-1>& out, size_t excludeI, size_t excludeJ)
 {
     size_t destI = 0;
@@ -47,15 +56,6 @@ void MinorMatrix (const TMatrix<M, N>& in, TMatrix<M-1, N-1>& out, size_t exclud
             ++destI;
         }
     }
-}
-
-//====================================================================
-template <size_t M, size_t N>
-void TransposeMatrix (const TMatrix<M, N>& in, TMatrix<N, M>& result)
-{
-    for (size_t j = 0; j < M; ++j)
-        for (size_t k = 0; k < N; ++k)
-            result[k][j] = in[j][k];
 }
 
 //====================================================================
@@ -282,7 +282,7 @@ void DoTest (const TDataPointList<A>& initialData, const TDataPointList<B>& othe
 	for (size_t i = 0; i < A; ++i)
 		printf("  %zi: (%0.2f, %0.2f)\n", i + 1, initialData[i][0], initialData[i][1]);
 
-	// show initial data
+	// show other data
 	if (B > 0)
 	{
 		printf("%zi other data points:\n", B);
