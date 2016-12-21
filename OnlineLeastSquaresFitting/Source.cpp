@@ -317,7 +317,6 @@ void DoTest (const TDataPointList<A>& initialData, const TDataPointList<B>& othe
 
 		// show an add or subtract between terms
 		float coefficient = coefficients[i];
-		float multiplier = 1.0;
 		if (firstTerm)
 			firstTerm = false;
 		else if (coefficient >= 0.0f)
@@ -384,7 +383,6 @@ int main (int argc, char **argv)
 
 		DoTest<2, initialData.size(), otherData.size()>(initialData, otherData);
 	}
-
 
 	// Quadratic - 3 initial data points, 0 other data points
 	{
