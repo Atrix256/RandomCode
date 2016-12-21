@@ -27,8 +27,8 @@ float DotProduct (const TVector<N>& A, const TVector<N>& B)
 }
 
 //====================================================================
-template <size_t N>
-void MinorMatrix (const TSquareMatrix<N>& in, TSquareMatrix<N-1>& out, size_t excludeI, size_t excludeJ)
+template <size_t M, size_t N>
+void MinorMatrix (const TMatrix<M, N>& in, TMatrix<M-1, N-1>& out, size_t excludeI, size_t excludeJ)
 {
     size_t destI = 0;
     for (size_t i = 0; i < N; ++i)
@@ -59,11 +59,11 @@ void TransposeMatrix (const TMatrix<M, N>& in, TMatrix<N, M>& result)
 }
 
 //====================================================================
-template <size_t N>
-float Determinant (const TSquareMatrix<N>& in)
+template <size_t M, size_t N>
+float Determinant (const TMatrix<M,N>& in)
 {
     float determinant = 0.0f;
-    TSquareMatrix<N - 1> minor;
+	TMatrix<M - 1, N - 1> minor;
     for (size_t j = 0; j < N; ++j)
     {
         MinorMatrix(in, minor, 0, j);
@@ -79,9 +79,9 @@ float Determinant (const TSquareMatrix<N>& in)
 
 //====================================================================
 template <>
-float Determinant<2> (const TSquareMatrix<2>& in)
+float Determinant<1> (const TMatrix<1,1>& in)
 {
-    return in[0][0] * in[1][1] - in[0][1] * in[1][0];
+	return in[0][0];
 }
 
 //====================================================================
@@ -270,85 +270,152 @@ private:
 };
 
 //====================================================================
+template <size_t DEGREE, size_t A, size_t B>
+void DoTest (const TDataPointList<A>& initialData, const TDataPointList<B>& otherData)
+{
+	printf("========================================\n");
+	printf("Fitting a curve of degree %zi\n", DEGREE);
+	printf("========================================\n");
+
+	// show initial data
+	printf("%zi initial data points:\n", A);
+	for (size_t i = 0; i < A; ++i)
+		printf("  %zi: (%0.2f, %0.2f)\n", i + 1, initialData[i][0], initialData[i][1]);
+
+	// show initial data
+	if (B > 0)
+	{
+		printf("%zi other data points:\n", B);
+		for (size_t i = 0; i < B; ++i)
+			printf("  %zi: (%0.2f, %0.2f)\n", i + 1, otherData[i][0], otherData[i][1]);
+	}
+
+	// fit initial data
+	COnlineLeastSquaresFitter<DEGREE> fitter(initialData);
+
+	// fit other data
+	for (size_t i = 0; i < B; ++i)
+		fitter.AddDataPoint(otherData[i]);
+
+	// calculate coefficients if we can
+	TVector<DEGREE+1> coefficients;
+	bool success = fitter.CalculateCoefficients(coefficients);
+	if (!success)
+	{
+		printf("ATA Matrix could not be inverted!\n");
+		return;
+	}
+
+	// print the polynomial
+	bool firstTerm = true;
+	printf("y = ");
+	for (int i = (int)coefficients.size() - 1; i >= 0; --i)
+	{
+		// don't show zero terms
+		if (std::abs(coefficients[i]) < 0.00001f)
+			continue;
+
+		// show an add or subtract between terms
+		float coefficient = coefficients[i];
+		float multiplier = 1.0;
+		if (firstTerm)
+			firstTerm = false;
+		else if (coefficient >= 0.0f)
+			printf(" + ");
+		else
+		{
+			coefficient *= -1.0f;
+			printf(" - ");
+		}
+
+		printf("%0.2f", coefficient);
+
+		if (i > 0)
+			printf("x");
+
+		if (i > 1)
+			printf("^%i", i);
+	}
+	printf("\n");
+	printf("\n");
+}
+
+//====================================================================
 int main (int argc, char **argv)
 {
-    #define TEST() 0
-
-    #if TEST() == 0
-        // Fit some initial data points
-        TDataPointList<4> initialData { {
-            { { 1.0f, 5.0f } },
-            { { 2.0f, 16.0f } },
-            { { 3.0f, 31.0f } },
-            { { 4.0f, 16.0f } }
-        } };
-        COnlineLeastSquaresFitter<3> fitter(initialData);
-
-        // calculate coefficients
-        TVector<4> coefficients;
-    #endif
-
-    #if TEST() == 1
-        // Fit some initial data points
+	// Linear - 3 initial data points
+	{
         TDataPointList<3> initialData { {
-            { { 1.0f, 5.0f } },
-            { { 2.0f, 16.0f } },
-            { { 3.0f, 31.0f } }
+            { { 1.0f, 2.0f } },
+            { { 2.0f, 4.0f } },
+			{ { 3.0f, 6.0f } }
         } };
-        COnlineLeastSquaresFitter<2> fitter(initialData);
 
-        // calculate coefficients
-        TVector<3> coefficients;
-    #endif
+		TDataPointList<0> otherData { {
+		} };
 
-    #if TEST() == 2
-        // Fit some initial data points
+		DoTest<1, initialData.size(), otherData.size()>(initialData, otherData);
+	}
+
+	// Linear - 2 initial data points, 1 other data point
+	{
         TDataPointList<2> initialData { {
             { { 1.0f, 2.0f } },
             { { 2.0f, 4.0f } }
         } };
-        COnlineLeastSquaresFitter<1> fitter(initialData);
 
-        // Fit another value
-        fitter.AddDataPoint({ 3.0f, 6.0f });
+		TDataPointList<1> otherData { {
+			{ { 3.0f, 6.0f } },
+		} };
 
-        // calculate coefficients
-        TVector<2> coefficients;
-    #endif
+		DoTest<1, initialData.size(), otherData.size()>(initialData, otherData);
+	}
+
+	// Quadratic - 3 initial data points (colinear)
+	{
+        TDataPointList<3> initialData { {
+            { { 1.0f, 2.0f } },
+            { { 2.0f, 4.0f } },
+			{ { 3.0f, 6.0f } }
+        } };
+
+		TDataPointList<0> otherData { {
+		} };
+
+		DoTest<2, initialData.size(), otherData.size()>(initialData, otherData);
+	}
 
 
-    bool success = fitter.CalculateCoefficients(coefficients);
-    if (!success)
-    {
-        printf("ATA Matrix could not be inverted!\n");
-        system("pause");
-        return 1;
-    }
+	// Quadratic - 3 initial data points, 0 other data points
+	{
+		// Fit some initial data points
+		TDataPointList<3> initialData { {
+			{ { 1.0f, 5.0f } },
+			{ { 2.0f, 16.0f } },
+			{ { 3.0f, 31.0f } }
+		} };
 
-    // print out the formula
-    printf("y = ");
-    for (int i = (int)coefficients.size() - 1; i >= 0; --i)
-    {
-        if (i < (int)coefficients.size()-1)
-            printf(" + ");
+		TDataPointList<0> otherData { {
+		} };
 
-        printf("%0.2f", coefficients[i]);
+		DoTest<2, initialData.size(), otherData.size()>(initialData, otherData);
+	}
 
-        if (i > 0)
-            printf("x");
+	// Cubic  - 4 initial data points, 0 other data points
+	{
+		TDataPointList<4> initialData { {
+			{ { 1.0f, 5.0f } },
+			{ { 2.0f, 16.0f } },
+			{ { 3.0f, 31.0f } },
+			{ { 4.0f, 16.0f } }
+		} };
 
-        if (i > 1)
-            printf("^%i", i);
-    }
-    printf("\n");
+		TDataPointList<0> otherData { {
+		} };
+
+		DoTest<3, initialData.size(), otherData.size()>(initialData, otherData);
+	}
+
     system("pause");
     return 0;
 }
-
-/*
-
-TODO:
-* make tests that show it working!
-* improve display: hide 0 terms, don't make it show + -!
-
-*/
