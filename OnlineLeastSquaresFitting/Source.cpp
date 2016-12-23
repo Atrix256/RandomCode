@@ -150,12 +150,20 @@ public:
     void AddDataPoint (const TDataPoint& dataPoint)
     {
         // add the summed powers of the x value
+        float xpow = 1.0f;
         for (size_t i = 0; i < m_SummedPowersX.size(); ++i)
-            m_SummedPowersX[i] += std::pow(dataPoint[0], float(i));
+        {
+            m_SummedPowersX[i] += xpow;
+            xpow *= dataPoint[0];
+        }
 
         // add the summed powers of the x value, multiplied by the y value
+        xpow = 1.0f;
         for (size_t i = 0; i < m_SummedPowersXTimesY.size(); ++i)
-            m_SummedPowersXTimesY[i] += std::pow(dataPoint[0], float(i)) * dataPoint[1];
+        {
+            m_SummedPowersXTimesY[i] += xpow * dataPoint[1];
+            xpow *= dataPoint[0];
+        }
     }
 
     bool CalculateCoefficients (TVector<DEGREE+1>& coefficients) const
