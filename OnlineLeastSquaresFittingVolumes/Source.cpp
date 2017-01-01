@@ -158,8 +158,8 @@ public:
 			}
 		}
 
-		// Note: this is the old, "bad" way using matrix inversion. It's a worse choice for larger matrices and
-		// surfaces and volumes definitely use larger matrices.
+		// Note: this is the old, "bad" way to solve the equation using matrix inversion.
+		// It's a worse choice for larger matrices, and surfaces and volumes use larger matrices than curves in general.
 		/*
 		// Inverse the ATA matrix
 		TMatrix<c_numCoefficients, c_numCoefficients> ATAInverse;
@@ -411,12 +411,6 @@ int main (int argc, char **argv)
 
 /*
 
-This Post:
-* talk about R^2 calculation
-* Mention that this code doesn't fall back if it doesn't have enough points.
- * Say that there may or may not be a good way to fall back to either lower degrees or lower dimensions, but I didn't look into it.
-* mention how you do gauss elimination instead of matrix inversion which is more numerically stable, and faster. point out that the examples are slightly different, but this is more correct.
-
 Last Demo:
 * Better matrix solving. see if it helps with numerical issues (it should!)
 * if it works better (wikipedia said it should be better numerically), let some higher degrees in again!
@@ -429,5 +423,11 @@ WegGL demo:
 * do a draw per data point. Show data points different color when they are above or below surface.
 * show R^2 and equation calculated.
 * better matrix solving
+
+This Post:
+* talk about R^2 calculation
+* Mention that this code doesn't fall back if it doesn't have enough points.
+ * Say that there may or may not be a good way to fall back to either lower degrees or lower dimensions, but I didn't look into it.
+* mention how you do gauss elimination instead of matrix inversion which is more numerically stable, and faster. point out that the examples are slightly different, but this is more correct.
 
 */
