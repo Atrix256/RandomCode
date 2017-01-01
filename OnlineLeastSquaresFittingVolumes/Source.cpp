@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <array>
 
-#define FILTER_ZERO_COEFFICIENTS true // if true, will not show terms which have a coefficient of 0
+#define FILTER_ZERO_COEFFICIENTS true // if false, will show terms which have a coefficient of 0
 
 //====================================================================
 template<size_t N>
@@ -182,6 +182,7 @@ private:
 	TVector<c_numCoefficients>		m_SummedPowersTimesValues;
 };
 
+//====================================================================
 char AxisIndexToLetter (size_t axisIndex)
 {
 	// x,y,z,w,v,u,t,....
@@ -191,6 +192,7 @@ char AxisIndexToLetter (size_t axisIndex)
 		return 'x' + 2 - char(axisIndex);
 }
 
+//====================================================================
 template <class T, size_t M, size_t N>
 float EvaluateFunction (const T& fitter, const TVector<M>& dataPoint, const TVector<N>& coefficients)
 {
@@ -212,6 +214,7 @@ float EvaluateFunction (const T& fitter, const TVector<M>& dataPoint, const TVec
 	return ret;
 }
 
+//====================================================================
 template <size_t... DEGREES>
 void DoTest (const std::initializer_list<TVector<sizeof...(DEGREES)+1>>& data)
 {
@@ -320,6 +323,7 @@ void DoTest (const std::initializer_list<TVector<sizeof...(DEGREES)+1>>& data)
 //====================================================================
 int main (int argc, char **argv)
 {
+	// bilinear - 4 data points
 	DoTest<1, 1>(
 		{
 			TVector<3>{ 0.0f, 0.0f, 5.0f },
@@ -329,6 +333,22 @@ int main (int argc, char **argv)
 		}
 	);
 
+	// biquadratic - 9 data points
+	DoTest<2, 2>(
+		{
+			TVector<3>{ 0.0f, 0.0f, 8.0f },
+			TVector<3>{ 0.0f, 1.0f, 4.0f },
+			TVector<3>{ 0.0f, 2.0f, 6.0f },
+			TVector<3>{ 1.0f, 0.0f, 5.0f },
+			TVector<3>{ 1.0f, 1.0f, 2.0f },
+			TVector<3>{ 1.0f, 2.0f, 1.0f },
+			TVector<3>{ 2.0f, 0.0f, 7.0f },
+			TVector<3>{ 2.0f, 1.0f, 9.0f },
+			TVector<3>{ 2.0f, 2.5f, 12.0f },
+		}
+	);
+
+	// trilinear - 8 data points
 	DoTest<1, 1, 1>(
 		{
 			TVector<4>{ 0.0f, 0.0f, 0.0f, 8.0f },
@@ -342,20 +362,20 @@ int main (int argc, char **argv)
 		}
 	);
 
-	// Point - 1 data points
-    DoTest<0>(
-        {
-            TVector<2>{ 1.0f, 2.0f },
-        }
-    );
-
-	// Point - 2 data points
-    DoTest<0>(
-        {
-            TVector<2>{ 1.0f, 2.0f },
-			TVector<2>{ 2.0f, 4.0f },
-        }
-    );
+	// trilinear - 9 data points
+	DoTest<1, 1, 1>(
+		{
+			TVector<4>{ 0.0f, 0.0f, 0.0f, 8.0f },
+			TVector<4>{ 0.0f, 0.0f, 1.0f, 4.0f },
+			TVector<4>{ 0.0f, 1.0f, 0.0f, 6.0f },
+			TVector<4>{ 0.0f, 1.0f, 1.0f, 5.0f },
+			TVector<4>{ 1.0f, 0.0f, 0.0f, 2.0f },
+			TVector<4>{ 1.0f, 0.0f, 1.0f, 1.0f },
+			TVector<4>{ 1.0f, 1.0f, 0.0f, 7.0f },
+			TVector<4>{ 1.0f, 1.0f, 1.0f, 9.0f },
+			TVector<4>{ 0.5f, 0.5f, 0.5f, 12.0f },
+		}
+	);
 
 	// Linear - 2 data points
     DoTest<1>(
@@ -365,99 +385,25 @@ int main (int argc, char **argv)
         }
     );
 
-
-		/*
-
-	// Point - 1 data points
-    DoTest<0>(
-        {
-            TDataPoint{ 1.0f, 2.0f },
-        }
-    );
-
-	// Point - 2 data points
-    DoTest<0>(
-        {
-            TDataPoint{ 1.0f, 2.0f },
-            TDataPoint{ 2.0f, 4.0f },
-        }
-    );
-
-	// Linear - 2 data points
-    DoTest<1>(
-        {
-            TDataPoint{ 1.0f, 2.0f },
-            TDataPoint{ 2.0f, 4.0f },
-        }
-    );
-
-	// Linear - 3 colinear data points
-    DoTest<1>(
-        {
-            TDataPoint{ 1.0f, 2.0f },
-            TDataPoint{ 2.0f, 4.0f },
-            TDataPoint{ 3.0f, 6.0f },
-        }
-    );
-
-	// Linear - 3 non colinear data points
-    DoTest<1>(
-        {
-            TDataPoint{ 1.0f, 2.0f },
-            TDataPoint{ 2.0f, 4.0f },
-            TDataPoint{ 3.0f, 5.0f },
-        }
-    );
-
-	// Quadratic - 3 colinear data points
+	// Quadratic - 4 data points
     DoTest<2>(
         {
-            TDataPoint{ 1.0f, 2.0f },
-            TDataPoint{ 2.0f, 4.0f },
-            TDataPoint{ 3.0f, 6.0f },
-        }
-    );
-
-	// Quadratic - 3 data points
-    DoTest<2>(
-        {
-            TDataPoint{ 1.0f, 5.0f },
-            TDataPoint{ 2.0f, 16.0f },
-            TDataPoint{ 3.0f, 31.0f },
+            TVector<2>{ 1.0f, 5.0f },
+			TVector<2>{ 2.0f, 16.0f },
+			TVector<2>{ 3.0f, 31.0f },
+			TVector<2>{ 4.0f, 16.0f },
         }
     );
 
 	// Cubic - 4 data points
     DoTest<3>(
         {
-            TDataPoint{ 1.0f, 5.0f },
-            TDataPoint{ 2.0f, 16.0f },
-            TDataPoint{ 3.0f, 31.0f },
-            TDataPoint{ 4.0f, 16.0f },
+            TVector<2>{ 1.0f, 5.0f },
+            TVector<2>{ 2.0f, 16.0f },
+			TVector<2>{ 3.0f, 31.0f },
+			TVector<2>{ 4.0f, 16.0f },
         }
     );
-
-	// Cubic - 2 data points
-    DoTest<3>(
-        {
-            TDataPoint{ 1.0f, 7.0f },
-            TDataPoint{ 3.0f, 17.0f },
-        }
-    );
-
-	// Cubic - 1 data point
-    DoTest<3>(
-        {
-            TDataPoint{ 1.0f, 7.0f },
-        }
-    );
-
-	// Cubic - 0 data points
-    DoTest<3>(
-        {
-        }
-    );
-	*/
 
     system("pause");
     return 0;
@@ -465,16 +411,14 @@ int main (int argc, char **argv)
 
 /*
 
-TODO:
-* make some good test cases, including test cases from previous setup to show it's the same
-
 This Post:
 * talk about R^2 calculation
 * Mention that this code doesn't fall back if it doesn't have enough points.
  * Say that there may or may not be a good way to fall back to either lower degrees or lower dimensions, but I didn't look into it.
+* mention how you do gauss elimination instead of matrix inversion which is more numerically stable, and faster. point out that the examples are slightly different, but this is more correct.
 
 Last Demo:
-* Better matrix solving. see if it helps with numerical issues.
+* Better matrix solving. see if it helps with numerical issues (it should!)
 * if it works better (wikipedia said it should be better numerically), let some higher degrees in again!
 
 WegGL demo:
