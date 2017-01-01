@@ -408,26 +408,3 @@ int main (int argc, char **argv)
     system("pause");
     return 0;
 }
-
-/*
-
-Last Demo:
-* Better matrix solving. see if it helps with numerical issues (it should!)
-* if it works better (wikipedia said it should be better numerically), let some higher degrees in again!
-
-WegGL demo:
-* Start with the surface demo from before
-* make it able to take degree on each axis and coefficients
-* ray march the function
-* calculate partial derivatives for normal (maybe not even needed to do it numerically?)
-* do a draw per data point. Show data points different color when they are above or below surface.
-* show R^2 and equation calculated.
-* better matrix solving
-
-This Post:
-* talk about R^2 calculation
-* Mention that this code doesn't fall back if it doesn't have enough points.
- * Say that there may or may not be a good way to fall back to either lower degrees or lower dimensions, but I didn't look into it.
-* mention how you do gauss elimination instead of matrix inversion which is more numerically stable, and faster. point out that the examples are slightly different, but this is more correct.
-
-*/
