@@ -506,18 +506,13 @@ int main (int argc, char **argv)
 Code Notes:
  * Need to make new samples. The above code is just for me!!
  * What samples should we make?
+  * probably ones that tie into the blog post. start simple go more complex.
+   1) single neuron. learn one input/output
+   2) single neuron. multiple inputs/outputs
+   3) single neuron per layer, two layers. multiple inputs/outputs
+   4) multiple neurons per layer, two layers. multiple inputs/outputs
  * we should play with learning rates, and have it make a csv that can show error graphed over time. maybe also show weights and biases and activations and things?
  * make something that changes input via gradient descent to get a desired output
-
-Great Links:
- A Step by Step Backpropagation Example
- https://mattmazur.com/2015/03/17/a-step-by-step-backpropagation-example/
- Neural networks and deep learning
- http://neuralnetworksanddeeplearning.com
- Backpropogation is Just Steepest Descent with Automatic Differentiation
- https://idontgetoutmuch.wordpress.com/2013/10/13/backpropogation-is-just-steepest-descent-with-automatic-differentiation-2/
- Chain Rule
- http://www.sosmath.com/calculus/diff/der04/der04.html
 
 Blog Notes:
  * dy/dx means: if i add one to x, how much will y change? really a ratio though. only garaunteed true for an infinitely small step, but we can take larger steps with decent results.
@@ -532,66 +527,21 @@ Blog Notes:
  * talk about how to do this with matrix based math?
  * different activation functions just mean different derivatives for calculation of dO/dZ, the rest is the same for training.
  ? is this multithreaded friendly? it is SIMD friendly for sure!
+ ? compare numeric derivatives, dual numbers and back propagation for perf? or just mention which is faster than which?
 
-Blog:
- 1) maybe backpropagation as first post?
-  * could compare numeric derivatives, dual numbers, back propagation for perf etc.
- 2) could do a feedforward recipe next for mnist character recognition, w/ html5 demo.
- 3) then convolutional network post and demo?
- 4) then recurrent network post and demo?
- ? should we do something where we adjust input to match output? maybe in 2,3,4?
- * compare timings of dual numbers, backpropagation and numeric derivatives?
+Great Links:
+ A Step by Step Backpropagation Example
+ https://mattmazur.com/2015/03/17/a-step-by-step-backpropagation-example/
+ Neural networks and deep learning
+ http://neuralnetworksanddeeplearning.com
+ Backpropogation is Just Steepest Descent with Automatic Differentiation
+ https://idontgetoutmuch.wordpress.com/2013/10/13/backpropogation-is-just-steepest-descent-with-automatic-differentiation-2/
+ Chain Rule
+ http://www.sosmath.com/calculus/diff/der04/der04.html
 
-===== TEST V1 =====
-Start out by making a simple network and train it. (done)
- * input neuron, single output neuron, one input and output to learn.
-
---v1a--
-in 0, out 1
- * 410000 trainings
-starting: 
- * weight: 0.3
- * bias: 0.5
-ending: 
- * weight: 0.3
- * bias: 5.3
-
---v1b--
-in 1, out 0
- * 205000 trainings
-starting:
- * weight: 0.3
- * bias: 0.5
-ending:
- * weight: -2.75
- * bias: -2.55
-
-===== TEST V2 =====
-Make a network that fits multiple data points
- * not gate
-
-in 0, out 1
-in 1, out 0
- * 530000 trainings
-starting:
- * weight: 0.3
- * bias: 0.5
-ending:
- * weight: -9.21
- * bias: 4.50
-
-===== TEST V3 =====
-Make a network with two neurons (input and output neuron) that fits multiple data points
- * not gate again
-
-in 0, out 1
-in 1, out 0
- * 550000 trainings
-starting:
- * weights: 0.3, 0.1
- * biases: 0.2, 0.6
-ending:
- * weights: 6.56, -9.93
- * biases: -3.26, 4.88
+Future Blog posts
+ 1) Recipe: Feedforward mnist character recognition, w/ html5 demo.
+ 2) Recipe: Convolutional mnist character recognition, w/ html5 demo.
+ 3) Recurrent network post and demo?
 
 */
