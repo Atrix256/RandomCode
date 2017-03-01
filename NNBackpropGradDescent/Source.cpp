@@ -208,9 +208,6 @@ void RunNNv3 (float inInput, const std::array<float,2>& inWeights, const std::ar
 	// dCost/dZ1 = dCost/dO1 * dO1/dZ1
 	float errorNeuron1 = deltaCost_deltaO1 * deltaO1_deltaZ1;
 
-	//TODO: did you calculate error correctly? you have derivatives but where is the error itself?!
-
-
 	// dCost/dBias1 = dCost/dZ1 = error in neuron 1
 	float deltaCost_deltaBias1 = errorNeuron1;
 
@@ -320,37 +317,197 @@ void Testv3 (void)
 	printf("\nweights=[%0.2f, %0.2f]\nbiases=[%0.2f, %0.2f]\n\n", weights[0], weights[1], biases[0], biases[1]);
 }
 
+//====================================== V4 ======================================
+/*
+  One input layer, one hidden layer, one output layer, all with two neurons each.
+  Learning one input to output mapping.
+
+  I0---N0---N2--->
+    \ /  \ /
+     X    X
+	/ \  / \
+  I1---N1---N3--->
+
+  W0 = I0->N0
+  W1 = I1->N0
+  W2 = I0->N1
+  W3 = I1->N1
+
+  W4 = N1->N2
+  W5 = N2->N2
+  W6 = N1->N3
+  W7 = N2->N3
+
+  B0 = N0
+  B1 = N1
+  B2 = N2
+  B3 = N3
+
+*/
+
+void RunNNv4 (const std::array<float,2>& inInput, const std::array<float, 8>& inWeights, const std::array<float, 4> inBiases, const std::array<float, 2>& inTarget, float& outCost, std::array<float,2>& outDeltaInput, std::array<float, 8>& outDeltaWeights, std::array<float, 4>& outDeltaBiases)
+{
+
+	// ----- Forward Pass -----
+	
+	// calculate Z0,Z1 (weighted input) and O0,O1 (activation function of weighted input) for hidden layer of neurons
+	float Z0 = inInput[0] * inWeights[0] + inInput[1] * inWeights[1] + inBiases[0];
+	float Z1 = inInput[0] * inWeights[2] + inInput[1] * inWeights[3] + inBiases[1];
+	float O0 = 1.0f / (1.0f + std::exp(-Z0));
+	float O1 = 1.0f / (1.0f + std::exp(-Z1));
+
+	// Calculate Z2,Z3 (weighted input) and O2,O3 (activation function of weighted input) for output layer of neurons
+	float Z2 = O0 * inWeights[4] + O1 * inWeights[5] + inBiases[2];
+	float Z3 = O0 * inWeights[6] + O1 * inWeights[7] + inBiases[3];
+	float O2 = 1.0f / (1.0f + std::exp(-Z2));
+	float O3 = 1.0f / (1.0f + std::exp(-Z3));
+
+	// calculate half squared error
+	float diff0 = inTarget[0] - O2;
+	float diff1 = inTarget[1] - O3;
+	outCost = 0.5f * (diff0 * diff0 + diff1 * diff1);
+
+
+	// ----- Backward Pass : Output Neuron Layer -----
+
+	// dCost/dO2 = O2 - target0
+	// dCost/dO3 = O3 - target1
+	float deltaCost_deltaO2 = O2 - inTarget[0];
+	float deltaCost_deltaO3 = O3 - inTarget[1];
+
+	// N2Error = dCost/dZ2 = dCost/dO2 * dO2/dZ2 = deltaCost_deltaO2 * O2 * (1 - O2)
+	// N3Error = dCost/dZ3 = dCost/dO3 * dO3/dZ3 = deltaCost_deltaO3 * O3 * (1 - O3)
+	float N2Error = deltaCost_deltaO2 * O2 * (1.0f - O2);
+	float N3Error = deltaCost_deltaO3 * O3 * (1.0f - O3);
+
+	// dCost/dWeight4 = dCost/dZ2 * dZ2/dWeight4 = N2Error * O0
+	// dCost/dWeight5 = dCost/dZ2 * dZ2/dWeight5 = N2Error * O1
+	float deltaCost_deltaWeight4 = N2Error * O0;
+	float deltaCost_deltaWeight5 = N2Error * O1;
+
+	// dCost/dWeight6 = dCost/dZ3 * dZ3/dWeight6 = N3Error * O0
+	// dCost/dWeight7 = dCost/dZ3 * dZ3/dWeight7 = N3Error * O1
+	float deltaCost_deltaWeight6 = N3Error * O0;
+	float deltaCost_deltaWeight7 = N3Error * O1;
+
+
+	// ----- Backward Pass : Output Neuron Layer -----
+
+	// dCost/dO0 = (dCost/dZ2 * dZ2/dO0) + (dCost/dZ3 * dZ3/dO0) = N2Error * Weight4 + N3Error * Weight6
+	// dCost/dO1 = (dCost/dZ2 * dZ2/dO1) + (dCost/dZ3 * dZ3/dO1) = N2Error * Weight5 + N3Error * Weight7
+	float deltaCost_deltaO0 = (N2Error * inWeights[4]) + (N3Error * inWeights[6]);
+	float deltaCost_deltaO1 = (N2Error * inWeights[5]) + (N3Error * inWeights[7]);
+
+	// N0Error = dCost/dZ0 = dCost/dO0 * dO0/dZ0 = deltaCost_deltaO0 * O0 * (1 - O0)
+	// N1Error = dCost/dZ1 = dCost/dO1 * dO1/dZ1 = deltaCost_deltaO1 * O1 * (1 - O1)
+	float N0Error = deltaCost_deltaO0 * O0 * (1.0f - O0);
+	float N1Error = deltaCost_deltaO1 * O1 * (1.0f - O1);
+
+	// dCost/dWeight0 = dCost/dZ0 * dZ0/dWeight0 = N0Error * input0
+	// dCost/dWeight1 = dCost/dZ0 * dZ0/dWeight1 = N0Error * input1
+	float deltaCost_deltaWeight0 = N0Error * inInput[0];
+	float deltaCost_deltaWeight1 = N0Error * inInput[1];
+	
+	// dCost/dWeight2 = dCost/dZ1 * dZ1/dWeight0 = N1Error * input0
+	// dCost/dWeight3 = dCost/dZ1 * dZ1/dWeight1 = N1Error * input1
+	float deltaCost_deltaWeight2 = N1Error * inInput[0];
+	float deltaCost_deltaWeight3 = N1Error * inInput[1];
+	
+
+	// ----- Backward Pass : Input Layer -----
+
+	// dCost/dInput0 = (dCost/dZ0 * dZ0/dInput0) + (dCost/dZ1 * dZ1/dInput0) = N0Error * Weight0 + N1Error * Weight2
+	// dCost/dInput1 = (dCost/dZ0 * dZ0/dInput1) + (dCost/dZ1 * dZ1/dInput1) = N0Error * Weight1 + N1Error * Weight3
+	float deltaCost_deltaInput0 = N0Error * inWeights[0] + N1Error * inWeights[2];
+	float deltaCost_deltaInput1 = N0Error * inWeights[1] + N1Error * inWeights[3];
+		
+
+	// ----- Set outputs -----
+	outDeltaWeights[0] = deltaCost_deltaWeight0;
+	outDeltaWeights[1] = deltaCost_deltaWeight1;
+	outDeltaWeights[2] = deltaCost_deltaWeight2;
+	outDeltaWeights[3] = deltaCost_deltaWeight3;
+	outDeltaWeights[4] = deltaCost_deltaWeight4;
+	outDeltaWeights[5] = deltaCost_deltaWeight5;
+	outDeltaWeights[6] = deltaCost_deltaWeight6;
+	outDeltaWeights[7] = deltaCost_deltaWeight7;
+
+	outDeltaBiases[0] = N0Error;
+	outDeltaBiases[1] = N1Error;
+	outDeltaBiases[2] = N2Error;
+	outDeltaBiases[3] = N3Error;
+
+	outDeltaInput[0] = deltaCost_deltaInput0;
+	outDeltaInput[1] = deltaCost_deltaInput1;
+}
+
+void Testv4 (void)
+{
+	// matching the network from here: https://mattmazur.com/2015/03/17/a-step-by-step-backpropagation-example/
+	std::array<float, 2> input = { 0.05f, 0.1f };
+	std::array<float, 2> output = { 0.01f, 0.99f };
+
+	std::array<float, 8> weights = {0.15f, 0.20f, 0.25f, 0.30f, 0.40f, 0.45f, 0.50f, 0.55f};
+	std::array<float, 4> biases = {0.35f, 0.35f, 0.60f, 0.60f};
+
+	const float c_learningRate = 0.5f;
+
+	const int c_numTrainings = 3000;
+	const int c_reportInterval = c_numTrainings / 20;
+	for (int i = 0; i < c_numTrainings; ++i)
+	{
+		float cost = 0.0f;
+		std::array<float, 2> deltaInput = { 0.0f, 0.0f };
+		std::array<float, 8> deltaWeights = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
+		std::array<float, 4> deltaBiases = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+		RunNNv4(input, weights, biases, output, cost, deltaInput, deltaWeights, deltaBiases);
+
+		if (i % c_reportInterval == 0 || i == c_numTrainings - 1)
+		{
+			printf("[%i] cost: %0.4f\n", i, cost);
+		}
+
+		for (size_t w = 0, wc = weights.size(); w < wc; ++w)
+			weights[w] -= deltaWeights[w] * c_learningRate;
+
+		for (size_t b = 0, bc = biases.size(); b < bc; ++b)
+			biases[b] -= deltaBiases[b] * c_learningRate;
+	}
+
+	printf("\nweights=[");
+	for (size_t i = 0; i < weights.size(); ++i)
+	{
+		if (i > 0)
+			printf(", ");
+		printf("%0.2f", weights[i]);
+	}
+	printf("]\nbiases=[");
+	for (size_t i = 0; i < biases.size(); ++i)
+	{
+		if (i > 0)
+			printf(", ");
+		printf("%0.2f", biases[i]);
+	}
+	printf("]\n\n");
+}
+
 int main (int argc, char **argv)
 {
-	Testv1();
-	Testv2();
-	Testv3();
+	//Testv1();
+	//Testv2();
+	//Testv3();
+	Testv4();
 	system("pause");
 }
 
 /*
 
-TODO:
-4) make a network that has multiple neurons in multiple layers. maybe combine with below for multiple outputs?
-5) make a network with multiple outputs
- * maybe make this network and verify values? https://mattmazur.com/2015/03/17/a-step-by-step-backpropagation-example/
-6) cross correlation (or whatever) cost function that trains faster (or make this 3)
- * or save this for recipe post?
-7) matrix form of this junk?
-8) do something where you adjust input via gradient descent to get the desired output.  A way of asking it "what would it take to make a 1?"
-
-* dunno eventual goal of this program yet, or specific post details.
- ? multithreaded?
- ? matrix based math?
- ? compare backprop to dual numbers and numeric derivatives?
- ? output csvs to make graphs and such?
- ? support / compare different activation functions?
- ? why does averaging cost and deltas work?
- ? dropout etc?
- ? show perf timing?
- ? adjust weights during backwards phase, instead of storing deltas and doing it separately? actually no since you need to batch it!
- * maybe need to rename cost to half mean squared error or something?
- * find todos
+Code Notes:
+ * Need to make new samples. The above code is just for me!!
+ * What samples should we make?
+ * we should play with learning rates, and have it make a csv that can show error graphed over time. maybe also show weights and biases and activations and things?
+ * make something that changes input via gradient descent to get a desired output
 
 Great Links:
  A Step by Step Backpropagation Example
@@ -359,12 +516,22 @@ Great Links:
  http://neuralnetworksanddeeplearning.com
  Backpropogation is Just Steepest Descent with Automatic Differentiation
  https://idontgetoutmuch.wordpress.com/2013/10/13/backpropogation-is-just-steepest-descent-with-automatic-differentiation-2/
+ Chain Rule
+ http://www.sosmath.com/calculus/diff/der04/der04.html
 
 Blog Notes:
  * dy/dx means: if i add one to x, how much will y change? really a ratio though. only garaunteed true for an infinitely small step, but we can take larger steps with decent results.
  * gradient vector: a vector that points in the direction that makes the function get the largest.
  * deltaCost/deltaZ is defined as the error of a neuron.
  * visualize some neural net output with your visualizers you made, and link to em!
+ * why is it called backpropagation of error, when it propagates derivatives, not error?
+  * dError/dOutput is (output-target), and we go from there with the chain rule, so it really is the error propagating backwards!
+  * it isn't linear though, so you still need to take small steps.
+ * learning rate can be adjusted. maybe start big and get small.
+ * some people also have tried using "momentum" to try and avoid local minima
+ * talk about how to do this with matrix based math?
+ * different activation functions just mean different derivatives for calculation of dO/dZ, the rest is the same for training.
+ ? is this multithreaded friendly? it is SIMD friendly for sure!
 
 Blog:
  1) maybe backpropagation as first post?
@@ -373,6 +540,7 @@ Blog:
  3) then convolutional network post and demo?
  4) then recurrent network post and demo?
  ? should we do something where we adjust input to match output? maybe in 2,3,4?
+ * compare timings of dual numbers, backpropagation and numeric derivatives?
 
 ===== TEST V1 =====
 Start out by making a simple network and train it. (done)
