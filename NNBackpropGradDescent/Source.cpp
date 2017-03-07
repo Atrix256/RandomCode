@@ -494,7 +494,7 @@ void Testv4 (void)
 
 int main (int argc, char **argv)
 {
-	//Testv1();
+	Testv1();
 	//Testv2();
 	//Testv3();
 	Testv4();
@@ -502,6 +502,8 @@ int main (int argc, char **argv)
 }
 
 /*
+
+----- BELOW IS MOVED TO PROJECT NNBACKPROPPOST -----
 
 Code Notes:
  * Need to make new samples. The above code is just for me!!
@@ -528,6 +530,7 @@ Blog Notes:
  * different activation functions just mean different derivatives for calculation of dO/dZ, the rest is the same for training.
  ? is this multithreaded friendly? it is SIMD friendly for sure!
  ? compare numeric derivatives, dual numbers and back propagation for perf? or just mention which is faster than which?
+ * NN's are not an exact science, but more of an art form.  There exist other techniques that help make better NNs in certain situations. go learn about em!
 
 Great Links:
  A Step by Step Backpropagation Example
