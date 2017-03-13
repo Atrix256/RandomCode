@@ -411,7 +411,7 @@ void Example4RunNetwork (
 	float O2 = 1.0f / (1.0f + std::exp(-Z2));
 
 	// calculate Z3 and O3 for neuron3
-	float Z3 = O0 * weights[6] + O1 * weights[7] + biases[2];
+	float Z3 = O0 * weights[6] + O1 * weights[7] + biases[3];
 	float O3 = 1.0f / (1.0f + std::exp(-Z3));
 
 	// the actual output of the network is the activation of the output layer neurons
