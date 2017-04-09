@@ -2,15 +2,15 @@
 #include <array>
 #include <vector>
 
-// define a vector as an array of floats
+// Define a vector as an array of floats
 template<size_t N>
 using TVector = std::array<float, N>;
 
-// define a matrix as an array of vectors
+// Define a matrix as an array of vectors
 template<size_t M, size_t N>
 using TMatrix = std::array<TVector<N>, M>;
 
-// helper function to fill out a matrix
+// Helper function to fill out a matrix
 template <size_t M, size_t N>
 TMatrix<M, N> MakeMatrix (std::initializer_list<std::initializer_list<float>> matrixData)
 {
@@ -31,76 +31,101 @@ TMatrix<M, N> MakeMatrix (std::initializer_list<std::initializer_list<float>> ma
     return matrix;
 }
 
-// swap two rows in the matrix
+// Make a specific row have a 1 in the colIndex, and make all other rows have 0 there
 template <size_t M, size_t N>
-void SwapRows (TMatrix<M, N>& matrix, size_t a, size_t b)
+bool MakeRowClaimVariable (TMatrix<M, N>& matrix, size_t rowIndex, size_t colIndex)
 {
-    if (a == b)
-        return;
+	// Find a row that has a non zero value in this column and swap it with this row
+	{
+		// Find a row that has a non zero value
+		size_t nonZeroRowIndex = rowIndex;
+		while (nonZeroRowIndex < M && matrix[nonZeroRowIndex][colIndex] == 0.0f)
+			++nonZeroRowIndex;
 
-    std::swap(matrix[a], matrix[b]);
-}
+		// If there isn't one, nothing to do
+		if (nonZeroRowIndex == M)
+			return false;
 
-// reduce the matrix for a single variable
-template <size_t M, size_t N>
-void ReduceVariable (TMatrix<M, N>& matrix, size_t varIndex)
-{
-    // find the row that has the largest value at position [varIndex] and swap it with row [varIndex]
-    {
-        size_t maxRow = varIndex;
-        for (size_t rowIndex = varIndex + 1; rowIndex < M; ++rowIndex)
-        {
-            if (matrix[rowIndex][varIndex] > matrix[maxRow][varIndex])
-                maxRow = rowIndex;
-        }
+		// Otherwise, swap the row
+		if (rowIndex != nonZeroRowIndex)
+			std::swap(matrix[rowIndex], matrix[nonZeroRowIndex]);
+	}
 
-        SwapRows(matrix, varIndex, maxRow);
-    }
+	// Scale this row so that it has a leading one
+	float scale = 1.0f / matrix[rowIndex][colIndex];
+	for (size_t normalizeColIndex = colIndex; normalizeColIndex < N; ++normalizeColIndex)
+		matrix[rowIndex][normalizeColIndex] *= scale;
 
-    // TODO: what if matrix[varIndex][varIndex] is 0? divide by 0!
-    // TODO: make sure variables are named well.
+	// Make sure all rows except this one have a zero in this column.
+	// Do this by subtracting this row from other rows, multiplied by a multiple that makes the column disappear.
+	for (size_t eliminateRowIndex = 0; eliminateRowIndex < M; ++eliminateRowIndex)
+	{
+		if (eliminateRowIndex == rowIndex)
+			continue;
 
-    // for all rows before this row, we want to remove their reference to this variable
-    {
-        for (size_t rowIndex = varIndex + 1; rowIndex < M; ++rowIndex)
-        {
-            // TODO: explain this operation better!
-            // TODO: name f better
-            float f = matrix[rowIndex][varIndex] / matrix[varIndex][varIndex];
+		float scale = matrix[eliminateRowIndex][colIndex];
+		for (size_t eliminateColIndex = 0; eliminateColIndex < N; ++eliminateColIndex)
+			matrix[eliminateRowIndex][eliminateColIndex] -= matrix[rowIndex][eliminateColIndex] * scale;
+	}
 
-            // TODO: explain this better too!
-            // for all remaining elements in the row
-            for (size_t colIndex = varIndex + 1; colIndex < N; ++colIndex)
-                matrix[rowIndex][colIndex] -= matrix[varIndex][colIndex] * f;
-
-            // TODO: explain this as well
-            matrix[rowIndex][varIndex] = 0.0f;
-        }
-    }
+	return true;
 }
 
 // make matrix into reduced row echelon form
 template <size_t M, size_t N>
 void GaussJordanElimination (TMatrix<M, N>& matrix)
 {
-    // do reduction for each variable in the set of equations
-    for (size_t varIndex = 0; varIndex < std::min(M,N); ++varIndex)
-        ReduceVariable(matrix, varIndex);
-
-    // TODO: now do the forward pass thing.  THe jordan elimination, to make it be in rref form!
+	size_t rowIndex = 0;
+	for (size_t colIndex = 0; colIndex < std::min(M, N); ++colIndex)
+	{
+		if(MakeRowClaimVariable(matrix, rowIndex, colIndex))
+			++rowIndex;
+	}
 }
 
 int main (int argc, char **argv)
 {
     // the input matrix
+	/*
     auto inputMatrix = MakeMatrix<3, 4>(
     {
         { 0.0f, 0.5f, 0.5f, 0.0f },
         { 1.0f, 0.0f, 0.0f, 0.0f },
         { 0.0f, 0.0f, 0.0f, 1.0f }
     });
+	*/
 
-    GaussJordanElimination(inputMatrix);
+	/*
+	// 3x + y = 7
+	// 2x + 4y = 3
+	auto inputMatrix = MakeMatrix<2, 3>(
+	{
+		{ 3.0f, 1.0f, 7.0f },
+		{ 2.0f, 4.0f, 3.0f },
+	});
+	*/
+
+	/*
+	// x+y=3
+	// x-y=5
+	auto inputMatrix = MakeMatrix<2, 3>(
+	{
+		{ 1.0f, 1.0f, 3.0f },
+		{ 1.0f, -1.0f, 5.0f },
+	});
+	*/
+
+	// TODO: this case below isn't well handled.  we end up with two values for z.  should collapse into one i think.
+	// x+z=3
+	// x-z=5
+	auto matrix = MakeMatrix<3, 4>(
+	{
+		{ 1.0f, 0.0f, 1.0f, 3.0f },
+		{ 1.0f, 0.0f, -1.0f, 5.0f },
+		{ 1.0f, 0.0f, 2.0f, 5.0f },
+	});
+
+    GaussJordanElimination(matrix);
 
     return 0;
 }
@@ -115,9 +140,20 @@ TODO:
  * maybe spit out a text file as well, or instead?
 * handle todo's
 * test with matrices that have missing variables etc
+* review and update all comments
+? should we also calculate the null space?
+? should we say if the matrix is inconsistent? that assumes an augmented matrix though, so maybe say "if an augmented matrix, it's inconsistent"
+? should we do augmented matrix vs not?
+? what if not enough items are given for the MakeMatrix function, what's it do?
+
+Blog:
+Note, not most efficient code, but made to be readable.
 
 Link:
 more compact algorithm, but less explicit (so less understandable imo): https://en.wikipedia.org/wiki/Gaussian_elimination#Pseudocode
  * note that it does row reduction, but doesn't go to rref
+ * also assumes that there isn't a full column of zeros!
+decent explanation of gauss jordan (could be better though, it doesn't take the matrix to the proper final place!)
+ * https://www.youtube.com/watch?v=Xzqa7ztokao
 
 */
