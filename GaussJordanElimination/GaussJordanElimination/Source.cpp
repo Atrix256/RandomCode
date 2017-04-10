@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <array>
 #include <vector>
+#include <assert.h>
 
 // Define a vector as an array of floats
 template<size_t N>
@@ -17,8 +18,10 @@ TMatrix<M, N> MakeMatrix (std::initializer_list<std::initializer_list<float>> ma
     TMatrix<M, N> matrix;
 
     size_t m = 0;
+	assert(matrixData.size() == M);
     for (const std::initializer_list<float>& rowData : matrixData)
     {
+		assert(rowData.size() == N);
         size_t n = 0;
         for (float value : rowData)
         {
@@ -76,54 +79,200 @@ template <size_t M, size_t N>
 void GaussJordanElimination (TMatrix<M, N>& matrix)
 {
 	size_t rowIndex = 0;
-	for (size_t colIndex = 0; colIndex < std::min(M, N); ++colIndex)
+	for (size_t colIndex = 0; colIndex < N; ++colIndex)
 	{
-		if(MakeRowClaimVariable(matrix, rowIndex, colIndex))
+		if (MakeRowClaimVariable(matrix, rowIndex, colIndex))
+		{
 			++rowIndex;
+			if (rowIndex == M)
+				return;
+		}
 	}
 }
 
 int main (int argc, char **argv)
 {
-    // the input matrix
-	/*
-    auto inputMatrix = MakeMatrix<3, 4>(
-    {
-        { 0.0f, 0.5f, 0.5f, 0.0f },
-        { 1.0f, 0.0f, 0.0f, 0.0f },
-        { 0.0f, 0.0f, 0.0f, 1.0f }
-    });
-	*/
-
-	/*
-	// 3x + y = 7
-	// 2x + 4y = 3
-	auto inputMatrix = MakeMatrix<2, 3>(
+#if 0
+	// 3x + z = 7
+	// 2x + 4z = 3
+	auto matrix = MakeMatrix<2, 4>(
 	{
-		{ 3.0f, 1.0f, 7.0f },
-		{ 2.0f, 4.0f, 3.0f },
+		{ 3.0f, 0.0f, 1.0f, 7.0f },
+		{ 2.0f, 0.0f, 4.0f, 3.0f },
 	});
-	*/
+	// 1 0 0 2.5
+	// 0 0 1 -0.5
+	// x = 0.25
+	// z = -0.5
+#endif
 
-	/*
-	// x+y=3
-	// x-y=5
-	auto inputMatrix = MakeMatrix<2, 3>(
-	{
-		{ 1.0f, 1.0f, 3.0f },
-		{ 1.0f, -1.0f, 5.0f },
-	});
-	*/
-
-	// TODO: this case below isn't well handled.  we end up with two values for z.  should collapse into one i think.
-	// x+z=3
-	// x-z=5
+#if 0
+	// A B
+	// C D
+	// 
+	// A = C0
+	// B/2 + C/2 = C1
+	// D = C2
+	// But, the right side of the equation doesn't really exist...getting kernel
+	//
+	// 1 0   0   0   1 0 0 0
+	// 0 0.5 0.5 0 = 0 1 1 0
+	// 0 0   0   1   0 0 0 1
 	auto matrix = MakeMatrix<3, 4>(
 	{
-		{ 1.0f, 0.0f, 1.0f, 3.0f },
-		{ 1.0f, 0.0f, -1.0f, 5.0f },
-		{ 1.0f, 0.0f, 2.0f, 5.0f },
+		{ 1.0f, 0.0f, 0.0f, 0.0f },
+		{ 0.0f, 0.5f, 0.5f, 0.0f },
+		{ 0.0f, 0.0f, 0.0f, 1.0f },
 	});
+	// 1 0 0 0
+	// 0 1 1 0
+	// 0 0 0 1
+#endif
+
+#if 0
+	// A B
+	// C D
+	// E F
+	// (not putting all constraints)
+	// 
+	// A = C0
+	// B/2 + C/2 = C1
+	// D = C2
+	// C = C3
+	// But, the right side of the equation doesn't really exist...getting kernel
+	//
+	// 1 0   0   0   1 0 0 0
+	// 0 0.5 0.5 0 = 0 1 0 0
+	// 0 0   0   1   0 0 1 0
+	// 0 0   1   0   0 0 0 1
+	auto matrix = MakeMatrix<4, 4>(
+	{
+		{ 1.0f, 0.0f, 0.0f, 0.0f },
+		{ 0.0f, 0.5f, 0.5f, 0.0f },
+		{ 0.0f, 0.0f, 0.0f, 1.0f },
+		{ 0.0f, 0.0f, 1.0f, 0.0f },
+	});
+#endif
+
+#if 0
+	// A B
+	// C D
+	// E F
+	// 
+	// A = C0
+	// B/2 + C/2 = C1
+	// D = C2
+	// C = C3
+	// D/2 + E/2 = C4
+	// F = C5
+	// 
+	// But, the right side of the equation doesn't really exist...getting kernel
+	//
+	// 1 0   0   0   0   0   1 0 0 0 0 0
+	// 0 0.5 0.5 0   0   0 = 0 1 0 0 0 0
+	// 0 0   0   1   0   0   0 0 1 0 0 0
+	// 0 0   1   0   0   0   0 0 0 1 0 0
+	// 0 0   0   0.5 0.5 0   0 0 0 0 1 0
+	// 0 0   0   0   0   1   0 0 0 0 0 1
+	auto matrix = MakeMatrix<6, 6>(
+	{
+		{ 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f },
+		{ 0.0f, 0.5f, 0.5f, 0.0f, 0.0f, 0.0f },
+		{ 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f },
+		{ 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f },
+		{ 0.0f, 0.0f, 0.0f, 0.5f, 0.5f, 0.0f },
+		{ 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f },
+	});
+#endif
+
+#if 0
+	// A B
+	// C D
+	// E F
+	// G H
+	// 
+	// A = C0
+	// B/2 + C/2 = C1
+	// D = C2
+	// C = C3
+	// D/2 + E/2 = C4
+	// F = C5
+	// E = C6
+	// F/2 + G/2 = C7
+	// H = C8
+	// 
+	// But, the right side of the equation doesn't really exist...getting kernel
+	//
+	// 1 0   0   0   0   0   0   0   1 0 0 0 0 0 0 0 
+	// 0 0.5 0.5 0   0   0   0   0 = 0 1 0 0 0 0 0 0
+	// 0 0   0   1   0   0   0   0   0 0 1 0 0 0 0 0
+	// 0 0   1   0   0   0   0   0   0 0 0 1 0 0 0 0
+	// 0 0   0   0.5 0.5 0   0   0   0 0 0 0 1 0 0 0
+	// 0 0   0   0   0   1   0   0   0 0 0 0 0 1 0 0 
+	// 0 0   0   0   1   0   0   0   0 0 0 0 0 0 1 0 
+	// 0 0   0   0   0   0.5 0.5 0   0 0 0 0 0 0 0 1
+	// 0 0   0   0   0   0   0   1   0 0 0 0 0 0 0 0
+	auto matrix = MakeMatrix<9, 8>(
+	{
+		{ 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f },
+		{ 0.0f, 0.5f, 0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f },
+		{ 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f },
+		{ 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f },
+		{ 0.0f, 0.0f, 0.0f, 0.5f, 0.5f, 0.0f, 0.0f, 0.0f },
+		{ 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f },
+		{ 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f },
+		{ 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.5f, 0.5f, 0.0f },
+		{ 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f },
+	});
+
+	// TODO: something disappeared. Last row became 0.  What does that mean?
+	// it means that something was redundant and went away, but in terms of my technique what does it mean?
+#endif
+
+#if 1
+	// A B
+	// C D
+	// E F
+	// G H
+	// 
+	// A = C0
+	// B/2 + C/2 = C1
+	// D = C2
+	// C = C3
+	// D/2 + E/2 = C4
+	// F = C5
+	// E = C6
+	// F/2 + G/2 = C7
+	// H = C8
+	// 
+	// But, the right side of the equation doesn't really exist...getting kernel
+	//
+	// A   B   C   D   E   F   G   H  C0  C1  C2  C3  C4  C5  C6  C7  C8     A   B   C   D   E   F   G   H  C0  C1  C2  C3  C4  C5  C6  C7  C8
+	// 1   0   0   0   0   0   0   0  -1   0   0   0   0   0   0   0   0     1                              -1         
+	// 0   0.5 0.5 0   0   0   0   0   0  -1   0   0   0   0   0   0   0  =      1                              -2       1
+	// 0   0   0   1   0   0   0   0   0   0  -1   0   0   0   0   0   0             1                                  -1
+	// 0   0   1   0   0   0   0   0   0   0   0  -1   0   0   0   0   0                 1                                  -2       1 
+	// 0   0   0   0.5 0.5 0   0   0   0   0   0   0  -1   0   0   0   0                     1                                      -1 
+	// 0   0   0   0   0   1   0   0   0   0   0   0   0  -1   0   0   0                         1                              -1       
+	// 0   0   0   0   1   0   0   0   0   0   0   0   0   0  -1   0   0                             1                           1     -2
+	// 0   0   0   0   0   0.5 0.5 0   0   0   0   0   0   0   0  -1   0                                 1                                  -1
+	// 0   0   0   0   0   0   0   1   0   0   0   0   0   0   0   0  -1                                             1      -2       1
+	auto matrix = MakeMatrix<9, 17>(
+	{
+		//A     B     C     D     E     F     G     H      C0     C1     C2     C3     C4     C5     C6     C7     C8
+		//0     1     2     3     4     5     6     7      8      9      10     11     12     13     14     15     16
+		{ 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f,  0.0f,  0.0f,  0.0f,  0.0f,  0.0f,  0.0f,  0.0f,  0.0f },
+		{ 0.0f, 0.5f, 0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,  0.0f, -1.0f,  0.0f,  0.0f,  0.0f,  0.0f,  0.0f,  0.0f,  0.0f },
+		{ 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,  0.0f,  0.0f, -1.0f,  0.0f,  0.0f,  0.0f,  0.0f,  0.0f,  0.0f },
+		{ 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,  0.0f,  0.0f,  0.0f, -1.0f,  0.0f,  0.0f,  0.0f,  0.0f,  0.0f },
+		{ 0.0f, 0.0f, 0.0f, 0.5f, 0.5f, 0.0f, 0.0f, 0.0f,  0.0f,  0.0f,  0.0f,  0.0f, -1.0f,  0.0f,  0.0f,  0.0f,  0.0f },
+		{ 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,  0.0f,  0.0f,  0.0f,  0.0f,  0.0f, -1.0f,  0.0f,  0.0f,  0.0f },
+		{ 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,  0.0f,  0.0f,  0.0f,  0.0f,  0.0f,  0.0f, -1.0f,  0.0f,  0.0f },
+		{ 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.5f, 0.5f, 0.0f,  0.0f,  0.0f,  0.0f,  0.0f,  0.0f,  0.0f,  0.0f, -1.0f,  0.0f },
+		{ 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f,  0.0f,  0.0f,  0.0f,  0.0f,  0.0f,  0.0f,  0.0f,  0.0f, -1.0f },
+	});
+
+#endif
 
     GaussJordanElimination(matrix);
 
@@ -134,13 +283,9 @@ int main (int argc, char **argv)
 /*
 
 TODO:
-* take matrix as input
-* do the work as much as can be done
 * spit out csv of results, so it can be viewed in eg excel?
  * maybe spit out a text file as well, or instead?
-* handle todo's
 * test with matrices that have missing variables etc
-* review and update all comments
 ? should we also calculate the null space?
 ? should we say if the matrix is inconsistent? that assumes an augmented matrix though, so maybe say "if an augmented matrix, it's inconsistent"
 ? should we do augmented matrix vs not?
