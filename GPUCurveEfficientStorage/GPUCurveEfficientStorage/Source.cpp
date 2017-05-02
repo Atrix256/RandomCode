@@ -2,6 +2,9 @@
 #include <stdlib.h>
 #include <array>
 #include <algorithm>
+#include <unordered_set>
+
+#define EQUALITY_TEST_SAMPLES 100
 
 typedef int32_t TINT;
 
@@ -250,6 +253,7 @@ void Test2DQuadratic ()
 	GaussJordanElimination(augmentedMatrix);
 
 	// print out the equations
+	std::unordered_set<size_t> freeVariables;
 	bool constraintFound = false;
 	for (const TVector<c_numPixels + c_numControlPoints>& row : augmentedMatrix)
 	{
@@ -260,13 +264,16 @@ void Test2DQuadratic ()
 			if (row[i].m_numerator != 0)
 			{
 				if (leftHasATerm)
+				{
 					printf(" + ");
+					freeVariables.insert(i);
+				}
 				if (row[i].m_numerator == 1 && row[i].m_denominator == 1)
-					printf("P%zu", i);
+					printf("%c", 'A' + i);
 				else if (row[i].m_denominator == 1)
-					printf("P%zu * %i", i, row[i].m_numerator);
+					printf("%c * %i", 'A' + i, row[i].m_numerator);
 				else
-					printf("P%zu * %i/%i", i, row[i].m_numerator, row[i].m_denominator);
+					printf("%c * %i/%i", 'A' + i, row[i].m_numerator, row[i].m_denominator);
 				leftHasATerm = true;
 			}
 		}
@@ -304,9 +311,9 @@ void Test2DQuadratic ()
 		return;
 	}
 
+	printf("    %zu free variables.\n", freeVariables.size());
+
 	// TODO: test equality next of bilinear interpolation and the bezier formulas. do N samples, where N is a define.  report largest difference value found.
-	// TODO: then zig zag
-	// TODO: then 3d, 3d multiple curves, 3d zig zag, and so on? maybe general case or 4d or who knows.
 	int ijkl = 0;
 }
 
@@ -317,6 +324,100 @@ void Test2DQuadratics ()
 	Test2DQuadratic<1>();
 	Test2DQuadratic<2>();
 	Test2DQuadratic<3>();
+
+	printf("\n");
+	system("pause");
+}
+
+//===================================================================================================================================
+//                                    2D Textures / Quadratic Curves With C0 Continuity
+//===================================================================================================================================
+//
+// Find the limitations of this pattern and show equivalence to Bernstein Polynomials (Bezier Curve Equations). Pattern details below.
+//
+//  --- For first curve, do:
+//
+//  P00 P01
+//  P10 P11
+//
+//  P00 = C0
+//  P01 + P10 = 2 * C1
+//  P11 = C2
+//
+//  --- For second curve, do:
+//
+//  P00 P01
+//  P10 P11
+//  P20 P21
+//
+//  P00 = C0
+//  P01 + P10 = 2 * C1
+//  P11 = C2
+//
+//  P10 + P21 = 2 * C3
+//  P20 = C4
+//
+//
+//  --- For third curve, do:
+//
+//  P00 P01
+//  P10 P11
+//  P20 P21
+//  P30 P31
+//
+//  P00 = C0
+//  P01 + P10 = 2 * C1
+//  P11 = C2
+//
+//  P10 + P21 = 2 * C3
+//  P20 = C4
+//
+//  P21 + P30 = 2 * C5
+//  P31 = C6
+//
+//  --- Other details:
+//  
+//  * control points: 3 + (NumCurves-1)*2.  NumCurves > 0.
+//  * image width it 2
+//  * image height is 1 + NumCurves.  NumCurves > 0.
+//  * equations: 3 + (NumCurves-1)*2.  NumCurves > 0.  This many rows in the augmented matrix.
+//  * augmented matrix columns = num pixels (left columns) + num control points (right columns)
+//
+
+template <size_t NUMCURVES>
+void Test2DQuadraticsC0 ()
+{
+	const size_t c_imageWidth = 2;
+	const size_t c_imageHeight = NUMCURVES + 1;
+	const size_t c_numPixels = c_imageWidth * c_imageHeight;
+	const size_t c_numControlPoints = 3 + (NUMCURVES-1) * 2;
+	const size_t c_numEquations = 3 + (NUMCURVES - 1) * 2;
+
+	// report values for this test
+	printf("  %zu curves.  %zu control points.  2x%zu texture = %zu pixels.\n", NUMCURVES, c_numControlPoints, c_imageHeight, c_numPixels);
+
+	// create the equations
+	TMatrix<c_numEquations, c_numPixels + c_numControlPoints> augmentedMatrix;
+
+	// TODO: finish this
+	// TODO: factor out some of the common stuff, like displaying formulas
+
+	int ijkl = 0;
+}
+
+void Test2DQuadraticsC0 ()
+{
+	printf("\nTesting 2D Textures / Quadratic Curves with C0 continuity\n");
+
+	Test2DQuadraticsC0<1>();
+	Test2DQuadraticsC0<2>();
+	Test2DQuadraticsC0<3>();
+	Test2DQuadraticsC0<4>();
+
+	// TODO: how many should we show?
+
+	printf("\n");
+	system("pause");
 }
 
 //===================================================================================================================================
@@ -326,9 +427,14 @@ void Test2DQuadratics ()
 int main (int agrc, char **argv)
 {
 	Test2DQuadratics();
+	Test2DQuadraticsC0();
 
-	printf("\n");
-	system("pause");
+	// TODO: then 3d, 3d multiple curves, 3d zig zag, and so on? maybe general case or 4d or who knows.
 
 	return 0;
 }
+
+/*
+TODO:
+ * should we display pixels per control point and pixels per curve information?
+*/
