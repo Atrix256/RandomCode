@@ -304,6 +304,9 @@ void Test2DQuadratic ()
 		return;
 	}
 
+	// TODO: test equality next of bilinear interpolation and the bezier formulas. do N samples, where N is a define.  report largest difference value found.
+	// TODO: then zig zag
+	// TODO: then 3d, 3d multiple curves, 3d zig zag, and so on? maybe general case or 4d or who knows.
 	int ijkl = 0;
 }
 
