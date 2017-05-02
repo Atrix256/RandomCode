@@ -233,7 +233,7 @@ void Test2DQuadratic ()
 	TMatrix<c_numEquations, c_numPixels + c_numControlPoints> augmentedMatrix;
 	for (size_t curveIndex = 0; curveIndex < NUMCURVES; ++curveIndex)
 	{
-		TVector<c_numPixels + c_numControlPoints>* rows = &augmentedMatrix[curveIndex * 3 + 0];
+		TVector<c_numPixels + c_numControlPoints>* rows = &augmentedMatrix[curveIndex * 3];
 
 		const size_t c_leftRowOffset = curveIndex * 2;
 		const size_t c_rightRowOffset = curveIndex * 3 + c_numPixels;
@@ -313,7 +313,7 @@ void Test2DQuadratic ()
 
 	printf("    %zu free variables.\n", freeVariables.size());
 
-	// TODO: test equality next of bilinear interpolation and the bezier formulas. do N samples, where N is a define.  report largest difference value found.
+	// TODO: test equality next of N-linear interpolation and the bezier formulas. do N samples, where N is a define.  report largest difference value found.
 	int ijkl = 0;
 }
 
@@ -377,10 +377,10 @@ void Test2DQuadratics ()
 //
 //  --- Other details:
 //  
-//  * control points: 3 + (NumCurves-1)*2.  NumCurves > 0.
+//  * control points: 1 + NumCurves*2.  NumCurves > 0.
 //  * image width it 2
 //  * image height is 1 + NumCurves.  NumCurves > 0.
-//  * equations: 3 + (NumCurves-1)*2.  NumCurves > 0.  This many rows in the augmented matrix.
+//  * equations: 1 + NumCurves*2.  NumCurves > 0.  This many rows in the augmented matrix.
 //  * augmented matrix columns = num pixels (left columns) + num control points (right columns)
 //
 
@@ -390,8 +390,8 @@ void Test2DQuadraticsC0 ()
 	const size_t c_imageWidth = 2;
 	const size_t c_imageHeight = NUMCURVES + 1;
 	const size_t c_numPixels = c_imageWidth * c_imageHeight;
-	const size_t c_numControlPoints = 3 + (NUMCURVES-1) * 2;
-	const size_t c_numEquations = 3 + (NUMCURVES - 1) * 2;
+	const size_t c_numControlPoints = 1 + NUMCURVES * 2;
+	const size_t c_numEquations = 1 + NUMCURVES * 2;
 
 	// report values for this test
 	printf("  %zu curves.  %zu control points.  2x%zu texture = %zu pixels.\n", NUMCURVES, c_numControlPoints, c_imageHeight, c_numPixels);
@@ -399,10 +399,108 @@ void Test2DQuadraticsC0 ()
 	// create the equations
 	TMatrix<c_numEquations, c_numPixels + c_numControlPoints> augmentedMatrix;
 
-	// TODO: finish this
-	// TODO: factor out some of the common stuff, like displaying formulas
+	for (size_t i = 0; i < c_numEquations; ++i)
+	{
+		TVector<c_numPixels + c_numControlPoints>& row = augmentedMatrix[i];
 
+		// right side of the equation is always the same pattern.  Along the diagonal odd rows get a 1, even rows get a 2.
+		row[c_numPixels + i] = (i % 2 == 0) ? CRationalNumber(1) : CRationalNumber(2);
+
+		// even rows get a single value on the left side of the equation
+		if (i % 2 == 0)
+		{
+			size_t offset = (i / 2) % 2;
+			row[i + offset] = CRationalNumber(1);
+		}
+		// odd rows get two values on left side of the equation
+		else
+		{
+			// it goes in this pattern. maybe have one calculation to get last and use it also for current?
+			// 01
+			// 10
+			// 21
+			// 30
+			// 41
+
+			// TODO: this is wrong somehow!
+			size_t base = (i / 2) * 2;
+			size_t offset = ((1 / 2) % 2) == 1 ? 0 : 1;
+			row[base + offset] = CRationalNumber(1);
+
+			base = base + 2;
+			offset = offset ? 0 : 1;
+			row[base + offset] = CRationalNumber(1);
+		}
+	}
+	
+	// put augmented matrix into rref
+	GaussJordanElimination(augmentedMatrix);
+
+	// print out the equations
+	std::unordered_set<size_t> freeVariables;
+	bool constraintFound = false;
+	for (const TVector<c_numPixels + c_numControlPoints>& row : augmentedMatrix)
+	{
+		printf("    ");
+		bool leftHasATerm = false;
+		for (size_t i = 0; i < c_numPixels; ++i)
+		{
+			if (row[i].m_numerator != 0)
+			{
+				if (leftHasATerm)
+				{
+					printf(" + ");
+					freeVariables.insert(i);
+				}
+				if (row[i].m_numerator == 1 && row[i].m_denominator == 1)
+					printf("%c", 'A' + i);
+				else if (row[i].m_denominator == 1)
+					printf("%c * %i", 'A' + i, row[i].m_numerator);
+				else
+					printf("%c * %i/%i", 'A' + i, row[i].m_numerator, row[i].m_denominator);
+				leftHasATerm = true;
+			}
+		}
+		if (!leftHasATerm)
+			printf("0 = ");
+		else
+			printf(" = ");
+
+		bool rightHasATerm = false;
+		for (size_t i = c_numPixels; i < c_numPixels + c_numControlPoints; ++i)
+		{
+			if (row[i].m_numerator != 0)
+			{
+				if (rightHasATerm)
+					printf(" + ");
+				if (row[i].m_numerator == 1 && row[i].m_denominator == 1)
+					printf("C%zu", i - c_numPixels);
+				else if (row[i].m_denominator == 1)
+					printf("C%zu * %i", i - c_numPixels, row[i].m_numerator);
+				else
+					printf("C%zu * %i/%i", i - c_numPixels, row[i].m_numerator, row[i].m_denominator);
+				rightHasATerm = true;
+			}
+		}
+
+		printf("\n");
+
+		if (!leftHasATerm && rightHasATerm)
+			constraintFound = true;
+	}
+
+	if (constraintFound)
+	{
+		printf("    Constraint Found.  This configuration doesn't work!\n");
+		return;
+	}
+
+	printf("    %zu free variables.\n", freeVariables.size());
+
+	// TODO: test equality next of N-linear interpolation and the bezier formulas. do N samples, where N is a define.  report largest difference value found.
 	int ijkl = 0;
+
+	// TODO: factor out some of the common stuff, like displaying formulas
 }
 
 void Test2DQuadraticsC0 ()
