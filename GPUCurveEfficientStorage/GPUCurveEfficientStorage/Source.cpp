@@ -1,21 +1,34 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <array>
+#include <algorithm>
+
+typedef int32_t TINT;
+
+TINT CalculateGCD (TINT smaller, TINT larger);
+TINT CalculateLCM (TINT smaller, TINT larger);
 
 // A rational number, to handle fractional numbers without typical floating point issues
 struct CRationalNumber
 {
-	CRationalNumber (size_t numerator = 0, size_t denominator = 1)
+	CRationalNumber (TINT numerator = 0, TINT denominator = 1)
 		: m_numerator(numerator)
 		, m_denominator(denominator)
 	{ }
 
-	size_t m_numerator;
-	size_t m_denominator;
+	TINT m_numerator;
+	TINT m_denominator;
 
 	CRationalNumber Reciprocal () const
 	{
 		return CRationalNumber(m_denominator, m_numerator);
+	}
+
+	void Reduce ()
+	{
+		TINT div = CalculateGCD(m_numerator, m_denominator);
+		m_numerator /= div;
+		m_denominator /= div;
 	}
 };
 
@@ -28,13 +41,77 @@ template<size_t M, size_t N>
 using TMatrix = std::array<TVector<N>, M>;
 
 //===================================================================================================================================
+//                                              GCD / LCM
+//===================================================================================================================================
+
+// from my blog post: http://blog.demofox.org/2015/01/24/programmatically-calculating-gcd-and-lcm/
+
+TINT CalculateGCD (TINT smaller, TINT larger)
+{
+	// make sure A <= B before starting
+	if (larger < smaller)
+		std::swap(smaller, larger);
+
+	// loop
+	while (1)
+	{
+		// if the remainder of larger / smaller is 0, they are the same
+		// so return smaller as the GCD
+		TINT remainder = larger % smaller;
+		if (remainder == 0)
+			return smaller;
+
+		// otherwise, the new larger number is the old smaller number, and
+		// the new smaller number is the remainder
+		larger = smaller;
+		smaller = remainder;
+	}
+}
+
+TINT CalculateLCM (TINT A, TINT B)
+{
+	// LCM(A,B) = (A/GCD(A,B))*B
+	return (A / CalculateGCD(A, B))*B;
+}
+
+//===================================================================================================================================
 //                                              RATIONAL NUMBER MATH
 //===================================================================================================================================
 
+void CommonDenominators (CRationalNumber& a, CRationalNumber& b)
+{
+	TINT gcm = CalculateGCD(a.m_denominator, b.m_denominator);
+
+	a.m_numerator *= gcm / a.m_denominator;
+	b.m_numerator *= gcm / b.m_denominator;
+
+	a.m_denominator = gcm;
+	b.m_denominator = gcm;
+}
+
 bool operator == (const CRationalNumber& a, const CRationalNumber& b)
 {
-	// TODO: make common denominator and compare numerator?
-	return false;
+	CRationalNumber _a(a), _b(b);
+	CommonDenominators(_a, _b);
+	return _a.m_numerator == _b.m_numerator;
+}
+
+void operator *= (CRationalNumber& a, const CRationalNumber& b)
+{
+	a.m_numerator *= b.m_numerator;
+	a.m_denominator *= b.m_denominator;
+}
+
+CRationalNumber operator * (const CRationalNumber& a, const CRationalNumber& b)
+{
+	return CRationalNumber(a.m_numerator * b.m_numerator, a.m_denominator * b.m_denominator);
+}
+
+void operator -= (CRationalNumber& a, const CRationalNumber& b)
+{
+	CRationalNumber _b(b);
+	CommonDenominators(a, _b);
+	a.m_numerator -= _b.m_numerator;
 }
 
 //===================================================================================================================================
@@ -75,7 +152,7 @@ bool MakeRowClaimVariable (TMatrix<M, N>& matrix, size_t rowIndex, size_t colInd
         if (eliminateRowIndex == rowIndex)
             continue;
  
-        float scale = matrix[eliminateRowIndex][colIndex];
+        CRationalNumber scale = matrix[eliminateRowIndex][colIndex];
         for (size_t eliminateColIndex = 0; eliminateColIndex < N; ++eliminateColIndex)
             matrix[eliminateRowIndex][eliminateColIndex] -= matrix[rowIndex][eliminateColIndex] * scale;
     }
@@ -169,9 +246,63 @@ void Test2DQuadratic ()
 		rows[2][c_rightRowOffset + 2] = CRationalNumber(1);
 	}
 
-	// TODO: put into rref?  http://blog.demofox.org/2017/04/10/solving-n-equations-and-n-unknowns-the-fine-print-gauss-jordan-elimination/
-
+	// put augmented matrix into rref
 	GaussJordanElimination(augmentedMatrix);
+
+	// print out the equations
+	bool constraintFound = false;
+	for (const TVector<c_numPixels + c_numControlPoints>& row : augmentedMatrix)
+	{
+		printf("    ");
+		bool leftHasATerm = false;
+		for (size_t i = 0; i < c_numPixels; ++i)
+		{
+			if (row[i].m_numerator != 0)
+			{
+				if (leftHasATerm)
+					printf(" + ");
+				if (row[i].m_numerator == 1 && row[i].m_denominator == 1)
+					printf("P%zu", i);
+				else if (row[i].m_denominator == 1)
+					printf("P%zu * %i", i, row[i].m_numerator);
+				else
+					printf("P%zu * %i/%i", i, row[i].m_numerator, row[i].m_denominator);
+				leftHasATerm = true;
+			}
+		}
+		if (!leftHasATerm)
+			printf("0 = ");
+		else
+			printf(" = ");
+
+		bool rightHasATerm = false;
+		for (size_t i = c_numPixels; i < c_numPixels + c_numControlPoints; ++i)
+		{
+			if (row[i].m_numerator != 0)
+			{
+				if (rightHasATerm)
+					printf(" + ");
+				if (row[i].m_numerator == 1 && row[i].m_denominator == 1)
+					printf("C%zu", i - c_numPixels);
+				else if (row[i].m_denominator == 1)
+					printf("C%zu * %i", i - c_numPixels, row[i].m_numerator);
+				else
+					printf("C%zu * %i/%i", i - c_numPixels, row[i].m_numerator, row[i].m_denominator);
+				rightHasATerm = true;
+			}
+		}
+
+		printf("\n");
+
+		if (!leftHasATerm && rightHasATerm)
+			constraintFound = true;
+	}
+
+	if (constraintFound)
+	{
+		printf("    Constraint Found.  This configuration doesn't work!\n");
+		return;
+	}
 
 	int ijkl = 0;
 }
