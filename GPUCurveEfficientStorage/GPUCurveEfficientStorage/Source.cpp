@@ -37,6 +37,12 @@ struct CRationalNumber
 			m_numerator /= div;
 			m_denominator /= div;
 		}
+
+		if (m_denominator < 0)
+		{
+			m_numerator *= -1;
+			m_denominator *= -1;
+		}
 	}
 
 	bool IsZero () const
@@ -291,32 +297,58 @@ float lerp (float t, float a, float b)
 	return a * (1.0f - t) + b * t;
 }
 
-template <size_t N>
-float EvaluateBernsteinPolynomial2DQuadratic (float t, const std::array<float, N>& coefficients)
+template <size_t NUMPIXELS, size_t NUMCONTROLPOINTS, size_t NUMEQUATIONS>
+void FillInPixelsAndControlPoints (
+	std::array<float, NUMPIXELS>& pixels,
+	std::array<float, NUMCONTROLPOINTS>& controlPoints,
+	const TMatrix<NUMEQUATIONS, NUMPIXELS+ NUMCONTROLPOINTS>& augmentedMatrix,
+	const std::unordered_set<size_t>& freeVariables)
 {
-	const size_t c_numCurves = coefficients.size() / 3;
+	// come up with random values for the control points and free variable pixels
+	static std::random_device rd;
+	static std::mt19937 mt(rd());
+	static std::uniform_real_distribution<float> dist(-10.0f, 10.0f);
+	for (float& cp : controlPoints)
+		cp = dist(mt);
+	for (size_t var : freeVariables)
+		pixels[var] = dist(mt);
 
-	size_t startCurve = std::min(size_t(t*float(c_numCurves)), c_numCurves - 1);
-	size_t iOffset = startCurve * 3;
+	// fill in the non free variable pixels per the equations
+	for (const TVector<NUMPIXELS + NUMCONTROLPOINTS>& row : augmentedMatrix)
+	{
+		// the first non zero value is the non free pixel we need to set.
+		// all other non zero values are free variables that we previously calculated values for
+		bool foundPixel = false;
+		size_t pixelIndex = 0;
+		for (size_t i = 0; i < NUMPIXELS; ++i)
+		{
+			if (!row[i].IsZero())
+			{
+				// we are setting the first pixel we find
+				if (!foundPixel)
+				{
+					pixelIndex = i;
+					foundPixel = true;
+				}
+				// subtract out all free variables which is the same as moving them to the right side of the equation
+				else
+				{
+					pixels[pixelIndex] -= pixels[i] * float(row[i].m_numerator) / float(row[i].m_denominator);
+				}
+			}
+		}
 
-	float ret = 0.0f;
-	std::vector<size_t> binomialCoefficients = PascalsTriangleRow(2);
-	size_t index = 0;
-	for (size_t i = 0; i < 3; ++i)
-		ret += coefficients[i + iOffset] * std::powf((1.0f - t), float(2 - i)) * std::powf(t, float(i)) * binomialCoefficients[i];
-	return ret;
-}
+		// if there is no pixel value to set on the left side of the equation, ignore this row
+		if (!foundPixel)
+			continue;
 
-template <size_t N>
-float EvaluateLinearInterpolation2DQuadratic (float t, const std::array<float, N>& pixels)
-{
-	const size_t c_numPixels = pixels.size();
-	const size_t c_numRows = c_numPixels / 2;
-
-	size_t startRow = std::min(size_t(t*float(c_numRows - 1)), c_numRows - 2);
-	float row0 = lerp(t, pixels[startRow * 2], pixels[startRow * 2 + 1]);
-	float row1 = lerp(t, pixels[(startRow + 1) * 2], pixels[(startRow + 1) * 2 + 1]);
-	return lerp(t, row0, row1);
+		// add in the values from the right side of the equation
+		for (size_t i = NUMPIXELS; i < NUMPIXELS + NUMCONTROLPOINTS; ++i)
+		{
+			if (!row[i].IsZero())
+				pixels[pixelIndex] += controlPoints[i - NUMPIXELS] * float(row[i].m_numerator) / float(row[i].m_denominator);
+		}
+	}
 }
 
 //===================================================================================================================================
@@ -357,6 +389,34 @@ float EvaluateLinearInterpolation2DQuadratic (float t, const std::array<float, N
 //  * augmented matrix columns = num pixels (left columns) + num control points (right columns)
 //
 
+template <size_t N>
+float EvaluateBernsteinPolynomial2DQuadratic (float t, const std::array<float, N>& coefficients)
+{
+	const size_t c_numCurves = coefficients.size() / 3;
+
+	size_t startCurve = std::min(size_t(t*float(c_numCurves)), c_numCurves - 1);
+	size_t iOffset = startCurve * 3;
+
+	float ret = 0.0f;
+	std::vector<size_t> binomialCoefficients = PascalsTriangleRow(2);
+	size_t index = 0;
+	for (size_t i = 0; i < 3; ++i)
+		ret += coefficients[i + iOffset] * std::powf((1.0f - t), float(2 - i)) * std::powf(t, float(i)) * binomialCoefficients[i];
+	return ret;
+}
+
+template <size_t N>
+float EvaluateLinearInterpolation2DQuadratic (float t, const std::array<float, N>& pixels)
+{
+	const size_t c_numPixels = pixels.size();
+	const size_t c_numRows = c_numPixels / 2;
+
+	size_t startRow = std::min(size_t(t*float(c_numRows - 1)), c_numRows - 2);
+	float row0 = lerp(t, pixels[startRow * 2], pixels[startRow * 2 + 1]);
+	float row1 = lerp(t, pixels[(startRow + 1) * 2], pixels[(startRow + 1) * 2 + 1]);
+	return lerp(t, row0, row1);
+}
+
 template <size_t NUMCURVES>
 void Test2DQuadratic ()
 {
@@ -394,70 +454,14 @@ void Test2DQuadratic ()
 	if (!SolveMatrixAndPrintEquations(augmentedMatrix, c_numPixels, freeVariables))
 		return;
 
-	// Next we need to show equality between the N-linear interpolation of our pixels
-	// and bernstein polynomials with our control points as coefficients
+	// Next we need to show equality between the N-linear interpolation of our pixels and bernstein polynomials with our control points as coefficients
 
-	// come up with random values for the control points and free variable pixels
-	std::random_device rd;
-	std::mt19937 mt(rd());
-	static std::uniform_real_distribution<float> dist(-10.0f, 10.0f);
+	// Fill in random values for our control points and free variable pixels, and fill in the other pixels as the equations dictate 
 	std::array<float, c_numPixels> pixels = { 0 };
 	std::array<float, c_numControlPoints> controlPoints = { 0 };
-	size_t i = 0;  // TODO: temp!
-	for (float& cp : controlPoints)
-	{
-		cp = dist(mt);
+	FillInPixelsAndControlPoints<c_numPixels, c_numControlPoints, c_numEquations>(pixels, controlPoints, augmentedMatrix, freeVariables);
 
-		// TODO: temp!
-		cp = float(i);
-		++i;
-	}
-	for (size_t var : freeVariables)
-	{
-		pixels[var] = dist(mt);
-
-		// TODO: temp!
-		pixels[var] = 0.0f;
-	}
-
-	// fill in the non free variable pixels per the equations
-	for (TVector<c_numPixels + c_numControlPoints>& row : augmentedMatrix)
-	{
-		// the first non zero value is the non free pixel we need to set.
-		// all other non zero values are free variables that we previously calculated values for
-		bool foundPixel = false;
-		size_t pixelIndex = 0;
-		for (size_t i = 0; i < c_numPixels; ++i)
-		{
-			if (!row[i].IsZero())
-			{
-				// we are setting the first pixel we find
-				if (!foundPixel)
-				{
-					pixelIndex = i;
-					foundPixel = true;
-				}
-				// subtract out all free variables which is the same as moving them to the right side of the equation
-				else
-				{
-					pixels[pixelIndex] -= pixels[i] * float(row[i].m_numerator) / float(row[i].m_denominator);
-				}
-			}
-		}
-
-		// if there is no pixel value to set on the left side of the equation, ignore this row
-		if (!foundPixel)
-			continue;
-
-		// add in the values from the right side of the equation
-		for (size_t i = c_numPixels; i < c_numPixels + c_numControlPoints; ++i)
-		{
-			if (!row[i].IsZero())
-				pixels[pixelIndex] += controlPoints[i - c_numPixels] * float(row[i].m_numerator) / float(row[i].m_denominator);
-		}
-	}
-
-	// do some number of samples of each method at the same time values, keeping track of the largest difference
+	// do a number of samples of each method at the same time values, and report the largest difference (error)
 	float largestDifference = 0.0f;
 	for (size_t i = 0; i < EQUALITY_TEST_SAMPLES; ++i)
 	{
@@ -537,8 +541,40 @@ void Test2DQuadratics ()
 //  * augmented matrix columns = num pixels (left columns) + num control points (right columns)
 //
 
+// TODO: make these work, and make sure they work!
+template <size_t N>
+float EvaluateBernsteinPolynomial2DQuadraticC0 (float t, const std::array<float, N>& coefficients)
+{
+	const size_t c_numCurves = coefficients.size() / 3;
+
+	size_t startCurve = std::min(size_t(t*float(c_numCurves)), c_numCurves - 1);
+	size_t iOffset = startCurve * 2;
+
+	float ret = 0.0f;
+	std::vector<size_t> binomialCoefficients = PascalsTriangleRow(2);
+	size_t index = 0;
+	for (size_t i = 0; i < 3; ++i)
+		ret += coefficients[i + iOffset] * std::powf((1.0f - t), float(2 - i)) * std::powf(t, float(i)) * binomialCoefficients[i];
+	return ret;
+}
+
+template <size_t N>
+float EvaluateLinearInterpolation2DQuadraticC0 (float t, const std::array<float, N>& pixels)
+{
+	// TODO: this is for sure not right!
+	const size_t c_numPixels = pixels.size();
+	const size_t c_numRows = c_numPixels / 2;
+
+	// Note we flip x axis direction every odd row to get the zig zag
+	size_t startRow = std::min(size_t(t*float(c_numRows - 1)), c_numRows - 2);
+	float horizT = (startRow % 2) == 0 ? t : 1.0f - t;
+	float row0 = lerp(horizT, pixels[startRow * 2], pixels[startRow * 2 + 1]);
+	float row1 = lerp(horizT, pixels[(startRow + 1) * 2], pixels[(startRow + 1) * 2 + 1]);
+	return lerp(t, row0, row1);
+}
+
 template <size_t NUMCURVES>
-void Test2DQuadraticsC0 ()
+void Test2DQuadraticC0 ()
 {
 	const size_t c_imageWidth = 2;
 	const size_t c_imageHeight = NUMCURVES + 1;
@@ -584,18 +620,35 @@ void Test2DQuadraticsC0 ()
 	if (!SolveMatrixAndPrintEquations(augmentedMatrix, c_numPixels, freeVariables))
 		return;
 
-	// TODO: test equality next of N-linear interpolation and the bezier formulas. do N samples, where N is a define.  report largest difference value found.
-	int ijkl = 0;
+	// Next we need to show equality between the N-linear interpolation of our pixels and bernstein polynomials with our control points as coefficients
+
+	// Fill in random values for our control points and free variable pixels, and fill in the other pixels as the equations dictate 
+	std::array<float, c_numPixels> pixels = { 0 };
+	std::array<float, c_numControlPoints> controlPoints = { 0 };
+	FillInPixelsAndControlPoints<c_numPixels, c_numControlPoints, c_numEquations>(pixels, controlPoints, augmentedMatrix, freeVariables);
+
+	// do a number of samples of each method at the same time values, and report the largest difference (error)
+	float largestDifference = 0.0f;
+	for (size_t i = 0; i < EQUALITY_TEST_SAMPLES; ++i)
+	{
+		float t = float(i) / float(EQUALITY_TEST_SAMPLES - 1);
+
+		float value1 = EvaluateBernsteinPolynomial2DQuadraticC0(t, controlPoints);
+		float value2 = EvaluateLinearInterpolation2DQuadraticC0(t, pixels);
+
+		largestDifference = std::max(largestDifference, std::abs(value1 - value2));
+	}
+	printf("    %i Samples, Largest Error = %f\n", EQUALITY_TEST_SAMPLES, largestDifference);
 }
 
 void Test2DQuadraticsC0 ()
 {
 	printf("\nTesting 2D Textures / Quadratic Curves with C0 continuity\n");
 
-	Test2DQuadraticsC0<1>();
-	Test2DQuadraticsC0<2>();
-	Test2DQuadraticsC0<3>();
-	Test2DQuadraticsC0<4>();
+	Test2DQuadraticC0<1>();
+	Test2DQuadraticC0<2>();
+	Test2DQuadraticC0<3>();
+	Test2DQuadraticC0<4>();
 
 	printf("\n");
 	system("pause");
