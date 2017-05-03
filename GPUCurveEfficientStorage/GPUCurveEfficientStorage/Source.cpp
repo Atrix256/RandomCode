@@ -4,8 +4,9 @@
 #include <algorithm>
 #include <unordered_set>
 #include <random>
+#include <vector>
 
-#define EQUALITY_TEST_SAMPLES 100
+#define EQUALITY_TEST_SAMPLES 1000
 
 typedef int32_t TINT;
 
@@ -30,9 +31,12 @@ struct CRationalNumber
 
 	void Reduce ()
 	{
-		TINT div = CalculateGCD(m_numerator, m_denominator);
-		m_numerator /= div;
-		m_denominator /= div;
+		if (m_numerator != 0 && m_denominator != 0)
+		{
+			TINT div = CalculateGCD(m_numerator, m_denominator);
+			m_numerator /= div;
+			m_denominator /= div;
+		}
 	}
 
 	bool IsZero () const
@@ -47,7 +51,7 @@ struct CRationalNumber
 
 	bool IsWholeNumber () const
 	{
-		return CalculateGCD(m_numerator, m_denominator) == m_denominator;
+		return m_denominator == 1;
 	}
 };
 
@@ -205,6 +209,11 @@ bool SolveMatrixAndPrintEquations (TMatrix<M, N>& augmentedMatrix, size_t numPix
 	// put augmented matrix into rref
 	GaussJordanElimination(augmentedMatrix);
 
+	// reduce all fractions
+	for (TVector<N>& row : augmentedMatrix)
+		for (CRationalNumber& value : row)
+			value.Reduce();
+
 	// print out the equations
 	bool constraintFound = false;
 	for (const TVector<N>& row : augmentedMatrix)
@@ -265,6 +274,49 @@ bool SolveMatrixAndPrintEquations (TMatrix<M, N>& augmentedMatrix, size_t numPix
 
 	printf("    %zu free variables.\n", freeVariables.size());
 	return true;
+}
+
+// from http://blog.demofox.org/2015/05/25/easy-binomial-expansion-bezier-curve-formulas/
+std::vector<size_t> PascalsTriangleRow (size_t row)
+{
+	std::vector<size_t> ret;
+	ret.push_back(1);
+	for (size_t i = 0; i < row; ++i)
+		ret.push_back(ret[i] * (row - i) / (i + 1));
+	return ret;
+}
+
+float lerp (float t, float a, float b)
+{
+	return a * (1.0f - t) + b * t;
+}
+
+template <size_t N>
+float EvaluateBernsteinPolynomial2DQuadratic (float t, const std::array<float, N>& coefficients)
+{
+	const size_t c_numCurves = coefficients.size() / 3;
+
+	size_t startCurve = std::min(size_t(t*float(c_numCurves)), c_numCurves - 1);
+	size_t iOffset = startCurve * 3;
+
+	float ret = 0.0f;
+	std::vector<size_t> binomialCoefficients = PascalsTriangleRow(2);
+	size_t index = 0;
+	for (size_t i = 0; i < 3; ++i)
+		ret += coefficients[i + iOffset] * std::powf((1.0f - t), float(2 - i)) * std::powf(t, float(i)) * binomialCoefficients[i];
+	return ret;
+}
+
+template <size_t N>
+float EvaluateLinearInterpolation2DQuadratic (float t, const std::array<float, N>& pixels)
+{
+	const size_t c_numPixels = pixels.size();
+	const size_t c_numRows = c_numPixels / 2;
+
+	size_t startRow = std::min(size_t(t*float(c_numRows - 1)), c_numRows - 2);
+	float row0 = lerp(t, pixels[startRow * 2], pixels[startRow * 2 + 1]);
+	float row1 = lerp(t, pixels[(startRow + 1) * 2], pixels[(startRow + 1) * 2 + 1]);
+	return lerp(t, row0, row1);
 }
 
 //===================================================================================================================================
@@ -342,34 +394,81 @@ void Test2DQuadratic ()
 	if (!SolveMatrixAndPrintEquations(augmentedMatrix, c_numPixels, freeVariables))
 		return;
 
+	// Next we need to show equality between the N-linear interpolation of our pixels
+	// and bernstein polynomials with our control points as coefficients
+
 	// come up with random values for the control points and free variable pixels
 	std::random_device rd;
 	std::mt19937 mt(rd());
 	static std::uniform_real_distribution<float> dist(-10.0f, 10.0f);
 	std::array<float, c_numPixels> pixels = { 0 };
 	std::array<float, c_numControlPoints> controlPoints = { 0 };
+	size_t i = 0;  // TODO: temp!
 	for (float& cp : controlPoints)
+	{
 		cp = dist(mt);
+
+		// TODO: temp!
+		cp = float(i);
+		++i;
+	}
 	for (size_t var : freeVariables)
+	{
 		pixels[var] = dist(mt);
+
+		// TODO: temp!
+		pixels[var] = 0.0f;
+	}
 
 	// fill in the non free variable pixels per the equations
 	for (TVector<c_numPixels + c_numControlPoints>& row : augmentedMatrix)
 	{
 		// the first non zero value is the non free pixel we need to set.
 		// all other non zero values are free variables that we previously calculated values for
-		bool foundValue = true;
+		bool foundPixel = false;
+		size_t pixelIndex = 0;
 		for (size_t i = 0; i < c_numPixels; ++i)
 		{
 			if (!row[i].IsZero())
 			{
-
+				// we are setting the first pixel we find
+				if (!foundPixel)
+				{
+					pixelIndex = i;
+					foundPixel = true;
+				}
+				// subtract out all free variables which is the same as moving them to the right side of the equation
+				else
+				{
+					pixels[pixelIndex] -= pixels[i] * float(row[i].m_numerator) / float(row[i].m_denominator);
+				}
 			}
+		}
+
+		// if there is no pixel value to set on the left side of the equation, ignore this row
+		if (!foundPixel)
+			continue;
+
+		// add in the values from the right side of the equation
+		for (size_t i = c_numPixels; i < c_numPixels + c_numControlPoints; ++i)
+		{
+			if (!row[i].IsZero())
+				pixels[pixelIndex] += controlPoints[i - c_numPixels] * float(row[i].m_numerator) / float(row[i].m_denominator);
 		}
 	}
 
-	// TODO: test equality next of N-linear interpolation and the bezier formulas. do N samples, where N is a define.  report largest difference value found.
-	int ijkl = 0;
+	// do some number of samples of each method at the same time values, keeping track of the largest difference
+	float largestDifference = 0.0f;
+	for (size_t i = 0; i < EQUALITY_TEST_SAMPLES; ++i)
+	{
+		float t = float(i) / float(EQUALITY_TEST_SAMPLES - 1);
+
+		float value1 = EvaluateBernsteinPolynomial2DQuadratic(t, controlPoints);
+		float value2 = EvaluateLinearInterpolation2DQuadratic(t, pixels);
+
+		largestDifference = std::max(largestDifference, std::abs(value1 - value2));
+	}
+	printf("    %i Samples, Largest Error = %f\n", EQUALITY_TEST_SAMPLES, largestDifference);
 }
 
 void Test2DQuadratics ()
@@ -520,6 +619,5 @@ int main (int agrc, char **argv)
 TODO:
  * should we display pixels per control point and pixels per curve information?
  * a #define to show pixels as (coordinate) numbers instead of letters?
- * do we need to reduce fractions?
- * maybe need some helper functions like "is zero" and "is whole number"?
+ * as part of reduce, if bottom is negative, make it pos, and flip sign of top number
 */
