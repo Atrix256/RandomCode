@@ -3,6 +3,7 @@
 #include <array>
 #include <algorithm>
 #include <unordered_set>
+#include <random>
 
 #define EQUALITY_TEST_SAMPLES 100
 
@@ -32,6 +33,21 @@ struct CRationalNumber
 		TINT div = CalculateGCD(m_numerator, m_denominator);
 		m_numerator /= div;
 		m_denominator /= div;
+	}
+
+	bool IsZero () const
+	{
+		return m_numerator == 0 && m_denominator != 0;
+	}
+
+	bool IsOne () const
+	{
+		return m_numerator == m_denominator;
+	}
+
+	bool IsWholeNumber () const
+	{
+		return CalculateGCD(m_numerator, m_denominator) == m_denominator;
 	}
 };
 
@@ -180,6 +196,78 @@ void GaussJordanElimination (TMatrix<M, N>& matrix)
 }
 
 //===================================================================================================================================
+//                                                           Shared Testing Code
+//===================================================================================================================================
+
+template <size_t M, size_t N>
+bool SolveMatrixAndPrintEquations (TMatrix<M, N>& augmentedMatrix, size_t numPixels, std::unordered_set<size_t>& freeVariables)
+{
+	// put augmented matrix into rref
+	GaussJordanElimination(augmentedMatrix);
+
+	// print out the equations
+	bool constraintFound = false;
+	for (const TVector<N>& row : augmentedMatrix)
+	{
+		printf("    ");
+		bool leftHasATerm = false;
+		for (size_t i = 0; i < numPixels; ++i)
+		{
+			if (!row[i].IsZero())
+			{
+				if (leftHasATerm)
+				{
+					printf(" + ");
+					freeVariables.insert(i);
+				}
+				if (row[i].IsOne())
+					printf("%c", 'A' + (int)i);
+				else if (row[i].IsWholeNumber() == 1)
+					printf("%c * %i", 'A' + (int)i, row[i].m_numerator);
+				else
+					printf("%c * %i/%i", 'A' + (int)i, row[i].m_numerator, row[i].m_denominator);
+				leftHasATerm = true;
+			}
+		}
+		if (!leftHasATerm)
+			printf("0 = ");
+		else
+			printf(" = ");
+
+		bool rightHasATerm = false;
+		for (size_t i = numPixels; i < N; ++i)
+		{
+			if (!row[i].IsZero())
+			{
+				if (rightHasATerm)
+					printf(" + ");
+				if (row[i].IsOne())
+					printf("C%zu", i - numPixels);
+				else if (row[i].IsWholeNumber())
+					printf("C%zu * %i", i - numPixels, row[i].m_numerator);
+				else
+					printf("C%zu * %i/%i", i - numPixels, row[i].m_numerator, row[i].m_denominator);
+				rightHasATerm = true;
+			}
+		}
+
+		printf("\n");
+
+		if (!leftHasATerm && rightHasATerm)
+			constraintFound = true;
+	}
+
+	if (constraintFound)
+	{
+		printf("    Constraint Found.  This configuration doesn't work!\n");
+		return false;
+	}
+
+	printf("    %zu free variables.\n", freeVariables.size());
+	return true;
+}
+
+//===================================================================================================================================
 //                                                       2D Textures / Quadratic Curves
 //===================================================================================================================================
 //
@@ -249,69 +337,36 @@ void Test2DQuadratic ()
 		rows[2][c_rightRowOffset + 2] = CRationalNumber(1);
 	}
 
-	// put augmented matrix into rref
-	GaussJordanElimination(augmentedMatrix);
-
-	// print out the equations
+	// solve the matrix if possible and print out the equations
 	std::unordered_set<size_t> freeVariables;
-	bool constraintFound = false;
-	for (const TVector<c_numPixels + c_numControlPoints>& row : augmentedMatrix)
+	if (!SolveMatrixAndPrintEquations(augmentedMatrix, c_numPixels, freeVariables))
+		return;
+
+	// come up with random values for the control points and free variable pixels
+	std::random_device rd;
+	std::mt19937 mt(rd());
+	static std::uniform_real_distribution<float> dist(-10.0f, 10.0f);
+	std::array<float, c_numPixels> pixels = { 0 };
+	std::array<float, c_numControlPoints> controlPoints = { 0 };
+	for (float& cp : controlPoints)
+		cp = dist(mt);
+	for (size_t var : freeVariables)
+		pixels[var] = dist(mt);
+
+	// fill in the non free variable pixels per the equations
+	for (TVector<c_numPixels + c_numControlPoints>& row : augmentedMatrix)
 	{
-		printf("    ");
-		bool leftHasATerm = false;
+		// the first non zero value is the non free pixel we need to set.
+		// all other non zero values are free variables that we previously calculated values for
+		bool foundValue = true;
 		for (size_t i = 0; i < c_numPixels; ++i)
 		{
-			if (row[i].m_numerator != 0)
+			if (!row[i].IsZero())
 			{
-				if (leftHasATerm)
-				{
-					printf(" + ");
-					freeVariables.insert(i);
-				}
-				if (row[i].m_numerator == 1 && row[i].m_denominator == 1)
-					printf("%c", 'A' + i);
-				else if (row[i].m_denominator == 1)
-					printf("%c * %i", 'A' + i, row[i].m_numerator);
-				else
-					printf("%c * %i/%i", 'A' + i, row[i].m_numerator, row[i].m_denominator);
-				leftHasATerm = true;
+
 			}
 		}
-		if (!leftHasATerm)
-			printf("0 = ");
-		else
-			printf(" = ");
-
-		bool rightHasATerm = false;
-		for (size_t i = c_numPixels; i < c_numPixels + c_numControlPoints; ++i)
-		{
-			if (row[i].m_numerator != 0)
-			{
-				if (rightHasATerm)
-					printf(" + ");
-				if (row[i].m_numerator == 1 && row[i].m_denominator == 1)
-					printf("C%zu", i - c_numPixels);
-				else if (row[i].m_denominator == 1)
-					printf("C%zu * %i", i - c_numPixels, row[i].m_numerator);
-				else
-					printf("C%zu * %i/%i", i - c_numPixels, row[i].m_numerator, row[i].m_denominator);
-				rightHasATerm = true;
-			}
-		}
-
-		printf("\n");
-
-		if (!leftHasATerm && rightHasATerm)
-			constraintFound = true;
 	}
-
-	if (constraintFound)
-	{
-		printf("    Constraint Found.  This configuration doesn't work!\n");
-		return;
-	}
-
-	printf("    %zu free variables.\n", freeVariables.size());
 
 	// TODO: test equality next of N-linear interpolation and the bezier formulas. do N samples, where N is a define.  report largest difference value found.
 	int ijkl = 0;
@@ -357,7 +412,6 @@ void Test2DQuadratics ()
 //  P10 + P21 = 2 * C3
 //  P20 = C4
 //
-//
 //  --- For third curve, do:
 //
 //  P00 P01
@@ -398,7 +452,6 @@ void Test2DQuadraticsC0 ()
 
 	// create the equations
 	TMatrix<c_numEquations, c_numPixels + c_numControlPoints> augmentedMatrix;
-
 	for (size_t i = 0; i < c_numEquations; ++i)
 	{
 		TVector<c_numPixels + c_numControlPoints>& row = augmentedMatrix[i];
@@ -415,92 +468,25 @@ void Test2DQuadraticsC0 ()
 		// odd rows get two values on left side of the equation
 		else
 		{
-			// it goes in this pattern. maybe have one calculation to get last and use it also for current?
-			// 01
-			// 10
-			// 21
-			// 30
-			// 41
-
-			// TODO: this is wrong somehow!
 			size_t base = (i / 2) * 2;
-			size_t offset = ((1 / 2) % 2) == 1 ? 0 : 1;
-			row[base + offset] = CRationalNumber(1);
+			if (((i / 2) % 2) == 0)
+				++base;
+			row[base] = CRationalNumber(1);
 
-			base = base + 2;
-			offset = offset ? 0 : 1;
-			row[base + offset] = CRationalNumber(1);
+			base = ((i + 1) / 2) * 2;
+			if (((i / 2) % 2) == 1)
+				++base;
+			row[base] = CRationalNumber(1);
 		}
 	}
 	
-	// put augmented matrix into rref
-	GaussJordanElimination(augmentedMatrix);
-
-	// print out the equations
+	// solve the matrix if possible and print out the equations
 	std::unordered_set<size_t> freeVariables;
-	bool constraintFound = false;
-	for (const TVector<c_numPixels + c_numControlPoints>& row : augmentedMatrix)
-	{
-		printf("    ");
-		bool leftHasATerm = false;
-		for (size_t i = 0; i < c_numPixels; ++i)
-		{
-			if (row[i].m_numerator != 0)
-			{
-				if (leftHasATerm)
-				{
-					printf(" + ");
-					freeVariables.insert(i);
-				}
-				if (row[i].m_numerator == 1 && row[i].m_denominator == 1)
-					printf("%c", 'A' + i);
-				else if (row[i].m_denominator == 1)
-					printf("%c * %i", 'A' + i, row[i].m_numerator);
-				else
-					printf("%c * %i/%i", 'A' + i, row[i].m_numerator, row[i].m_denominator);
-				leftHasATerm = true;
-			}
-		}
-		if (!leftHasATerm)
-			printf("0 = ");
-		else
-			printf(" = ");
-
-		bool rightHasATerm = false;
-		for (size_t i = c_numPixels; i < c_numPixels + c_numControlPoints; ++i)
-		{
-			if (row[i].m_numerator != 0)
-			{
-				if (rightHasATerm)
-					printf(" + ");
-				if (row[i].m_numerator == 1 && row[i].m_denominator == 1)
-					printf("C%zu", i - c_numPixels);
-				else if (row[i].m_denominator == 1)
-					printf("C%zu * %i", i - c_numPixels, row[i].m_numerator);
-				else
-					printf("C%zu * %i/%i", i - c_numPixels, row[i].m_numerator, row[i].m_denominator);
-				rightHasATerm = true;
-			}
-		}
-
-		printf("\n");
-
-		if (!leftHasATerm && rightHasATerm)
-			constraintFound = true;
-	}
-
-	if (constraintFound)
-	{
-		printf("    Constraint Found.  This configuration doesn't work!\n");
+	if (!SolveMatrixAndPrintEquations(augmentedMatrix, c_numPixels, freeVariables))
 		return;
-	}
-
-	printf("    %zu free variables.\n", freeVariables.size());
 
 	// TODO: test equality next of N-linear interpolation and the bezier formulas. do N samples, where N is a define.  report largest difference value found.
 	int ijkl = 0;
-
-	// TODO: factor out some of the common stuff, like displaying formulas
 }
 
 void Test2DQuadraticsC0 ()
@@ -511,8 +497,6 @@ void Test2DQuadraticsC0 ()
 	Test2DQuadraticsC0<2>();
 	Test2DQuadraticsC0<3>();
 	Test2DQuadraticsC0<4>();
-
-	// TODO: how many should we show?
 
 	printf("\n");
 	system("pause");
@@ -535,4 +519,7 @@ int main (int agrc, char **argv)
 /*
 TODO:
  * should we display pixels per control point and pixels per curve information?
+ * a #define to show pixels as (coordinate) numbers instead of letters?
+ * do we need to reduce fractions?
+ * maybe need some helper functions like "is zero" and "is whole number"?
 */
