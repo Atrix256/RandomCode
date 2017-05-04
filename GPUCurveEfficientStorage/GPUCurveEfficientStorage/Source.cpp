@@ -282,16 +282,6 @@ bool SolveMatrixAndPrintEquations (TMatrix<M, N>& augmentedMatrix, size_t numPix
 	return true;
 }
 
-// from http://blog.demofox.org/2015/05/25/easy-binomial-expansion-bezier-curve-formulas/
-std::vector<size_t> PascalsTriangleRow (size_t row)
-{
-	std::vector<size_t> ret;
-	ret.push_back(1);
-	for (size_t i = 0; i < row; ++i)
-		ret.push_back(ret[i] * (row - i) / (i + 1));
-	return ret;
-}
-
 float lerp (float t, float a, float b)
 {
 	return a * (1.0f - t) + b * t;
@@ -392,26 +382,26 @@ void FillInPixelsAndControlPoints (
 template <size_t N>
 float EvaluateBernsteinPolynomial2DQuadratic (float t, const std::array<float, N>& coefficients)
 {
-	const size_t c_numCurves = coefficients.size() / 3;
+	const size_t c_numCurves = N / 3;
+	t *= float(c_numCurves);
+	size_t iOffset = std::min(size_t(t), c_numCurves - 1) * 3;
+	t = std::fmodf(t, 1.0f);
 
-	size_t startCurve = std::min(size_t(t*float(c_numCurves)), c_numCurves - 1);
-	size_t iOffset = startCurve * 3;
-
-	float ret = 0.0f;
-	std::vector<size_t> binomialCoefficients = PascalsTriangleRow(2);
-	size_t index = 0;
-	for (size_t i = 0; i < 3; ++i)
-		ret += coefficients[i + iOffset] * std::powf((1.0f - t), float(2 - i)) * std::powf(t, float(i)) * binomialCoefficients[i];
-	return ret;
+	float s = 1.0f - t;
+	return
+		coefficients[iOffset + 0] * s * s +
+		coefficients[iOffset + 1] * s * t * 2 +
+		coefficients[iOffset + 2] * t * t;
 }
 
 template <size_t N>
 float EvaluateLinearInterpolation2DQuadratic (float t, const std::array<float, N>& pixels)
 {
-	const size_t c_numPixels = pixels.size();
-	const size_t c_numRows = c_numPixels / 2;
+	const size_t c_numCurves = (N / 2) - 1;
+	t *= float(c_numCurves);
+	size_t startRow = std::min(size_t(t), c_numCurves - 1);
+	t = std::fmodf(t, 1.0f);
 
-	size_t startRow = std::min(size_t(t*float(c_numRows - 1)), c_numRows - 2);
 	float row0 = lerp(t, pixels[startRow * 2], pixels[startRow * 2 + 1]);
 	float row1 = lerp(t, pixels[(startRow + 1) * 2], pixels[(startRow + 1) * 2 + 1]);
 	return lerp(t, row0, row1);
@@ -541,35 +531,35 @@ void Test2DQuadratics ()
 //  * augmented matrix columns = num pixels (left columns) + num control points (right columns)
 //
 
-// TODO: make these work, and make sure they work!
 template <size_t N>
 float EvaluateBernsteinPolynomial2DQuadraticC0 (float t, const std::array<float, N>& coefficients)
 {
-	const size_t c_numCurves = coefficients.size() / 3;
+	const size_t c_numCurves = (N - 1) / 2;
+	t *= float(c_numCurves);
+	size_t iOffset = std::min(size_t(t), c_numCurves - 1) * 2;
+	t = std::fmodf(t, 1.0f);
 
-	size_t startCurve = std::min(size_t(t*float(c_numCurves)), c_numCurves - 1);
-	size_t iOffset = startCurve * 2;
-
-	float ret = 0.0f;
-	std::vector<size_t> binomialCoefficients = PascalsTriangleRow(2);
-	size_t index = 0;
-	for (size_t i = 0; i < 3; ++i)
-		ret += coefficients[i + iOffset] * std::powf((1.0f - t), float(2 - i)) * std::powf(t, float(i)) * binomialCoefficients[i];
-	return ret;
+	float s = 1.0f - t;
+	return
+		coefficients[iOffset + 0] * s * s +
+		coefficients[iOffset + 1] * s * t * 2 +
+		coefficients[iOffset + 2] * t * t;
 }
 
 template <size_t N>
 float EvaluateLinearInterpolation2DQuadraticC0 (float t, const std::array<float, N>& pixels)
 {
-	// TODO: this is for sure not right!
-	const size_t c_numPixels = pixels.size();
-	const size_t c_numRows = c_numPixels / 2;
+	const size_t c_numCurves = (N / 2) - 1;
+	t *= float(c_numCurves);
+	size_t startRow = std::min(size_t(t), c_numCurves - 1);
+	t = std::fmodf(t, 1.0f);
 
 	// Note we flip x axis direction every odd row to get the zig zag
-	size_t startRow = std::min(size_t(t*float(c_numRows - 1)), c_numRows - 2);
 	float horizT = (startRow % 2) == 0 ? t : 1.0f - t;
+
 	float row0 = lerp(horizT, pixels[startRow * 2], pixels[startRow * 2 + 1]);
-	float row1 = lerp(horizT, pixels[(startRow + 1) * 2], pixels[(startRow + 1) * 2 + 1]);
+	++startRow;
+	float row1 = lerp(horizT, pixels[startRow * 2], pixels[startRow * 2 + 1]);
 	return lerp(t, row0, row1);
 }
 
@@ -673,4 +663,5 @@ TODO:
  * should we display pixels per control point and pixels per curve information?
  * a #define to show pixels as (coordinate) numbers instead of letters?
  * as part of reduce, if bottom is negative, make it pos, and flip sign of top number
+ * probably don't need pascal's triangle code
 */
