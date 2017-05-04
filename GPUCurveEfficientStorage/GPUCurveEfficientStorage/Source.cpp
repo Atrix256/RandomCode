@@ -274,11 +274,11 @@ bool SolveMatrixAndPrintEquations (TMatrix<M, N>& augmentedMatrix, size_t numPix
 
 	if (constraintFound)
 	{
-		printf("    Constraint Found.  This configuration doesn't work!\n");
+		printf("  Constraint Found.  This configuration doesn't work for the general case!\n\n");
 		return false;
 	}
 
-	printf("    %zu free variables.\n", freeVariables.size());
+	printf("  %zu free variables.\n", freeVariables.size());
 	return true;
 }
 
@@ -370,11 +370,13 @@ void FillInPixelsAndControlPoints (
 //  P11 + P20 = 2 * C4
 //  P21 = C5
 //
+//  and so on...
+//
 //  --- Other details:
 //  
 //  * 3 control points per curve.
 //  * image width it 2
-//  * image height is 1 + NumCurves.  NumCurves > 0.
+//  * image height is 1 + NumCurves.
 //  * there are 3 equations per curve, so 3 rows in the augmented matrix per curve.
 //  * augmented matrix columns = num pixels (left columns) + num control points (right columns)
 //
@@ -418,6 +420,7 @@ void Test2DQuadratic ()
 
 	// report values for this test
 	printf("  %zu curves.  %zu control points.  2x%zu texture = %zu pixels.\n", NUMCURVES, c_numControlPoints, c_imageHeight, c_numPixels);
+	printf("  %f pixels per curve.  %f pixels per control point.\n", float(c_numPixels) / float(NUMCURVES), float(c_numPixels) / float(c_numControlPoints));
 
 	// create the equations
 	TMatrix<c_numEquations, c_numPixels + c_numControlPoints> augmentedMatrix;
@@ -462,18 +465,17 @@ void Test2DQuadratic ()
 
 		largestDifference = std::max(largestDifference, std::abs(value1 - value2));
 	}
-	printf("    %i Samples, Largest Error = %f\n", EQUALITY_TEST_SAMPLES, largestDifference);
+	printf("  %i Samples, Largest Error = %f\n\n", EQUALITY_TEST_SAMPLES, largestDifference);
 }
 
 void Test2DQuadratics ()
 {
-	printf("Testing 2D Textures / Quadratic Curves\n");
+	printf("Testing 2D Textures / Quadratic Curves\n\n");
 
 	Test2DQuadratic<1>();
 	Test2DQuadratic<2>();
 	Test2DQuadratic<3>();
 
-	printf("\n");
 	system("pause");
 }
 
@@ -522,12 +524,14 @@ void Test2DQuadratics ()
 //  P21 + P30 = 2 * C5
 //  P31 = C6
 //
+//  and so on...
+//
 //  --- Other details:
 //  
-//  * control points: 1 + NumCurves*2.  NumCurves > 0.
+//  * control points: 1 + NumCurves*2.
 //  * image width it 2
-//  * image height is 1 + NumCurves.  NumCurves > 0.
-//  * equations: 1 + NumCurves*2.  NumCurves > 0.  This many rows in the augmented matrix.
+//  * image height is 1 + NumCurves.
+//  * equations: 1 + NumCurves*2.  This many rows in the augmented matrix.
 //  * augmented matrix columns = num pixels (left columns) + num control points (right columns)
 //
 
@@ -574,6 +578,7 @@ void Test2DQuadraticC0 ()
 
 	// report values for this test
 	printf("  %zu curves.  %zu control points.  2x%zu texture = %zu pixels.\n", NUMCURVES, c_numControlPoints, c_imageHeight, c_numPixels);
+	printf("  %f pixels per curve.  %f pixels per control point.\n", float(c_numPixels) / float(NUMCURVES), float(c_numPixels) / float(c_numControlPoints));
 
 	// create the equations
 	TMatrix<c_numEquations, c_numPixels + c_numControlPoints> augmentedMatrix;
@@ -628,19 +633,154 @@ void Test2DQuadraticC0 ()
 
 		largestDifference = std::max(largestDifference, std::abs(value1 - value2));
 	}
-	printf("    %i Samples, Largest Error = %f\n", EQUALITY_TEST_SAMPLES, largestDifference);
+	printf("  %i Samples, Largest Error = %f\n\n", EQUALITY_TEST_SAMPLES, largestDifference);
 }
 
 void Test2DQuadraticsC0 ()
 {
-	printf("\nTesting 2D Textures / Quadratic Curves with C0 continuity\n");
+	printf("\nTesting 2D Textures / Quadratic Curves with C0 continuity\n\n");
 
 	Test2DQuadraticC0<1>();
 	Test2DQuadraticC0<2>();
 	Test2DQuadraticC0<3>();
 	Test2DQuadraticC0<4>();
 
+	system("pause");
+}
+
+//===================================================================================================================================
+//                                             3D Textures / Cubic Curves
+//===================================================================================================================================
+//
+// Find the limitations of this pattern and show equivalence to Bernstein Polynomials (Bezier Curve Equations). Pattern details below.
+//
+//  --- For first curve, do:
+//
+//  P000 P001    P100 P101
+//  P010 P011    P110 P111
+//
+//  P000 = C0
+//  P001 + P010 + P100 = 3 * C1
+//  P011 + P101 + P110 = 3 * C2
+//  P111 = C3
+//
+//  --- For second curve, do:
+//
+//  P000 P001    P100 P101
+//  P010 P011    P110 P111
+//  P020 P021    P120 P121
+//
+//  P000 = C0
+//  P001 + P010 + P100 = 3 * C1
+//  P011 + P101 + P110 = 3 * C2
+//  P111 = C3
+//
+//  P010 = C4
+//  P011 + P020 + P110 = 3 * C5
+//  P021 + P111 + P120 = 3 * C6
+//  P121 = C7
+//
+//  and so on...
+//
+//  --- Other details:
+//  
+//  * control points: 4 * NumCurves.
+//  * image width it 2
+//  * image depth is 2
+//  * image height is 1 + NumCurves.
+//  * equations: 4 * NumCurves.  This many rows in the augmented matrix.
+//  * augmented matrix columns = num pixels (left columns) + num control points (right columns)
+//
+
+template <size_t NUMCURVES>
+void Test3DCubic ()
+{
+	const size_t c_imageWidth = 2;
+	const size_t c_imageHeight = NUMCURVES + 1;
+	const size_t c_imageDepth = 2;
+	const size_t c_numPixels = c_imageWidth * c_imageHeight * c_imageDepth;
+	const size_t c_numControlPoints = NUMCURVES * 4;
+	const size_t c_numEquations = NUMCURVES * 4;
+
+	// report values for this test
+	printf("  %zu curves.  %zu control points.  2x%zux2 texture = %zu pixels.\n", NUMCURVES, c_numControlPoints, c_imageHeight, c_numPixels);
+	printf("  %f pixels per curve.  %f pixels per control point.\n", float(c_numPixels) / float(NUMCURVES), float(c_numPixels) / float(c_numControlPoints));
+
+	// create the equations
+	TMatrix<c_numEquations, c_numPixels + c_numControlPoints> augmentedMatrix;
+	for (size_t i = 0; i < c_numEquations; ++i)
+	{
+		TVector<c_numPixels + c_numControlPoints>& row = augmentedMatrix[i];
+
+		// TODO: after getting right side of equation working, maybe make other equation generations follow patterns like this?
+
+		// right side of the equation is always the same pattern.  1 3 3 1 repeated over and over
+		switch (i % 4)
+		{
+			case 0:
+			case 3:
+			{
+				row[c_numPixels + i] = CRationalNumber(1);
+				break;
+			}
+			case 1:
+			case 2:
+			{
+				row[c_numPixels + i] = CRationalNumber(3);
+				break;
+			}
+		}
+
+		// left side of the equation...
+		
+		/*
+			TODO:
+			* maybe mod 4 again?
+			* subtract "numcurve" from y (or start there as an offset or something...)
+			* mod 0 = zero ones indices get a 1
+			* mod 1 = one ones indices get a 1
+			* mod 2 = two ones indices get a 1
+			* mod 3 = three ones indices get a 1
+		*/
+
+		/*
+		// even rows get a single value on the left side of the equation
+		if (i % 2 == 0)
+		{
+			size_t offset = (i / 2) % 2;
+			row[i + offset] = CRationalNumber(1);
+		}
+		// odd rows get two values on left side of the equation
+		else
+		{
+			size_t base = (i / 2) * 2;
+			if (((i / 2) % 2) == 0)
+				++base;
+			row[base] = CRationalNumber(1);
+
+			base = ((i + 1) / 2) * 2;
+			if (((i / 2) % 2) == 1)
+				++base;
+			row[base] = CRationalNumber(1);
+		}
+		*/
+	}
+
+	// TODO: finish this!
+	int ijkl = 0;
+
 	printf("\n");
+}
+
+void Test3DCubics ()
+{
+	printf("\nTesting 3D Textures / Cubic Curves\n\n");
+
+	Test3DCubic<1>();
+	Test3DCubic<2>();
+	Test3DCubic<3>();
+	Test3DCubic<4>();
+
 	system("pause");
 }
 
@@ -652,6 +792,7 @@ int main (int agrc, char **argv)
 {
 	Test2DQuadratics();
 	Test2DQuadraticsC0();
+	Test3DCubics();
 
 	// TODO: then 3d, 3d multiple curves, 3d zig zag, and so on? maybe general case or 4d or who knows.
 
@@ -660,8 +801,6 @@ int main (int agrc, char **argv)
 
 /*
 TODO:
- * should we display pixels per control point and pixels per curve information?
  * a #define to show pixels as (coordinate) numbers instead of letters?
- * as part of reduce, if bottom is negative, make it pos, and flip sign of top number
- * probably don't need pascal's triangle code
+ * can we improve the coefficients? like spacing, or if it's negative do a - sign instead of a plus?
 */
