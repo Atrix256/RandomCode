@@ -43,6 +43,9 @@ struct CRationalNumber
 			m_numerator *= -1;
 			m_denominator *= -1;
 		}
+		
+		if (m_numerator == 0)
+			m_denominator = 1;
 	}
 
 	bool IsZero () const
@@ -109,13 +112,13 @@ TINT CalculateLCM (TINT A, TINT B)
 
 void CommonDenominators (CRationalNumber& a, CRationalNumber& b)
 {
-	TINT gcm = CalculateGCD(a.m_denominator, b.m_denominator);
+	TINT lcm = CalculateLCM(a.m_denominator, b.m_denominator);
 
-	a.m_numerator *= gcm / a.m_denominator;
-	b.m_numerator *= gcm / b.m_denominator;
+	a.m_numerator *= lcm / a.m_denominator;
+	b.m_numerator *= lcm / b.m_denominator;
 
-	a.m_denominator = gcm;
-	b.m_denominator = gcm;
+	a.m_denominator = lcm;
+	b.m_denominator = lcm;
 }
 
 bool operator == (const CRationalNumber& a, const CRationalNumber& b)
@@ -157,7 +160,7 @@ bool MakeRowClaimVariable (TMatrix<M, N>& matrix, size_t rowIndex, size_t colInd
     {
         // Find a row that has a non zero value
         size_t nonZeroRowIndex = rowIndex;
-        while (nonZeroRowIndex < M && matrix[nonZeroRowIndex][colIndex] == CRationalNumber(0))
+        while (nonZeroRowIndex < M && matrix[nonZeroRowIndex][colIndex].IsZero())
             ++nonZeroRowIndex;
  
         // If there isn't one, nothing to do
@@ -171,8 +174,11 @@ bool MakeRowClaimVariable (TMatrix<M, N>& matrix, size_t rowIndex, size_t colInd
  
     // Scale this row so that it has a leading one
     CRationalNumber scale = matrix[rowIndex][colIndex].Reciprocal();
-    for (size_t normalizeColIndex = colIndex; normalizeColIndex < N; ++normalizeColIndex)
-        matrix[rowIndex][normalizeColIndex] *= scale;
+	for (size_t normalizeColIndex = colIndex; normalizeColIndex < N; ++normalizeColIndex)
+	{
+		matrix[rowIndex][normalizeColIndex] *= scale;
+		matrix[rowIndex][normalizeColIndex].Reduce();
+	}
  
     // Make sure all rows except this one have a zero in this column.
     // Do this by subtracting this row from other rows, multiplied by a multiple that makes the column disappear.
@@ -182,8 +188,11 @@ bool MakeRowClaimVariable (TMatrix<M, N>& matrix, size_t rowIndex, size_t colInd
             continue;
  
         CRationalNumber scale = matrix[eliminateRowIndex][colIndex];
-        for (size_t eliminateColIndex = 0; eliminateColIndex < N; ++eliminateColIndex)
-            matrix[eliminateRowIndex][eliminateColIndex] -= matrix[rowIndex][eliminateColIndex] * scale;
+		for (size_t eliminateColIndex = 0; eliminateColIndex < N; ++eliminateColIndex)
+		{
+			matrix[eliminateRowIndex][eliminateColIndex] -= matrix[rowIndex][eliminateColIndex] * scale;
+			matrix[eliminateRowIndex][eliminateColIndex].Reduce();
+		}
     }
  
     return true;
@@ -214,11 +223,6 @@ bool SolveMatrixAndPrintEquations (TMatrix<M, N>& augmentedMatrix, size_t numPix
 {
 	// put augmented matrix into rref
 	GaussJordanElimination(augmentedMatrix);
-
-	// reduce all fractions
-	for (TVector<N>& row : augmentedMatrix)
-		for (CRationalNumber& value : row)
-			value.Reduce();
 
 	// print out the equations
 	bool constraintFound = false;
@@ -352,9 +356,9 @@ void FillInPixelsAndControlPoints (
 //  P00 P01
 //  P10 P11
 //
-//  P00 = C0
-//  P01 + P10 = 2 * C1
-//  P11 = C2
+//  P00 = C0                        0
+//  P01 + P10 = 2 * C1              1 2
+//  P11 = C2                        3
 //
 //  --- For each additional curve, add two points to the end like this:
 //
@@ -362,15 +366,16 @@ void FillInPixelsAndControlPoints (
 //  P10 P11
 //  P20 P21
 //
-//  P00 = C0
-//  P01 + P10 = 2 * C1
-//  P11 = C2
+//  P00 = C0                        0
+//  P01 + P10 = 2 * C1              1 2
+//  P11 = C2                        3
 //
-//  P10 = C3
-//  P11 + P20 = 2 * C4
-//  P21 = C5
+//  P10 = C3                        1
+//  P11 + P20 = 2 * C4              3 4
+//  P21 = C5                        5
 //
 //  and so on...
+//  each equation is then multiplied by a value so the right side is identity and left side coefficients add up to 1.
 //
 //  --- Other details:
 //  
@@ -490,9 +495,9 @@ void Test2DQuadratics ()
 //  P00 P01
 //  P10 P11
 //
-//  P00 = C0
-//  P01 + P10 = 2 * C1
-//  P11 = C2
+//  P00 = C0                        0
+//  P01 + P10 = 2 * C1              1 2
+//  P11 = C2                        3
 //
 //  --- For second curve, do:
 //
@@ -500,12 +505,12 @@ void Test2DQuadratics ()
 //  P10 P11
 //  P20 P21
 //
-//  P00 = C0
-//  P01 + P10 = 2 * C1
-//  P11 = C2
+//  P00 = C0                        0
+//  P01 + P10 = 2 * C1              1 2
+//  P11 = C2                        3
 //
-//  P10 + P21 = 2 * C3
-//  P20 = C4
+//  P10 + P21 = 2 * C3              2 5
+//  P20 = C4                        4
 //
 //  --- For third curve, do:
 //
@@ -525,6 +530,7 @@ void Test2DQuadratics ()
 //  P31 = C6
 //
 //  and so on...
+//  each equation is then multiplied by a value so the right side is identity and left side coefficients add up to 1.
 //
 //  --- Other details:
 //  
@@ -659,10 +665,10 @@ void Test2DQuadraticsC0 ()
 //  P000 P001    P100 P101
 //  P010 P011    P110 P111
 //
-//  P000 = C0
-//  P001 + P010 + P100 = 3 * C1
-//  P011 + P101 + P110 = 3 * C2
-//  P111 = C3
+//  P000 = C0                       0
+//  P001 + P010 + P100 = 3 * C1     1 2 4
+//  P011 + P101 + P110 = 3 * C2     3 5 6
+//  P111 = C3                       7
 //
 //  --- For second curve, do:
 //
@@ -670,17 +676,18 @@ void Test2DQuadraticsC0 ()
 //  P010 P011    P110 P111
 //  P020 P021    P120 P121
 //
-//  P000 = C0
-//  P001 + P010 + P100 = 3 * C1
-//  P011 + P101 + P110 = 3 * C2
-//  P111 = C3
+//  P000 = C0                       0
+//  P001 + P010 + P100 = 3 * C1     1 2 4
+//  P011 + P101 + P110 = 3 * C2     3 7 8
+//  P111 = C3                       9
 //
-//  P010 = C4
-//  P011 + P020 + P110 = 3 * C5
-//  P021 + P111 + P120 = 3 * C6
-//  P121 = C7
+//  P010 = C4                       2
+//  P011 + P020 + P110 = 3 * C5     3 4 8
+//  P021 + P111 + P120 = 3 * C6     5 9 10
+//  P121 = C7                       11
 //
 //  and so on...
+//  each equation is then multiplied by a value so the right side is identity and left side coefficients add up to 1.
 //
 //  --- Other details:
 //  
@@ -706,65 +713,71 @@ void Test3DCubic ()
 	printf("  %zu curves.  %zu control points.  2x%zux2 texture = %zu pixels.\n", NUMCURVES, c_numControlPoints, c_imageHeight, c_numPixels);
 	printf("  %f pixels per curve.  %f pixels per control point.\n", float(c_numPixels) / float(NUMCURVES), float(c_numPixels) / float(c_numControlPoints));
 
+	// a lambda to calculate the pixel index, given the z,y,x location of the pixel.
+	// z in [0,1]
+	// y in [0,NUMCURVES]
+	// x in [0,1]
+	auto TextureCoordinateToPixelIndex = [] (size_t z, size_t y, size_t x) -> size_t {
+		return
+			x +
+			y * 2 +
+			z * (NUMCURVES + 1) * 2;
+	};
+
 	// create the equations
 	TMatrix<c_numEquations, c_numPixels + c_numControlPoints> augmentedMatrix;
 	for (size_t i = 0; i < c_numEquations; ++i)
 	{
 		TVector<c_numPixels + c_numControlPoints>& row = augmentedMatrix[i];
 
-		// TODO: after getting right side of equation working, maybe make other equation generations follow patterns like this?
-
-		// right side of the equation is always the same pattern.  1 3 3 1 repeated over and over
+		// left side of the equation goes in this zyx coordinate pattern:
+		// 000 / 001 010 100 / 011 101 110 / 111
+		// But, curve index is added to the y index.
+		// Note: left side coefficients must add up to 1.
+		size_t curveIndex = i / 4;
 		switch (i % 4)
 		{
 			case 0:
-			case 3:
 			{
-				row[c_numPixels + i] = CRationalNumber(1);
+				row[TextureCoordinateToPixelIndex(0, curveIndex + 0, 0)] = CRationalNumber(1, 1);
 				break;
 			}
 			case 1:
+			{
+				row[TextureCoordinateToPixelIndex(0, curveIndex + 0, 1)] = CRationalNumber(1, 3);
+				row[TextureCoordinateToPixelIndex(0, curveIndex + 1, 0)] = CRationalNumber(1, 3);
+				row[TextureCoordinateToPixelIndex(1, curveIndex + 0, 0)] = CRationalNumber(1, 3);
+				break;
+			}
 			case 2:
 			{
-				row[c_numPixels + i] = CRationalNumber(3);
+				row[TextureCoordinateToPixelIndex(0, curveIndex + 1, 1)] = CRationalNumber(1, 3);
+				row[TextureCoordinateToPixelIndex(1, curveIndex + 0, 1)] = CRationalNumber(1, 3);
+				row[TextureCoordinateToPixelIndex(1, curveIndex + 1, 0)] = CRationalNumber(1, 3);
+				break;
+			}
+			case 3:
+			{
+				row[TextureCoordinateToPixelIndex(1, curveIndex + 1, 1)] = CRationalNumber(1, 1);
 				break;
 			}
 		}
 
-		// left side of the equation...
-		
-		/*
-			TODO:
-			* maybe mod 4 again?
-			* subtract "numcurve" from y (or start there as an offset or something...)
-			* mod 0 = zero ones indices get a 1
-			* mod 1 = one ones indices get a 1
-			* mod 2 = two ones indices get a 1
-			* mod 3 = three ones indices get a 1
-		*/
+		// right side of the equation is always identity
+		row[c_numPixels + i] = CRationalNumber(1);
 
-		/*
-		// even rows get a single value on the left side of the equation
-		if (i % 2 == 0)
-		{
-			size_t offset = (i / 2) % 2;
-			row[i + offset] = CRationalNumber(1);
-		}
-		// odd rows get two values on left side of the equation
-		else
-		{
-			size_t base = (i / 2) * 2;
-			if (((i / 2) % 2) == 0)
-				++base;
-			row[base] = CRationalNumber(1);
-
-			base = ((i + 1) / 2) * 2;
-			if (((i / 2) % 2) == 1)
-				++base;
-			row[base] = CRationalNumber(1);
-		}
-		*/
+		// TODO: after getting this pattern working, maybe make other equation generations follow patterns like this for simplicity and uniformity and for looking the same as the blog post.
 	}
+
+	// TODO: i think the above may still not be correct.  It doesn't seem to match the one done by hand on the blog post!  Post could be wrong though.
+
+	// solve the matrix if possible and print out the equations
+	std::unordered_set<size_t> freeVariables;
+	if (!SolveMatrixAndPrintEquations(augmentedMatrix, c_numPixels, freeVariables))
+		return;
+
+	// Next we need to show equality between the N-linear interpolation of our pixels and bernstein polynomials with our control points as coefficients
+
 
 	// TODO: finish this!
 	int ijkl = 0;
@@ -803,4 +816,14 @@ int main (int agrc, char **argv)
 TODO:
  * a #define to show pixels as (coordinate) numbers instead of letters?
  * can we improve the coefficients? like spacing, or if it's negative do a - sign instead of a plus?
+ * do generalization in code, but then update the patterns in the comments too.
+
+Blog:
+ !! "The result is that we still have four free variables: E,G,I,K. When we give values to those letters (pixels), we will then be able to calculate the values for B,D,F,J."
+   * we forgot to put the H row in the results.
+ * Generalization...
+   1) Right side of equation is identity matrix
+   2) Left side is grouped by number of one bits, but the coefficients add up to 1.
+ * mention that the columns that correspond to pixels and control points is totally by convention.
+  * You could arrange the pixels differently and still get the right answers so long as you encoded / decoded the same way.
 */
