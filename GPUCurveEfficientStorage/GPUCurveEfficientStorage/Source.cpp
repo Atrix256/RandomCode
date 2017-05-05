@@ -56,9 +56,15 @@ struct CRationalNumber
 		return m_numerator == 0 && m_denominator != 0;
 	}
 
+	// NOTE: the functions below assume Reduce() has happened
 	bool IsOne () const
 	{
-		return m_numerator == m_denominator;
+		return m_numerator == 1 && m_denominator == 1;
+	}
+
+	bool IsMinusOne () const
+	{
+		return m_numerator == -1 && m_denominator == 1;
 	}
 
 	bool IsWholeNumber () const
@@ -247,8 +253,12 @@ void PrintEquations (
 
 				if (row[i].IsOne())
 					printf("%s", pixelName);
+				else if (row[i].IsMinusOne())
+					printf("-%s", pixelName);
 				else if (row[i].IsWholeNumber() == 1)
-					printf("%s * %i", pixelName, row[i].m_numerator);
+					printf("%i%s", row[i].m_numerator, pixelName);
+				else if (row[i].m_numerator == 1)
+					printf("%s/%i", pixelName, row[i].m_denominator);
 				else
 					printf("%s * %i/%i", pixelName, row[i].m_numerator, row[i].m_denominator);
 				leftHasATerm = true;
@@ -267,10 +277,15 @@ void PrintEquations (
 			{
 				if (rightHasATerm)
 					printf(" + ");
+
 				if (row[i].IsOne())
 					printf("C%zu", i - numPixels);
+				else if (row[i].IsMinusOne())
+					printf("-C%zu", i - numPixels);
 				else if (row[i].IsWholeNumber())
-					printf("C%zu * %i", i - numPixels, row[i].m_numerator);
+					printf("%iC%zu", row[i].m_numerator, i - numPixels);
+				else if (row[i].m_numerator == 1)
+					printf("C%zu/%i", i - numPixels, row[i].m_denominator);
 				else
 					printf("C%zu * %i/%i", i - numPixels, row[i].m_numerator, row[i].m_denominator);
 				rightHasATerm = true;
@@ -397,6 +412,38 @@ void FillInPixelsAndControlPoints (
 	}
 }
 
+size_t TextureCoordinateToPixelIndex2d (size_t width, size_t height, size_t y, size_t x)
+{
+	return y * width + x;
+};
+
+void PixelIndexToTextureCoordinate2d (size_t width, size_t height, size_t pixelIndex, size_t& y, size_t& x)
+{
+	x = pixelIndex % width;
+	y = pixelIndex / width;
+}
+
+size_t TextureCoordinateToPixelIndex3d (size_t width, size_t height, size_t depth, size_t z, size_t y, size_t x)
+{
+	return 
+		z * width * height + 
+		y * width +
+		x;
+};
+
+void PixelIndexToTextureCoordinate3d (size_t width, size_t height, size_t depth, size_t pixelIndex, size_t& z, size_t& y, size_t& x)
+{
+	x = pixelIndex % width;
+
+	pixelIndex = pixelIndex / width;
+
+	y = pixelIndex % height;
+
+	pixelIndex = pixelIndex / height;
+
+	z = pixelIndex;
+}
+
 //===================================================================================================================================
 //                                                       2D Textures / Quadratic Curves
 //===================================================================================================================================
@@ -479,30 +526,56 @@ void Test2DQuadratic ()
 	printf("  %zu curves.  %zu control points.  2x%zu texture = %zu pixels.\n", NUMCURVES, c_numControlPoints, c_imageHeight, c_numPixels);
 	printf("  %f pixels per curve.  %f pixels per control point.\n", float(c_numPixels) / float(NUMCURVES), float(c_numPixels) / float(c_numControlPoints));
 
+	// lambdas to convert between pixel index and texture coordinates
+	auto TextureCoordinateToPixelIndex = [&](size_t y, size_t x) -> size_t
+	{
+		return TextureCoordinateToPixelIndex2d(c_imageWidth, c_imageHeight, y, x);
+	};
+	auto PixelIndexToName = [&](size_t pixelIndex, char pixelName[10])
+	{
+		size_t y, x;
+		PixelIndexToTextureCoordinate2d(c_imageWidth, c_imageHeight, pixelIndex, y, x);
+		sprintf(pixelName, "P%zu%zu", y, x);
+	};
+
 	// create the equations
 	TMatrix<c_numEquations, c_numPixels + c_numControlPoints> augmentedMatrix;
-	for (size_t curveIndex = 0; curveIndex < NUMCURVES; ++curveIndex)
+	for (size_t i = 0; i < c_numEquations; ++i)
 	{
-		TVector<c_numPixels + c_numControlPoints>* rows = &augmentedMatrix[curveIndex * 3];
+		TVector<c_numPixels + c_numControlPoints>& row = augmentedMatrix[i];
 
-		const size_t c_leftRowOffset = curveIndex * 2;
-		const size_t c_rightRowOffset = curveIndex * 3 + c_numPixels;
+		// left side of the equation goes in this yx coordinate pattern:
+		//   00 
+		//   01 10
+		//   11
+		// But, curve index is added to the y index.
+		// Also, left side coefficients must add up to 1.
+		size_t curveIndex = i / 3;
+		switch (i % 3)
+		{
+			case 0:
+			{
+				row[TextureCoordinateToPixelIndex(curveIndex + 0, 0)] = CRationalNumber(1, 1);
+				break;
+			}
+			case 1:
+			{
+				row[TextureCoordinateToPixelIndex(curveIndex + 0, 1)] = CRationalNumber(1, 2);
+				row[TextureCoordinateToPixelIndex(curveIndex + 1, 0)] = CRationalNumber(1, 2);
+				break;
+			}
+			case 2:
+			{
+				row[TextureCoordinateToPixelIndex(curveIndex + 1, 1)] = CRationalNumber(1, 1);
+				break;
+			}
+		}
 
-		rows[0][c_leftRowOffset + 0] = CRationalNumber(1);
-		rows[0][c_rightRowOffset + 0] = CRationalNumber(1);
-
-		rows[1][c_leftRowOffset + 1] = CRationalNumber(1);
-		rows[1][c_leftRowOffset + 2] = CRationalNumber(1);
-		rows[1][c_rightRowOffset + 1] = CRationalNumber(2);
-
-		rows[2][c_leftRowOffset + 3] = CRationalNumber(1);
-		rows[2][c_rightRowOffset + 2] = CRationalNumber(1);
+		// right side of the equation is identity
+		row[c_numPixels + i] = CRationalNumber(1);
 	}
 
 	// solve the matrix if possible and print out the equations
-	auto PixelIndexToName = [] (size_t pixelIndex, char pixelName[10]) {
-		sprintf(pixelName, "%c", 'A' + (int)pixelIndex);
-	};
 	std::unordered_set<size_t> freeVariables;
 	if (!SolveMatrixAndPrintEquations(augmentedMatrix, c_numPixels, freeVariables, PixelIndexToName))
 		return;
@@ -641,40 +714,55 @@ void Test2DQuadraticC0 ()
 	printf("  %zu curves.  %zu control points.  2x%zu texture = %zu pixels.\n", NUMCURVES, c_numControlPoints, c_imageHeight, c_numPixels);
 	printf("  %f pixels per curve.  %f pixels per control point.\n", float(c_numPixels) / float(NUMCURVES), float(c_numPixels) / float(c_numControlPoints));
 
+	// lambdas to convert between pixel index and texture coordinates
+	auto TextureCoordinateToPixelIndex = [&] (size_t y, size_t x) -> size_t
+	{
+		return TextureCoordinateToPixelIndex2d(c_imageWidth, c_imageHeight, y, x);
+	};
+	auto PixelIndexToName = [&] (size_t pixelIndex, char pixelName[10])
+	{
+		size_t y, x;
+		PixelIndexToTextureCoordinate2d(c_imageWidth, c_imageHeight, pixelIndex, y, x);
+		sprintf(pixelName, "P%zu%zu", y, x);
+	};
+
 	// create the equations
 	TMatrix<c_numEquations, c_numPixels + c_numControlPoints> augmentedMatrix;
 	for (size_t i = 0; i < c_numEquations; ++i)
 	{
 		TVector<c_numPixels + c_numControlPoints>& row = augmentedMatrix[i];
 
-		// right side of the equation is always the same pattern.  Along the diagonal odd rows get a 1, even rows get a 2.
-		row[c_numPixels + i] = (i % 2 == 0) ? CRationalNumber(1) : CRationalNumber(2);
+		// left side of the equation has a pattern like this:
+		//   00
+		//   01 10
+		//
+		// But, pattern index is added to the y index.
+		// Also, the x coordinates flip from 0 to 1 on those after each pattern.
+		// Also, left side coefficients must add up to 1.
 
-		// even rows get a single value on the left side of the equation
-		if (i % 2 == 0)
+		size_t patternIndex = i / 2;
+		size_t xoff = patternIndex % 2 == 1;
+		size_t xon = patternIndex % 2 == 0;
+		switch (i % 2)
 		{
-			size_t offset = (i / 2) % 2;
-			row[i + offset] = CRationalNumber(1);
+			case 0:
+			{
+				row[TextureCoordinateToPixelIndex(patternIndex + 0, xoff)] = CRationalNumber(1, 1);
+				break;
+			}
+			case 1:
+			{
+				row[TextureCoordinateToPixelIndex(patternIndex + 0, xon)] = CRationalNumber(1, 2);
+				row[TextureCoordinateToPixelIndex(patternIndex + 1, xoff)] = CRationalNumber(1, 2);
+				break;
+			}
 		}
-		// odd rows get two values on left side of the equation
-		else
-		{
-			size_t base = (i / 2) * 2;
-			if (((i / 2) % 2) == 0)
-				++base;
-			row[base] = CRationalNumber(1);
 
-			base = ((i + 1) / 2) * 2;
-			if (((i / 2) % 2) == 1)
-				++base;
-			row[base] = CRationalNumber(1);
-		}
+		// right side of the equation is identity
+		row[c_numPixels + i] = CRationalNumber(1);
 	}
 	
 	// solve the matrix if possible and print out the equations
-	auto PixelIndexToName = [](size_t pixelIndex, char pixelName[10]) {
-		sprintf(pixelName, "%c", 'A' + (int)pixelIndex);
-	};
 	std::unordered_set<size_t> freeVariables;
 	if (!SolveMatrixAndPrintEquations(augmentedMatrix, c_numPixels, freeVariables, PixelIndexToName))
 		return;
@@ -807,29 +895,17 @@ void Test3DCubic ()
 	printf("  %zu curves.  %zu control points.  2x%zux2 texture = %zu pixels.\n", NUMCURVES, c_numControlPoints, c_imageHeight, c_numPixels);
 	printf("  %f pixels per curve.  %f pixels per control point.\n", float(c_numPixels) / float(NUMCURVES), float(c_numPixels) / float(c_numControlPoints));
 
-	// a lambda to calculate the pixel index, given the z,y,x location of the pixel.
-	// z in [0,1]
-	// y in [0,NUMCURVES]
-	// x in [0,1]
-	auto TextureCoordinateToPixelIndex = [] (size_t z, size_t y, size_t x) -> size_t {
-		return
-			x +
-			z * 2 +
-			y * 4;
+	// lambdas to convert between pixel index and texture coordinates
+	auto TextureCoordinateToPixelIndex = [&] (size_t z, size_t y, size_t x) -> size_t
+	{
+		return TextureCoordinateToPixelIndex3d(c_imageWidth, c_imageHeight, c_imageDepth, z, y, x);
 	};
-	// TODO: maybe try putting the above and below such that z is greatest index again? After equivelance test is ok.
-	/*
-	 x +
-	 y * 2 +
-	 z * (NUMCURVES + 1) * 2;
-	*/
-	auto PixelIndexToName = [](size_t pixelIndex, char pixelName[10]) {
-		size_t x = pixelIndex % 2;
-		size_t z = (pixelIndex >> 1) % 2;
-		size_t y = pixelIndex >> 2;
+	auto PixelIndexToName = [&] (size_t pixelIndex, char pixelName[10])
+	{
+		size_t z, y, x;
+		PixelIndexToTextureCoordinate3d(c_imageWidth, c_imageHeight, c_imageDepth, pixelIndex, z, y, x);
 		sprintf(pixelName, "P%zu%zu%zu", z,y,x);
 	};
-	// TODO: make other PixelIndexToName's show pixel coordinates, not letters
 
 	// create the equations
 	TMatrix<c_numEquations, c_numPixels + c_numControlPoints> augmentedMatrix;
@@ -838,9 +914,12 @@ void Test3DCubic ()
 		TVector<c_numPixels + c_numControlPoints>& row = augmentedMatrix[i];
 
 		// left side of the equation goes in this zyx coordinate pattern:
-		// 000 / 001 010 100 / 011 101 110 / 111
+		//   000 
+		//   001 010 100 
+		//   011 101 110
+		//   111
 		// But, curve index is added to the y index.
-		// Note: left side coefficients must add up to 1.
+		// Also, left side coefficients must add up to 1.
 		size_t curveIndex = i / 4;
 		switch (i % 4)
 		{
@@ -870,10 +949,8 @@ void Test3DCubic ()
 			}
 		}
 
-		// right side of the equation is always identity
+		// right side of the equation is identity
 		row[c_numPixels + i] = CRationalNumber(1);
-
-		// TODO: after getting this pattern working, maybe make other equation generations follow patterns like this for simplicity and uniformity and for looking the same as the blog post.
 	}
 
 	// TODO: i think the above may still not be correct.  It doesn't seem to match the one done by hand on the blog post!  Post could be wrong though.
@@ -926,21 +1003,21 @@ int main (int agrc, char **argv)
 	Test2DQuadraticsC0();
 	Test3DCubics();
 
-	// TODO: then 3d multiple curves, 3d zig zag, and so on? maybe general case or 4d or who knows.
+	// TODO: multiple 3d curves?
+	// TODO: 3d zig zag curves?
 
 	return 0;
 }
 
 /*
 TODO:
- * a #define to show pixels as (coordinate) numbers instead of letters?
- * can we improve the coefficients? like spacing, or if it's negative do a - sign instead of a plus?
- * do generalization in code, but then update the patterns in the comments too.
- ? why does 3d texture fail? at 4 curves? it seemed like everything was going ok then it wasn't!
+ ? why does 3d texture fail at 4 curves? it seemed like everything was going ok then it wasn't!
+  * something to ask Laurent perhaps...
 
 Blog:
  * note that order of pixels is arbitrary
- ? can we make the top row of the matrices show the pixel letters and control point numbers?
+ ! make all NEW diagrams use pixel coordinates instead of letters
+  ? can we make the top row of the matrices show the pixel letters and control point numbers? Yeah, let's!
  !! "The result is that we still have four free variables: E,G,I,K. When we give values to those letters (pixels), we will then be able to calculate the values for B,D,F,J."
    * we forgot to put the H row in the results.
  * Generalization...
