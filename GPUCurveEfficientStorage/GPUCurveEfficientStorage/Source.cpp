@@ -1,3 +1,5 @@
+#define _CRT_SECURE_NO_WARNINGS
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <array>
@@ -6,6 +8,7 @@
 #include <random>
 #include <vector>
 
+#define SHOW_EQUATIONS_BEFORE_SOLVE() 1
 #define EQUALITY_TEST_SAMPLES 1000
 
 typedef int32_t TINT;
@@ -218,33 +221,36 @@ void GaussJordanElimination (TMatrix<M, N>& matrix)
 //                                                           Shared Testing Code
 //===================================================================================================================================
 
-template <size_t M, size_t N>
-bool SolveMatrixAndPrintEquations (TMatrix<M, N>& augmentedMatrix, size_t numPixels, std::unordered_set<size_t>& freeVariables)
+template <size_t M, size_t N, typename LAMBDA>
+void PrintEquations (
+	TMatrix<M, N>& augmentedMatrix,
+	size_t numPixels,
+	LAMBDA& pixelIndexToName
+)
 {
-	// put augmented matrix into rref
-	GaussJordanElimination(augmentedMatrix);
-
-	// print out the equations
-	bool constraintFound = false;
+	// print equations
+	char pixelName[10];
 	for (const TVector<N>& row : augmentedMatrix)
 	{
+		// indent
 		printf("    ");
+
+		// left side of the equation
 		bool leftHasATerm = false;
 		for (size_t i = 0; i < numPixels; ++i)
 		{
 			if (!row[i].IsZero())
 			{
 				if (leftHasATerm)
-				{
 					printf(" + ");
-					freeVariables.insert(i);
-				}
+				pixelIndexToName(i, pixelName);
+
 				if (row[i].IsOne())
-					printf("%c", 'A' + (int)i);
+					printf("%s", pixelName);
 				else if (row[i].IsWholeNumber() == 1)
-					printf("%c * %i", 'A' + (int)i, row[i].m_numerator);
+					printf("%s * %i", pixelName, row[i].m_numerator);
 				else
-					printf("%c * %i/%i", 'A' + (int)i, row[i].m_numerator, row[i].m_denominator);
+					printf("%s * %i/%i", pixelName, row[i].m_numerator, row[i].m_denominator);
 				leftHasATerm = true;
 			}
 		}
@@ -253,6 +259,7 @@ bool SolveMatrixAndPrintEquations (TMatrix<M, N>& augmentedMatrix, size_t numPix
 		else
 			printf(" = ");
 
+		// right side of the equation
 		bool rightHasATerm = false;
 		for (size_t i = numPixels; i < N; ++i)
 		{
@@ -271,6 +278,51 @@ bool SolveMatrixAndPrintEquations (TMatrix<M, N>& augmentedMatrix, size_t numPix
 		}
 
 		printf("\n");
+	}
+}
+
+template <size_t M, size_t N, typename LAMBDA>
+bool SolveMatrixAndPrintEquations (
+	TMatrix<M, N>& augmentedMatrix,
+	size_t numPixels,
+	std::unordered_set<size_t>& freeVariables,
+	LAMBDA& pixelIndexToName
+)
+{
+	#if SHOW_EQUATIONS_BEFORE_SOLVE()
+	printf("   Initial Equations:\n");
+	PrintEquations(augmentedMatrix, numPixels, pixelIndexToName);
+	printf("   Solved Equations:\n");
+	#endif
+
+	// put augmented matrix into rref
+	GaussJordanElimination(augmentedMatrix);
+
+	// Print equations
+	PrintEquations(augmentedMatrix, numPixels, pixelIndexToName);
+
+	// Get free variables and check for control point constraint
+	bool constraintFound = false;
+	for (const TVector<N>& row : augmentedMatrix)
+	{
+		bool leftHasATerm = false;
+		for (size_t i = 0; i < numPixels; ++i)
+		{
+			if (!row[i].IsZero())
+			{
+				if (leftHasATerm)
+					freeVariables.insert(i);
+				else
+					leftHasATerm = true;
+			}
+		}
+
+		bool rightHasATerm = false;
+		for (size_t i = numPixels; i < N; ++i)
+		{
+			if (!row[i].IsZero())
+				rightHasATerm = true;
+		}
 
 		if (!leftHasATerm && rightHasATerm)
 			constraintFound = true;
@@ -397,7 +449,7 @@ float EvaluateBernsteinPolynomial2DQuadratic (float t, const std::array<float, N
 	float s = 1.0f - t;
 	return
 		coefficients[iOffset + 0] * s * s +
-		coefficients[iOffset + 1] * s * t * 2 +
+		coefficients[iOffset + 1] * s * t * 2.0f +
 		coefficients[iOffset + 2] * t * t;
 }
 
@@ -448,8 +500,11 @@ void Test2DQuadratic ()
 	}
 
 	// solve the matrix if possible and print out the equations
+	auto PixelIndexToName = [] (size_t pixelIndex, char pixelName[10]) {
+		sprintf(pixelName, "%c", 'A' + (int)pixelIndex);
+	};
 	std::unordered_set<size_t> freeVariables;
-	if (!SolveMatrixAndPrintEquations(augmentedMatrix, c_numPixels, freeVariables))
+	if (!SolveMatrixAndPrintEquations(augmentedMatrix, c_numPixels, freeVariables, PixelIndexToName))
 		return;
 
 	// Next we need to show equality between the N-linear interpolation of our pixels and bernstein polynomials with our control points as coefficients
@@ -552,7 +607,7 @@ float EvaluateBernsteinPolynomial2DQuadraticC0 (float t, const std::array<float,
 	float s = 1.0f - t;
 	return
 		coefficients[iOffset + 0] * s * s +
-		coefficients[iOffset + 1] * s * t * 2 +
+		coefficients[iOffset + 1] * s * t * 2.0f +
 		coefficients[iOffset + 2] * t * t;
 }
 
@@ -617,8 +672,11 @@ void Test2DQuadraticC0 ()
 	}
 	
 	// solve the matrix if possible and print out the equations
+	auto PixelIndexToName = [](size_t pixelIndex, char pixelName[10]) {
+		sprintf(pixelName, "%c", 'A' + (int)pixelIndex);
+	};
 	std::unordered_set<size_t> freeVariables;
-	if (!SolveMatrixAndPrintEquations(augmentedMatrix, c_numPixels, freeVariables))
+	if (!SolveMatrixAndPrintEquations(augmentedMatrix, c_numPixels, freeVariables, PixelIndexToName))
 		return;
 
 	// Next we need to show equality between the N-linear interpolation of our pixels and bernstein polynomials with our control points as coefficients
@@ -699,6 +757,42 @@ void Test2DQuadraticsC0 ()
 //  * augmented matrix columns = num pixels (left columns) + num control points (right columns)
 //
 
+template <size_t N>
+float EvaluateBernsteinPolynomial3DCubic (float t, const std::array<float, N>& coefficients)
+{
+	const size_t c_numCurves = N / 4;
+	t *= float(c_numCurves);
+	size_t iOffset = std::min(size_t(t), c_numCurves - 1) * 4;
+	t = std::fmodf(t, 1.0f);
+
+	float s = 1.0f - t;
+	return
+		coefficients[iOffset + 0] * s * s * s +
+		coefficients[iOffset + 1] * s * s * t * 3.0f +
+		coefficients[iOffset + 2] * s * t * t * 3.0f +
+		coefficients[iOffset + 3] * t * t * t;
+}
+
+template <size_t N, typename LAMBDA>
+float EvaluateLinearInterpolation3DCubic (float t, const std::array<float, N>& pixels, LAMBDA& TextureCoordinateToPixelIndex)
+{
+	const size_t c_numCurves = (N / 4) - 1;
+	t *= float(c_numCurves);
+	size_t startRow = std::min(size_t(t), c_numCurves - 1);
+	t = std::fmodf(t, 1.0f);
+
+	//    rowZYX
+	float row00x = lerp(t, pixels[TextureCoordinateToPixelIndex(0, startRow + 0, 0)], pixels[TextureCoordinateToPixelIndex(0, startRow + 0, 1)]);
+	float row01x = lerp(t, pixels[TextureCoordinateToPixelIndex(0, startRow + 1, 0)], pixels[TextureCoordinateToPixelIndex(0, startRow + 1, 1)]);
+	float row0yz = lerp(t, row00x, row01x);
+
+	float row10x = lerp(t, pixels[TextureCoordinateToPixelIndex(1, startRow + 0, 0)], pixels[TextureCoordinateToPixelIndex(1, startRow + 0, 1)]);
+	float row11x = lerp(t, pixels[TextureCoordinateToPixelIndex(1, startRow + 1, 0)], pixels[TextureCoordinateToPixelIndex(1, startRow + 1, 1)]);
+	float row1yz = lerp(t, row10x, row11x);
+
+	return lerp(t, row0yz, row1yz);
+}
+
 template <size_t NUMCURVES>
 void Test3DCubic ()
 {
@@ -720,9 +814,22 @@ void Test3DCubic ()
 	auto TextureCoordinateToPixelIndex = [] (size_t z, size_t y, size_t x) -> size_t {
 		return
 			x +
-			y * 2 +
-			z * (NUMCURVES + 1) * 2;
+			z * 2 +
+			y * 4;
 	};
+	// TODO: maybe try putting the above and below such that z is greatest index again? After equivelance test is ok.
+	/*
+	 x +
+	 y * 2 +
+	 z * (NUMCURVES + 1) * 2;
+	*/
+	auto PixelIndexToName = [](size_t pixelIndex, char pixelName[10]) {
+		size_t x = pixelIndex % 2;
+		size_t z = (pixelIndex >> 1) % 2;
+		size_t y = pixelIndex >> 2;
+		sprintf(pixelName, "P%zu%zu%zu", z,y,x);
+	};
+	// TODO: make other PixelIndexToName's show pixel coordinates, not letters
 
 	// create the equations
 	TMatrix<c_numEquations, c_numPixels + c_numControlPoints> augmentedMatrix;
@@ -773,16 +880,28 @@ void Test3DCubic ()
 
 	// solve the matrix if possible and print out the equations
 	std::unordered_set<size_t> freeVariables;
-	if (!SolveMatrixAndPrintEquations(augmentedMatrix, c_numPixels, freeVariables))
+	if (!SolveMatrixAndPrintEquations(augmentedMatrix, c_numPixels, freeVariables, PixelIndexToName))
 		return;
 
 	// Next we need to show equality between the N-linear interpolation of our pixels and bernstein polynomials with our control points as coefficients
 
+	// Fill in random values for our control points and free variable pixels, and fill in the other pixels as the equations dictate 
+	std::array<float, c_numPixels> pixels = { 0 };
+	std::array<float, c_numControlPoints> controlPoints = { 0 };
+	FillInPixelsAndControlPoints<c_numPixels, c_numControlPoints, c_numEquations>(pixels, controlPoints, augmentedMatrix, freeVariables);
 
-	// TODO: finish this!
-	int ijkl = 0;
+	// do a number of samples of each method at the same time values, and report the largest difference (error)
+	float largestDifference = 0.0f;
+	for (size_t i = 0; i < EQUALITY_TEST_SAMPLES; ++i)
+	{
+		float t = float(i) / float(EQUALITY_TEST_SAMPLES - 1);
 
-	printf("\n");
+		float value1 = EvaluateBernsteinPolynomial3DCubic(t, controlPoints);
+		float value2 = EvaluateLinearInterpolation3DCubic(t, pixels, TextureCoordinateToPixelIndex);
+
+		largestDifference = std::max(largestDifference, std::abs(value1 - value2));
+	}
+	printf("  %i Samples, Largest Error = %f\n\n", EQUALITY_TEST_SAMPLES, largestDifference);
 }
 
 void Test3DCubics ()
@@ -807,7 +926,7 @@ int main (int agrc, char **argv)
 	Test2DQuadraticsC0();
 	Test3DCubics();
 
-	// TODO: then 3d, 3d multiple curves, 3d zig zag, and so on? maybe general case or 4d or who knows.
+	// TODO: then 3d multiple curves, 3d zig zag, and so on? maybe general case or 4d or who knows.
 
 	return 0;
 }
@@ -817,8 +936,11 @@ TODO:
  * a #define to show pixels as (coordinate) numbers instead of letters?
  * can we improve the coefficients? like spacing, or if it's negative do a - sign instead of a plus?
  * do generalization in code, but then update the patterns in the comments too.
+ ? why does 3d texture fail? at 4 curves? it seemed like everything was going ok then it wasn't!
 
 Blog:
+ * note that order of pixels is arbitrary
+ ? can we make the top row of the matrices show the pixel letters and control point numbers?
  !! "The result is that we still have four free variables: E,G,I,K. When we give values to those letters (pixels), we will then be able to calculate the values for B,D,F,J."
    * we forgot to put the H row in the results.
  * Generalization...
