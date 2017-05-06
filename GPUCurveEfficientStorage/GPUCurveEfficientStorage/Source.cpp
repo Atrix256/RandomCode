@@ -8,7 +8,9 @@
 #include <random>
 #include <vector>
 
-#define SHOW_EQUATIONS_BEFORE_SOLVE() 1
+#define SHOW_MATHJAX_MATRIX() 0
+#define SHOW_MATHJAX_EQUATIONS() 0
+#define SHOW_EQUATIONS_BEFORE_SOLVE() 0
 #define EQUALITY_TEST_SAMPLES 1000
 
 typedef int32_t TINT;
@@ -231,15 +233,66 @@ template <size_t M, size_t N, typename LAMBDA>
 void PrintEquations (
 	TMatrix<M, N>& augmentedMatrix,
 	size_t numPixels,
-	LAMBDA& pixelIndexToName
+	LAMBDA& pixelIndexToCoordinates
 )
 {
+	char pixelCoords[10];
+
+#if SHOW_MATHJAX_MATRIX()
+	// print the matrix opening stuff
+	printf("\\left[\\begin{array}{");
+	for (size_t i = 0; i < N; ++i)
+	{
+		if (i == numPixels)
+			printf("|");
+		printf("r");
+	}
+	printf("}\n");
+	// print the header row
+	for (size_t i = 0; i < numPixels; ++i)
+	{
+		pixelIndexToCoordinates(i, pixelCoords);
+		if (i == 0)
+			printf("P_{%s}", pixelCoords);
+		else
+			printf(" & P_{%s}", pixelCoords);
+	}
+	for (size_t i = numPixels; i < N; ++i)
+	{
+		printf(" & C_{%zu}", i-numPixels);
+	}
+	printf(" \\\\\n");
+
+	// Print the matrix
+	for (const TVector<N>& row : augmentedMatrix)
+	{
+		bool first = true;
+		for (const CRationalNumber& n : row)
+		{
+			if (first)
+				first = false;
+			else
+				printf(" & ");
+
+			if (n.IsWholeNumber())
+				printf("%i", n.m_numerator);
+			else
+				printf("\\frac{%i}{%i}", n.m_numerator, n.m_denominator);
+		}
+		printf(" \\\\\n");
+	}
+
+	// print the matrix closing stuff
+	printf("\\end{ array }\\right]\n");
+#endif
+
 	// print equations
-	char pixelName[10];
 	for (const TVector<N>& row : augmentedMatrix)
 	{
 		// indent
-		printf("    ");
+		#if SHOW_MATHJAX_EQUATIONS() == 0
+			printf("    ");
+		#endif
 
 		// left side of the equation
 		bool leftHasATerm = false;
@@ -249,18 +302,31 @@ void PrintEquations (
 			{
 				if (leftHasATerm)
 					printf(" + ");
-				pixelIndexToName(i, pixelName);
+				pixelIndexToCoordinates(i, pixelCoords);
 
-				if (row[i].IsOne())
-					printf("%s", pixelName);
-				else if (row[i].IsMinusOne())
-					printf("-%s", pixelName);
-				else if (row[i].IsWholeNumber() == 1)
-					printf("%i%s", row[i].m_numerator, pixelName);
-				else if (row[i].m_numerator == 1)
-					printf("%s/%i", pixelName, row[i].m_denominator);
-				else
-					printf("%s * %i/%i", pixelName, row[i].m_numerator, row[i].m_denominator);
+				#if SHOW_MATHJAX_EQUATIONS()
+					if (row[i].IsOne())
+						printf("P_{%s}", pixelCoords);
+					else if (row[i].IsMinusOne())
+						printf("-P_{%s}", pixelCoords);
+					else if (row[i].IsWholeNumber())
+						printf("%iP_{%s}", row[i].m_numerator, pixelCoords);
+					else if (row[i].m_numerator == 1)
+						printf("P_{%s}/%i", pixelCoords, row[i].m_denominator);
+					else
+						printf("P_{%s} * %i/%i", pixelCoords, row[i].m_numerator, row[i].m_denominator);
+				#else
+					if (row[i].IsOne())
+						printf("P%s", pixelCoords);
+					else if (row[i].IsMinusOne())
+						printf("-P%s", pixelCoords);
+					else if (row[i].IsWholeNumber())
+						printf("%iP%s", row[i].m_numerator, pixelCoords);
+					else if (row[i].m_numerator == 1)
+						printf("P%s/%i", pixelCoords, row[i].m_denominator);
+					else
+						printf("P%s * %i/%i", pixelCoords, row[i].m_numerator, row[i].m_denominator);
+				#endif
 				leftHasATerm = true;
 			}
 		}
@@ -278,21 +344,38 @@ void PrintEquations (
 				if (rightHasATerm)
 					printf(" + ");
 
-				if (row[i].IsOne())
-					printf("C%zu", i - numPixels);
-				else if (row[i].IsMinusOne())
-					printf("-C%zu", i - numPixels);
-				else if (row[i].IsWholeNumber())
-					printf("%iC%zu", row[i].m_numerator, i - numPixels);
-				else if (row[i].m_numerator == 1)
-					printf("C%zu/%i", i - numPixels, row[i].m_denominator);
-				else
-					printf("C%zu * %i/%i", i - numPixels, row[i].m_numerator, row[i].m_denominator);
+				#if SHOW_MATHJAX_EQUATIONS()
+					if (row[i].IsOne())
+						printf("C_{%zu}", i - numPixels);
+					else if (row[i].IsMinusOne())
+						printf("-C_{%zu}", i - numPixels);
+					else if (row[i].IsWholeNumber())
+						printf("%iC_{%zu}", row[i].m_numerator, i - numPixels);
+					else if (row[i].m_numerator == 1)
+						printf("C_{%zu}/%i", i - numPixels, row[i].m_denominator);
+					else
+						printf("C_{%zu} * %i/%i", i - numPixels, row[i].m_numerator, row[i].m_denominator);
+				#else
+					if (row[i].IsOne())
+						printf("C%zu", i - numPixels);
+					else if (row[i].IsMinusOne())
+						printf("-C%zu", i - numPixels);
+					else if (row[i].IsWholeNumber())
+						printf("%iC%zu", row[i].m_numerator, i - numPixels);
+					else if (row[i].m_numerator == 1)
+						printf("C%zu/%i", i - numPixels, row[i].m_denominator);
+					else
+						printf("C%zu * %i/%i", i - numPixels, row[i].m_numerator, row[i].m_denominator);
+				#endif
 				rightHasATerm = true;
 			}
 		}
 
-		printf("\n");
+		#if SHOW_MATHJAX_EQUATIONS()
+			printf("\\\\\n");
+		#else
+			printf("\n");
+		#endif
 	}
 }
 
@@ -301,12 +384,12 @@ bool SolveMatrixAndPrintEquations (
 	TMatrix<M, N>& augmentedMatrix,
 	size_t numPixels,
 	std::unordered_set<size_t>& freeVariables,
-	LAMBDA& pixelIndexToName
+	LAMBDA& pixelIndexToCoordinates
 )
 {
 	#if SHOW_EQUATIONS_BEFORE_SOLVE()
 	printf("   Initial Equations:\n");
-	PrintEquations(augmentedMatrix, numPixels, pixelIndexToName);
+	PrintEquations(augmentedMatrix, numPixels, pixelIndexToCoordinates);
 	printf("   Solved Equations:\n");
 	#endif
 
@@ -314,7 +397,7 @@ bool SolveMatrixAndPrintEquations (
 	GaussJordanElimination(augmentedMatrix);
 
 	// Print equations
-	PrintEquations(augmentedMatrix, numPixels, pixelIndexToName);
+	PrintEquations(augmentedMatrix, numPixels, pixelIndexToCoordinates);
 
 	// Get free variables and check for control point constraint
 	bool constraintFound = false;
@@ -531,11 +614,11 @@ void Test2DQuadratic ()
 	{
 		return TextureCoordinateToPixelIndex2d(c_imageWidth, c_imageHeight, y, x);
 	};
-	auto PixelIndexToName = [&](size_t pixelIndex, char pixelName[10])
+	auto pixelIndexToCoordinates = [&](size_t pixelIndex, char pixelCoords[10])
 	{
 		size_t y, x;
 		PixelIndexToTextureCoordinate2d(c_imageWidth, c_imageHeight, pixelIndex, y, x);
-		sprintf(pixelName, "P%zu%zu", y, x);
+		sprintf(pixelCoords, "%zu%zu", y, x);
 	};
 
 	// create the equations
@@ -577,7 +660,7 @@ void Test2DQuadratic ()
 
 	// solve the matrix if possible and print out the equations
 	std::unordered_set<size_t> freeVariables;
-	if (!SolveMatrixAndPrintEquations(augmentedMatrix, c_numPixels, freeVariables, PixelIndexToName))
+	if (!SolveMatrixAndPrintEquations(augmentedMatrix, c_numPixels, freeVariables, pixelIndexToCoordinates))
 		return;
 
 	// Next we need to show equality between the N-linear interpolation of our pixels and bernstein polynomials with our control points as coefficients
@@ -719,11 +802,11 @@ void Test2DQuadraticC0 ()
 	{
 		return TextureCoordinateToPixelIndex2d(c_imageWidth, c_imageHeight, y, x);
 	};
-	auto PixelIndexToName = [&] (size_t pixelIndex, char pixelName[10])
+	auto pixelIndexToCoordinates = [&] (size_t pixelIndex, char pixelCoords[10])
 	{
 		size_t y, x;
 		PixelIndexToTextureCoordinate2d(c_imageWidth, c_imageHeight, pixelIndex, y, x);
-		sprintf(pixelName, "P%zu%zu", y, x);
+		sprintf(pixelCoords, "%zu%zu", y, x);
 	};
 
 	// create the equations
@@ -764,7 +847,7 @@ void Test2DQuadraticC0 ()
 	
 	// solve the matrix if possible and print out the equations
 	std::unordered_set<size_t> freeVariables;
-	if (!SolveMatrixAndPrintEquations(augmentedMatrix, c_numPixels, freeVariables, PixelIndexToName))
+	if (!SolveMatrixAndPrintEquations(augmentedMatrix, c_numPixels, freeVariables, pixelIndexToCoordinates))
 		return;
 
 	// Next we need to show equality between the N-linear interpolation of our pixels and bernstein polynomials with our control points as coefficients
@@ -900,11 +983,11 @@ void Test3DCubic ()
 	{
 		return TextureCoordinateToPixelIndex3d(c_imageWidth, c_imageHeight, c_imageDepth, z, y, x);
 	};
-	auto PixelIndexToName = [&] (size_t pixelIndex, char pixelName[10])
+	auto pixelIndexToCoordinates = [&] (size_t pixelIndex, char pixelCoords[10])
 	{
 		size_t z, y, x;
 		PixelIndexToTextureCoordinate3d(c_imageWidth, c_imageHeight, c_imageDepth, pixelIndex, z, y, x);
-		sprintf(pixelName, "P%zu%zu%zu", z,y,x);
+		sprintf(pixelCoords, "%zu%zu%zu", z,y,x);
 	};
 
 	// create the equations
@@ -957,7 +1040,7 @@ void Test3DCubic ()
 
 	// solve the matrix if possible and print out the equations
 	std::unordered_set<size_t> freeVariables;
-	if (!SolveMatrixAndPrintEquations(augmentedMatrix, c_numPixels, freeVariables, PixelIndexToName))
+	if (!SolveMatrixAndPrintEquations(augmentedMatrix, c_numPixels, freeVariables, pixelIndexToCoordinates))
 		return;
 
 	// Next we need to show equality between the N-linear interpolation of our pixels and bernstein polynomials with our control points as coefficients
@@ -1013,16 +1096,5 @@ int main (int agrc, char **argv)
 TODO:
  ? why does 3d texture fail at 4 curves? it seemed like everything was going ok then it wasn't!
   * something to ask Laurent perhaps...
-
-Blog:
- * note that order of pixels is arbitrary
- ! make all NEW diagrams use pixel coordinates instead of letters
-  ? can we make the top row of the matrices show the pixel letters and control point numbers? Yeah, let's!
- !! "The result is that we still have four free variables: E,G,I,K. When we give values to those letters (pixels), we will then be able to calculate the values for B,D,F,J."
-   * we forgot to put the H row in the results.
- * Generalization...
-   1) Right side of equation is identity matrix
-   2) Left side is grouped by number of one bits, but the coefficients add up to 1.
- * mention that the columns that correspond to pixels and control points is totally by convention.
-  * You could arrange the pixels differently and still get the right answers so long as you encoded / decoded the same way.
+ * make output be minimal in final version of program. eg. only equations after solve.
 */
