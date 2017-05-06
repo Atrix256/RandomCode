@@ -283,7 +283,7 @@ void PrintEquations (
 	}
 
 	// print the matrix closing stuff
-	printf("\\end{ array }\\right]\n");
+	printf("\\end{array}\\right]\n");
 #endif
 
 	// print equations
@@ -1036,8 +1036,6 @@ void Test3DCubic ()
 		row[c_numPixels + i] = CRationalNumber(1);
 	}
 
-	// TODO: i think the above may still not be correct.  It doesn't seem to match the one done by hand on the blog post!  Post could be wrong though.
-
 	// solve the matrix if possible and print out the equations
 	std::unordered_set<size_t> freeVariables;
 	if (!SolveMatrixAndPrintEquations(augmentedMatrix, c_numPixels, freeVariables, pixelIndexToCoordinates))
@@ -1086,7 +1084,7 @@ int main (int agrc, char **argv)
 	Test2DQuadraticsC0();
 	Test3DCubics();
 
-	// TODO: multiple 3d curves?
+	// TODO: multiple 3d curves overlapped?
 	// TODO: 3d zig zag curves?
 
 	return 0;
