@@ -1322,13 +1322,13 @@ void Test3DCubicsMulti ()
 template <size_t N>
 float EvaluateBernsteinPolynomial3DCubicC0 (float totalTime, const std::array<float, N>& coefficients)
 {
-	const size_t c_numCurves = N / 4;
+	const size_t c_numCurves = (N-1) / 3;
 
 	float t;
 	size_t startCurve;
 	PiecewiseCurveTime(totalTime, c_numCurves, startCurve, t);
 
-	size_t offset = startCurve * 4;
+	size_t offset = startCurve * 3;
 
 	float s = 1.0f - t;
 	return
@@ -1341,28 +1341,13 @@ float EvaluateBernsteinPolynomial3DCubicC0 (float totalTime, const std::array<fl
 template <size_t N, typename LAMBDA>
 float EvaluateLinearInterpolation3DCubicC0 (float totalTime, const std::array<float, N>& pixels, LAMBDA& TextureCoordinateToPixelIndex)
 {
-	// TODO: this!
-
 	const size_t c_numCurves = (N / 4) - 1;
 
 	float t;
 	size_t startRow;
 	PiecewiseCurveTime(totalTime, c_numCurves, startRow, t);
 
-	// Note we flip x axis direction every odd row to get the zig zag
-	/*
-	float horizT = (startRow % 2) == 0 ? t : 1.0f - t;
-
-	float row0 = lerp(horizT, pixels[startRow * 2], pixels[startRow * 2 + 1]);
-	++startRow;
-	float row1 = lerp(horizT, pixels[startRow * 2], pixels[startRow * 2 + 1]);
-	return lerp(t, row0, row1);
-	*/
-
-	if (startRow == 1)
-	{
-		int ijkl = 0;
-	}
+	// Note we flip x and z axis direction every odd row to get the zig zag
 
 	//    rowZYX
 	float xzT = (startRow % 2) == 0 ? t : 1.0f - t;
@@ -1403,8 +1388,6 @@ void Test3DCubicC0 ()
 		PixelIndexToTextureCoordinate3d(c_imageWidth, c_imageHeight, c_imageDepth, pixelIndex, z, y, x);
 		sprintf(pixelCoords, "%zu%zu%zu", z,y,x);
 	};
-
-	// TODO: this!
 
 	// create the equations
 	TMatrix<c_numEquations, c_numPixels + c_numControlPoints> augmentedMatrix;
@@ -1478,14 +1461,15 @@ void Test3DCubicC0 ()
 
 void Test3DCubicsC0 ()
 {
-	// TODO: this!
 
 	printf("\nTesting 3D Textures / Cubic Curves with C0 continuity\n\n");
 
 	Test3DCubicC0<1>();
 	Test3DCubicC0<2>();
-	//Test3DCubicC0<3>();
-	//Test3DCubicC0<4>();
+	Test3DCubicC0<3>();
+	Test3DCubicC0<4>();
+	Test3DCubicC0<5>();
+	Test3DCubicC0<6>();
 
 	system("pause");
 }
@@ -1504,9 +1488,3 @@ int main (int agrc, char **argv)
 
 	return 0;
 }
-
-/*
-TODO:
- * make output be minimal in final version of program. eg. only equations after solve.
- * look for todo's above
-*/
