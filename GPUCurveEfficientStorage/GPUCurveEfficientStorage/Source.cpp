@@ -426,13 +426,14 @@ bool SolveMatrixAndPrintEquations (
 			constraintFound = true;
 	}
 
+	printf("  %zu free variables.\n", freeVariables.size());
+
 	if (constraintFound)
 	{
 		printf("  Constraint Found.  This configuration doesn't work for the general case!\n\n");
 		return false;
 	}
 
-	printf("  %zu free variables.\n", freeVariables.size());
 	return true;
 }
 
@@ -1075,6 +1076,156 @@ void Test3DCubics ()
 }
 
 //===================================================================================================================================
+//                                         3D Textures / Cubic Curves Multiple Curves
+//===================================================================================================================================
+//
+// Find the limitations of this pattern and show equivalence to Bernstein Polynomials (Bezier Curve Equations). Pattern details below.
+//
+// This is the same as 3D Textures / Cubic Curves, but there is a second curve stored by flipping x coordinates.
+//
+//  --- Other details:
+//  
+//  * control points: 4 * NumCurves.
+//  * image width it 2
+//  * image depth is 2
+//  * image height is 1 + (NumCurves/2).
+//  * equations: 4 * NumCurves.  This many rows in the augmented matrix.
+//  * augmented matrix columns = num pixels (left columns) + num control points (right columns)
+//
+
+template <size_t HALFNUMCURVES>
+void Test3DCubicMulti ()
+{
+	const size_t NUMCURVES = HALFNUMCURVES * 2;
+	const size_t c_imageWidth = 2;
+	const size_t c_imageHeight = HALFNUMCURVES + 1;
+	const size_t c_imageDepth = 2;
+	const size_t c_numPixels = c_imageWidth * c_imageHeight * c_imageDepth;
+	const size_t c_numControlPoints = NUMCURVES * 4;
+	const size_t c_numEquations = NUMCURVES * 4;
+
+	// report values for this test
+	printf("  %zu curves.  %zu control points.  2x%zux2 texture = %zu pixels.\n", NUMCURVES, c_numControlPoints, c_imageHeight, c_numPixels);
+	printf("  %f pixels per curve.  %f pixels per control point.\n", float(c_numPixels) / float(NUMCURVES), float(c_numPixels) / float(c_numControlPoints));
+
+	// lambdas to convert between pixel index and texture coordinates
+	auto TextureCoordinateToPixelIndex = [&] (size_t z, size_t y, size_t x) -> size_t
+	{
+		return TextureCoordinateToPixelIndex3d(c_imageWidth, c_imageHeight, c_imageDepth, z, y, x);
+	};
+	auto pixelIndexToCoordinates = [&] (size_t pixelIndex, char pixelCoords[10])
+	{
+		size_t z, y, x;
+		PixelIndexToTextureCoordinate3d(c_imageWidth, c_imageHeight, c_imageDepth, pixelIndex, z, y, x);
+		sprintf(pixelCoords, "%zu%zu%zu", z,y,x);
+	};
+
+	// create the first set of equations
+	TMatrix<c_numEquations, c_numPixels + c_numControlPoints> augmentedMatrix;
+	for (size_t i = 0; i < c_numEquations / 2; ++i)
+	{
+		TVector<c_numPixels + c_numControlPoints>& row = augmentedMatrix[i];
+
+		// left side of the equation goes in this zyx coordinate pattern:
+		//   000 
+		//   001 010 100 
+		//   011 101 110
+		//   111
+		// But, curve index is added to the y index.
+		// Also, left side coefficients must add up to 1.
+		size_t curveIndex = i / 4;
+		switch (i % 4)
+		{
+			case 0:
+			{
+				row[TextureCoordinateToPixelIndex(0, curveIndex + 0, 0)] = CRationalNumber(1, 1);
+				break;
+			}
+			case 1:
+			{
+				row[TextureCoordinateToPixelIndex(0, curveIndex + 0, 1)] = CRationalNumber(1, 3);
+				row[TextureCoordinateToPixelIndex(0, curveIndex + 1, 0)] = CRationalNumber(1, 3);
+				row[TextureCoordinateToPixelIndex(1, curveIndex + 0, 0)] = CRationalNumber(1, 3);
+				break;
+			}
+			case 2:
+			{
+				row[TextureCoordinateToPixelIndex(0, curveIndex + 1, 1)] = CRationalNumber(1, 3);
+				row[TextureCoordinateToPixelIndex(1, curveIndex + 0, 1)] = CRationalNumber(1, 3);
+				row[TextureCoordinateToPixelIndex(1, curveIndex + 1, 0)] = CRationalNumber(1, 3);
+				break;
+			}
+			case 3:
+			{
+				row[TextureCoordinateToPixelIndex(1, curveIndex + 1, 1)] = CRationalNumber(1, 1);
+				break;
+			}
+		}
+
+		// right side of the equation is identity
+		row[c_numPixels + i] = CRationalNumber(1);
+	}
+
+	// create the second set of equations
+	for (size_t i = 0; i < c_numEquations / 2; ++i)
+	{
+		TVector<c_numPixels + c_numControlPoints>& row = augmentedMatrix[i + c_numEquations / 2];
+
+		// left side of the equation goes in this zyx coordinate pattern, which is the same as above but x axis flipped.
+		//   001
+		//   000 011 101 
+		//   010 100 111
+		//   110
+		// But, curve index is added to the y index.
+		// Also, left side coefficients must add up to 1.
+		size_t curveIndex = i / 4;
+		switch (i % 4)
+		{
+			case 0:
+			{
+				row[TextureCoordinateToPixelIndex(0, curveIndex + 0, 1)] = CRationalNumber(1, 1);
+				break;
+			}
+			case 1:
+			{
+				row[TextureCoordinateToPixelIndex(0, curveIndex + 0, 0)] = CRationalNumber(1, 3);
+				row[TextureCoordinateToPixelIndex(0, curveIndex + 1, 1)] = CRationalNumber(1, 3);
+				row[TextureCoordinateToPixelIndex(1, curveIndex + 0, 1)] = CRationalNumber(1, 3);
+				break;
+			}
+			case 2:
+			{
+				row[TextureCoordinateToPixelIndex(0, curveIndex + 1, 0)] = CRationalNumber(1, 3);
+				row[TextureCoordinateToPixelIndex(1, curveIndex + 0, 0)] = CRationalNumber(1, 3);
+				row[TextureCoordinateToPixelIndex(1, curveIndex + 1, 1)] = CRationalNumber(1, 3);
+				break;
+			}
+			case 3:
+			{
+				row[TextureCoordinateToPixelIndex(1, curveIndex + 1, 0)] = CRationalNumber(1, 1);
+				break;
+			}
+		}
+
+		// right side of the equation is identity
+		row[c_numPixels + i + c_numEquations / 2] = CRationalNumber(1);
+	}
+
+	// solve the matrix if possible and print out the equations
+	std::unordered_set<size_t> freeVariables;
+	SolveMatrixAndPrintEquations(augmentedMatrix, c_numPixels, freeVariables, pixelIndexToCoordinates);
+}
+
+void Test3DCubicsMulti ()
+{
+	printf("\nTesting 3D Textures / Cubic Curves with Multiple Curves\n\n");
+
+	Test3DCubicMulti<1>();
+
+	system("pause");
+}
+
+//===================================================================================================================================
 //                                                                 main
 //===================================================================================================================================
 
@@ -1083,15 +1234,16 @@ int main (int agrc, char **argv)
 	Test2DQuadratics();
 	Test2DQuadraticsC0();
 	Test3DCubics();
+	Test3DCubicsMulti();
 
-	// TODO: multiple 3d curves overlapped?
-	// TODO: 3d zig zag curves?
+	// TODO: 3d zig zag curves and then it's finished
 
 	return 0;
 }
 
 /*
 TODO:
+ * TODO: when t == 1, it does something weird in the functions (and the others i'm sure!) where it goes back to time 0. need to check it out.
  ? why does 3d texture fail at 4 curves? it seemed like everything was going ok then it wasn't!
   * something to ask Laurent perhaps...
  * make output be minimal in final version of program. eg. only equations after solve.
