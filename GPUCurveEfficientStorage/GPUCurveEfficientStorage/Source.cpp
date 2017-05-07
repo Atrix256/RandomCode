@@ -956,13 +956,13 @@ float EvaluateLinearInterpolation3DCubic (float t, const std::array<float, N>& p
 	//    rowZYX
 	float row00x = lerp(t, pixels[TextureCoordinateToPixelIndex(0, startRow + 0, 0)], pixels[TextureCoordinateToPixelIndex(0, startRow + 0, 1)]);
 	float row01x = lerp(t, pixels[TextureCoordinateToPixelIndex(0, startRow + 1, 0)], pixels[TextureCoordinateToPixelIndex(0, startRow + 1, 1)]);
-	float row0yz = lerp(t, row00x, row01x);
+	float row0yx = lerp(t, row00x, row01x);
 
 	float row10x = lerp(t, pixels[TextureCoordinateToPixelIndex(1, startRow + 0, 0)], pixels[TextureCoordinateToPixelIndex(1, startRow + 0, 1)]);
 	float row11x = lerp(t, pixels[TextureCoordinateToPixelIndex(1, startRow + 1, 0)], pixels[TextureCoordinateToPixelIndex(1, startRow + 1, 1)]);
-	float row1yz = lerp(t, row10x, row11x);
+	float row1yx = lerp(t, row10x, row11x);
 
-	return lerp(t, row0yz, row1yz);
+	return lerp(t, row0yx, row1yx);
 }
 
 template <size_t NUMCURVES>
@@ -1226,17 +1226,248 @@ void Test3DCubicsMulti ()
 }
 
 //===================================================================================================================================
+//                                       3D Textures / Cubic Curves With C0 Continuity
+//===================================================================================================================================
+//
+// Find the limitations of this pattern and show equivalence to Bernstein Polynomials (Bezier Curve Equations). Pattern details below.
+//
+//  --- For first curve, do:
+//
+//  P000 P001    P100 P101
+//  P010 P011    P110 P111
+//
+//  P000 = C0                       
+//  P001 + P010 + P100 = 3 * C1     
+//  P011 + P101 + P110 = 3 * C2     
+//  P111 = C3                       
+//
+//  --- For second curve, do:
+//
+//  P000 P001    P100 P101
+//  P010 P011    P110 P111
+//  P020 P021    P120 P121
+//
+//  P000 = C0                       
+//  P001 + P010 + P100 = 3 * C1     
+//  P011 + P101 + P110 = 3 * C2     
+//  P111 = C3                       
+//                       
+//  P011 + P110 + P121 = 3 * C4     
+//  P010 + P021 + P110 = 3 * C5     
+//  P020 = C6     
+//
+//  --- For third curve, do:
+//
+//  P000 P001    P100 P101
+//  P010 P011    P110 P111
+//  P020 P021    P120 P121
+//  P030 P031    P130 P131
+//
+//  P000 = C0                       
+//  P001 + P010 + P100 = 3 * C1     
+//  P011 + P101 + P110 = 3 * C2     
+//  P111 = C3                       
+//                       
+//  P011 + P110 + P121 = 3 * C4     
+//  P010 + P021 + P110 = 3 * C5     
+//  P020 = C6     
+//
+//  P021 + P030 + P120 = 3 * C7     
+//  P031 + P121 + P130 = 3 * C8     
+//  P131 = C9   
+//
+//  and so on...
+//  each equation is then multiplied by a value so the right side is identity and left side coefficients add up to 1.
+//
+//  --- Other details:
+//  
+//  * control points: 1 + 3 * NumCurves.
+//  * image width it 2
+//  * image depth is 2
+//  * image height is 1 + NumCurves.
+//  * equations: 1 + 3 * NumCurves.  This many rows in the augmented matrix.
+//  * augmented matrix columns = num pixels (left columns) + num control points (right columns)
+//
+
+template <size_t N>
+float EvaluateBernsteinPolynomial3DCubicC0 (float t, const std::array<float, N>& coefficients)
+{
+	const size_t c_numCurves = N / 4;
+	t *= float(c_numCurves);
+	size_t iOffset = std::min(size_t(t), c_numCurves - 1) * 4;
+	t = std::fmodf(t, 1.0f);
+
+	float s = 1.0f - t;
+	return
+		coefficients[iOffset + 0] * s * s * s +
+		coefficients[iOffset + 1] * s * s * t * 3.0f +
+		coefficients[iOffset + 2] * s * t * t * 3.0f +
+		coefficients[iOffset + 3] * t * t * t;
+}
+
+template <size_t N, typename LAMBDA>
+float EvaluateLinearInterpolation3DCubicC0 (float t, const std::array<float, N>& pixels, LAMBDA& TextureCoordinateToPixelIndex)
+{
+	// TODO: this!
+
+	const size_t c_numCurves = (N / 4) - 1;
+	t *= float(c_numCurves);
+	size_t startRow = std::min(size_t(t), c_numCurves - 1);
+	t = std::fmodf(t, 1.0f);
+
+	// Note we flip x axis direction every odd row to get the zig zag
+	/*
+	float horizT = (startRow % 2) == 0 ? t : 1.0f - t;
+
+	float row0 = lerp(horizT, pixels[startRow * 2], pixels[startRow * 2 + 1]);
+	++startRow;
+	float row1 = lerp(horizT, pixels[startRow * 2], pixels[startRow * 2 + 1]);
+	return lerp(t, row0, row1);
+	*/
+
+	if (startRow == 1)
+	{
+		int ijkl = 0;
+	}
+
+	//    rowZYX
+	float xzT = (startRow % 2) == 0 ? t : 1.0f - t;
+	float row00x = lerp(xzT, pixels[TextureCoordinateToPixelIndex(0, startRow + 0, 0)], pixels[TextureCoordinateToPixelIndex(0, startRow + 0, 1)]);
+	float row01x = lerp(xzT, pixels[TextureCoordinateToPixelIndex(0, startRow + 1, 0)], pixels[TextureCoordinateToPixelIndex(0, startRow + 1, 1)]);
+	float row0yx = lerp(t, row00x, row01x);
+
+	float row10x = lerp(xzT, pixels[TextureCoordinateToPixelIndex(1, startRow + 0, 0)], pixels[TextureCoordinateToPixelIndex(1, startRow + 0, 1)]);
+	float row11x = lerp(xzT, pixels[TextureCoordinateToPixelIndex(1, startRow + 1, 0)], pixels[TextureCoordinateToPixelIndex(1, startRow + 1, 1)]);
+	float row1yx = lerp(t, row10x, row11x);
+
+	return lerp(xzT, row0yx, row1yx);
+}
+
+template <size_t NUMCURVES>
+void Test3DCubicC0 ()
+{
+
+	const size_t c_imageWidth = 2;
+	const size_t c_imageHeight = NUMCURVES + 1;
+	const size_t c_imageDepth = 2;
+	const size_t c_numPixels = c_imageWidth * c_imageHeight * c_imageDepth;
+	const size_t c_numControlPoints = 1 + NUMCURVES * 3;
+	const size_t c_numEquations = 1 + NUMCURVES * 3;
+
+	// report values for this test
+	printf("  %zu curves.  %zu control points.  2x%zux2 texture = %zu pixels.\n", NUMCURVES, c_numControlPoints, c_imageHeight, c_numPixels);
+	printf("  %f pixels per curve.  %f pixels per control point.\n", float(c_numPixels) / float(NUMCURVES), float(c_numPixels) / float(c_numControlPoints));
+
+	// lambdas to convert between pixel index and texture coordinates
+	auto TextureCoordinateToPixelIndex = [&] (size_t z, size_t y, size_t x) -> size_t
+	{
+		return TextureCoordinateToPixelIndex3d(c_imageWidth, c_imageHeight, c_imageDepth, z, y, x);
+	};
+	auto pixelIndexToCoordinates = [&] (size_t pixelIndex, char pixelCoords[10])
+	{
+		size_t z, y, x;
+		PixelIndexToTextureCoordinate3d(c_imageWidth, c_imageHeight, c_imageDepth, pixelIndex, z, y, x);
+		sprintf(pixelCoords, "%zu%zu%zu", z,y,x);
+	};
+
+	// TODO: this!
+
+	// create the equations
+	TMatrix<c_numEquations, c_numPixels + c_numControlPoints> augmentedMatrix;
+	for (size_t i = 0; i < c_numEquations; ++i)
+	{
+		TVector<c_numPixels + c_numControlPoints>& row = augmentedMatrix[i];
+
+		// left side of the equation has a pattern like this:
+		//   000
+		//   001 010 100
+		//   011 101 110
+		//
+		// But, pattern index is added to the y index.
+		// Also, the x and z coordinates flip from 0 to 1 on those after each pattern.
+		// Also, left side coefficients must add up to 1.
+		size_t patternIndex = i / 3;
+		size_t xz0 = patternIndex % 2 == 1;
+		size_t xz1 = patternIndex % 2 == 0;
+		switch (i % 3)
+		{
+			case 0:
+			{
+				row[TextureCoordinateToPixelIndex(xz0, patternIndex + 0, xz0)] = CRationalNumber(1, 1);
+				break;
+			}
+			case 1:
+			{
+				row[TextureCoordinateToPixelIndex(xz0, patternIndex + 0, xz1)] = CRationalNumber(1, 3);
+				row[TextureCoordinateToPixelIndex(xz0, patternIndex + 1, xz0)] = CRationalNumber(1, 3);
+				row[TextureCoordinateToPixelIndex(xz1, patternIndex + 0, xz0)] = CRationalNumber(1, 3);
+				break;
+			}
+			case 2:
+			{
+				row[TextureCoordinateToPixelIndex(xz0, patternIndex + 1, xz1)] = CRationalNumber(1, 3);
+				row[TextureCoordinateToPixelIndex(xz1, patternIndex + 0, xz1)] = CRationalNumber(1, 3);
+				row[TextureCoordinateToPixelIndex(xz1, patternIndex + 1, xz0)] = CRationalNumber(1, 3);
+				break;
+			}
+		}
+
+		// right side of the equation is identity
+		row[c_numPixels + i] = CRationalNumber(1);
+	}
+
+	// solve the matrix if possible and print out the equations
+	std::unordered_set<size_t> freeVariables;
+	if (!SolveMatrixAndPrintEquations(augmentedMatrix, c_numPixels, freeVariables, pixelIndexToCoordinates))
+		return;
+
+	// Next we need to show equality between the N-linear interpolation of our pixels and bernstein polynomials with our control points as coefficients
+
+	// Fill in random values for our control points and free variable pixels, and fill in the other pixels as the equations dictate 
+	std::array<float, c_numPixels> pixels = { 0 };
+	std::array<float, c_numControlPoints> controlPoints = { 0 };
+	FillInPixelsAndControlPoints<c_numPixels, c_numControlPoints, c_numEquations>(pixels, controlPoints, augmentedMatrix, freeVariables);
+
+	// do a number of samples of each method at the same time values, and report the largest difference (error)
+	float largestDifference = 0.0f;
+	for (size_t i = 0; i < EQUALITY_TEST_SAMPLES; ++i)
+	{
+		float t = float(i) / float(EQUALITY_TEST_SAMPLES - 1);
+
+		float value1 = EvaluateBernsteinPolynomial3DCubicC0(t, controlPoints);
+		float value2 = EvaluateLinearInterpolation3DCubicC0(t, pixels, TextureCoordinateToPixelIndex);
+
+		largestDifference = std::max(largestDifference, std::abs(value1 - value2));
+	}
+	printf("  %i Samples, Largest Error = %f\n\n", EQUALITY_TEST_SAMPLES, largestDifference);
+}
+
+void Test3DCubicsC0 ()
+{
+	// TODO: this!
+
+	printf("\nTesting 3D Textures / Cubic Curves with C0 continuity\n\n");
+
+	Test3DCubicC0<1>();
+	Test3DCubicC0<2>();
+	//Test3DCubicC0<3>();
+	//Test3DCubicC0<4>();
+
+	system("pause");
+}
+
+//===================================================================================================================================
 //                                                                 main
 //===================================================================================================================================
 
 int main (int agrc, char **argv)
 {
-	Test2DQuadratics();
-	Test2DQuadraticsC0();
-	Test3DCubics();
-	Test3DCubicsMulti();
-
-	// TODO: 3d zig zag curves and then it's finished
+	// TODO: temp!
+	//Test2DQuadratics();
+	//Test2DQuadraticsC0();
+	//Test3DCubics();
+	//Test3DCubicsMulti();
+	Test3DCubicsC0();
 
 	return 0;
 }
@@ -1247,4 +1478,5 @@ TODO:
  ? why does 3d texture fail at 4 curves? it seemed like everything was going ok then it wasn't!
   * something to ask Laurent perhaps...
  * make output be minimal in final version of program. eg. only equations after solve.
+ * look for todo's above
 */
