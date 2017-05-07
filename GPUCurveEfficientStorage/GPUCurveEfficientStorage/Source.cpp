@@ -528,6 +528,24 @@ void PixelIndexToTextureCoordinate3d (size_t width, size_t height, size_t depth,
 	z = pixelIndex;
 }
 
+void PiecewiseCurveTime (float time, size_t numCurves, size_t& outCurveIndex, float& outTime)
+{
+	time *= float(numCurves);
+	outCurveIndex = size_t(time);
+
+	if (outCurveIndex == numCurves)
+	{
+		outCurveIndex = numCurves - 1;
+		outTime = 1.0f;
+	}
+	else
+	{
+		outTime = std::fmodf(time, 1.0f);
+	}
+}
+
+
+
 //===================================================================================================================================
 //                                                       2D Textures / Quadratic Curves
 //===================================================================================================================================
@@ -570,27 +588,31 @@ void PixelIndexToTextureCoordinate3d (size_t width, size_t height, size_t depth,
 //
 
 template <size_t N>
-float EvaluateBernsteinPolynomial2DQuadratic (float t, const std::array<float, N>& coefficients)
+float EvaluateBernsteinPolynomial2DQuadratic (float totalTime, const std::array<float, N>& coefficients)
 {
 	const size_t c_numCurves = N / 3;
-	t *= float(c_numCurves);
-	size_t iOffset = std::min(size_t(t), c_numCurves - 1) * 3;
-	t = std::fmodf(t, 1.0f);
+
+	float t;
+	size_t startCurve;
+	PiecewiseCurveTime(totalTime, c_numCurves, startCurve, t);
+
+	size_t offset = startCurve * 3;
 
 	float s = 1.0f - t;
 	return
-		coefficients[iOffset + 0] * s * s +
-		coefficients[iOffset + 1] * s * t * 2.0f +
-		coefficients[iOffset + 2] * t * t;
+		coefficients[offset + 0] * s * s +
+		coefficients[offset + 1] * s * t * 2.0f +
+		coefficients[offset + 2] * t * t;
 }
 
 template <size_t N>
-float EvaluateLinearInterpolation2DQuadratic (float t, const std::array<float, N>& pixels)
+float EvaluateLinearInterpolation2DQuadratic (float totalTime, const std::array<float, N>& pixels)
 {
 	const size_t c_numCurves = (N / 2) - 1;
-	t *= float(c_numCurves);
-	size_t startRow = std::min(size_t(t), c_numCurves - 1);
-	t = std::fmodf(t, 1.0f);
+
+	float t;
+	size_t startRow;
+	PiecewiseCurveTime(totalTime, c_numCurves, startRow, t);
 
 	float row0 = lerp(t, pixels[startRow * 2], pixels[startRow * 2 + 1]);
 	float row1 = lerp(t, pixels[(startRow + 1) * 2], pixels[(startRow + 1) * 2 + 1]);
@@ -754,27 +776,31 @@ void Test2DQuadratics ()
 //
 
 template <size_t N>
-float EvaluateBernsteinPolynomial2DQuadraticC0 (float t, const std::array<float, N>& coefficients)
+float EvaluateBernsteinPolynomial2DQuadraticC0 (float totalTime, const std::array<float, N>& coefficients)
 {
 	const size_t c_numCurves = (N - 1) / 2;
-	t *= float(c_numCurves);
-	size_t iOffset = std::min(size_t(t), c_numCurves - 1) * 2;
-	t = std::fmodf(t, 1.0f);
+
+	float t;
+	size_t startCurve;
+	PiecewiseCurveTime(totalTime, c_numCurves, startCurve, t);
+
+	size_t offset = startCurve * 2;
 
 	float s = 1.0f - t;
 	return
-		coefficients[iOffset + 0] * s * s +
-		coefficients[iOffset + 1] * s * t * 2.0f +
-		coefficients[iOffset + 2] * t * t;
+		coefficients[offset + 0] * s * s +
+		coefficients[offset + 1] * s * t * 2.0f +
+		coefficients[offset + 2] * t * t;
 }
 
 template <size_t N>
-float EvaluateLinearInterpolation2DQuadraticC0 (float t, const std::array<float, N>& pixels)
+float EvaluateLinearInterpolation2DQuadraticC0 (float totalTime, const std::array<float, N>& pixels)
 {
 	const size_t c_numCurves = (N / 2) - 1;
-	t *= float(c_numCurves);
-	size_t startRow = std::min(size_t(t), c_numCurves - 1);
-	t = std::fmodf(t, 1.0f);
+
+	float t;
+	size_t startRow;
+	PiecewiseCurveTime(totalTime, c_numCurves, startRow, t);
 
 	// Note we flip x axis direction every odd row to get the zig zag
 	float horizT = (startRow % 2) == 0 ? t : 1.0f - t;
@@ -930,28 +956,32 @@ void Test2DQuadraticsC0 ()
 //
 
 template <size_t N>
-float EvaluateBernsteinPolynomial3DCubic (float t, const std::array<float, N>& coefficients)
+float EvaluateBernsteinPolynomial3DCubic (float totalTime, const std::array<float, N>& coefficients)
 {
 	const size_t c_numCurves = N / 4;
-	t *= float(c_numCurves);
-	size_t iOffset = std::min(size_t(t), c_numCurves - 1) * 4;
-	t = std::fmodf(t, 1.0f);
+
+	float t;
+	size_t startCurve;
+	PiecewiseCurveTime(totalTime, c_numCurves, startCurve, t);
+
+	size_t offset = startCurve * 4;
 
 	float s = 1.0f - t;
 	return
-		coefficients[iOffset + 0] * s * s * s +
-		coefficients[iOffset + 1] * s * s * t * 3.0f +
-		coefficients[iOffset + 2] * s * t * t * 3.0f +
-		coefficients[iOffset + 3] * t * t * t;
+		coefficients[offset + 0] * s * s * s +
+		coefficients[offset + 1] * s * s * t * 3.0f +
+		coefficients[offset + 2] * s * t * t * 3.0f +
+		coefficients[offset + 3] * t * t * t;
 }
 
 template <size_t N, typename LAMBDA>
-float EvaluateLinearInterpolation3DCubic (float t, const std::array<float, N>& pixels, LAMBDA& TextureCoordinateToPixelIndex)
+float EvaluateLinearInterpolation3DCubic (float totalTime, const std::array<float, N>& pixels, LAMBDA& TextureCoordinateToPixelIndex)
 {
 	const size_t c_numCurves = (N / 4) - 1;
-	t *= float(c_numCurves);
-	size_t startRow = std::min(size_t(t), c_numCurves - 1);
-	t = std::fmodf(t, 1.0f);
+
+	float t;
+	size_t startRow;
+	PiecewiseCurveTime(totalTime, c_numCurves, startRow, t);
 
 	//    rowZYX
 	float row00x = lerp(t, pixels[TextureCoordinateToPixelIndex(0, startRow + 0, 0)], pixels[TextureCoordinateToPixelIndex(0, startRow + 0, 1)]);
@@ -1290,30 +1320,34 @@ void Test3DCubicsMulti ()
 //
 
 template <size_t N>
-float EvaluateBernsteinPolynomial3DCubicC0 (float t, const std::array<float, N>& coefficients)
+float EvaluateBernsteinPolynomial3DCubicC0 (float totalTime, const std::array<float, N>& coefficients)
 {
 	const size_t c_numCurves = N / 4;
-	t *= float(c_numCurves);
-	size_t iOffset = std::min(size_t(t), c_numCurves - 1) * 4;
-	t = std::fmodf(t, 1.0f);
+
+	float t;
+	size_t startCurve;
+	PiecewiseCurveTime(totalTime, c_numCurves, startCurve, t);
+
+	size_t offset = startCurve * 4;
 
 	float s = 1.0f - t;
 	return
-		coefficients[iOffset + 0] * s * s * s +
-		coefficients[iOffset + 1] * s * s * t * 3.0f +
-		coefficients[iOffset + 2] * s * t * t * 3.0f +
-		coefficients[iOffset + 3] * t * t * t;
+		coefficients[offset + 0] * s * s * s +
+		coefficients[offset + 1] * s * s * t * 3.0f +
+		coefficients[offset + 2] * s * t * t * 3.0f +
+		coefficients[offset + 3] * t * t * t;
 }
 
 template <size_t N, typename LAMBDA>
-float EvaluateLinearInterpolation3DCubicC0 (float t, const std::array<float, N>& pixels, LAMBDA& TextureCoordinateToPixelIndex)
+float EvaluateLinearInterpolation3DCubicC0 (float totalTime, const std::array<float, N>& pixels, LAMBDA& TextureCoordinateToPixelIndex)
 {
 	// TODO: this!
 
 	const size_t c_numCurves = (N / 4) - 1;
-	t *= float(c_numCurves);
-	size_t startRow = std::min(size_t(t), c_numCurves - 1);
-	t = std::fmodf(t, 1.0f);
+
+	float t;
+	size_t startRow;
+	PiecewiseCurveTime(totalTime, c_numCurves, startRow, t);
 
 	// Note we flip x axis direction every odd row to get the zig zag
 	/*
@@ -1462,11 +1496,10 @@ void Test3DCubicsC0 ()
 
 int main (int agrc, char **argv)
 {
-	// TODO: temp!
-	//Test2DQuadratics();
-	//Test2DQuadraticsC0();
-	//Test3DCubics();
-	//Test3DCubicsMulti();
+	Test2DQuadratics();
+	Test2DQuadraticsC0();
+	Test3DCubics();
+	Test3DCubicsMulti();
 	Test3DCubicsC0();
 
 	return 0;
@@ -1474,9 +1507,6 @@ int main (int agrc, char **argv)
 
 /*
 TODO:
- * TODO: when t == 1, it does something weird in the functions (and the others i'm sure!) where it goes back to time 0. need to check it out.
- ? why does 3d texture fail at 4 curves? it seemed like everything was going ok then it wasn't!
-  * something to ask Laurent perhaps...
  * make output be minimal in final version of program. eg. only equations after solve.
  * look for todo's above
 */
