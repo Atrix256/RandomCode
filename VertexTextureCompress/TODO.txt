@@ -38,6 +38,8 @@
 
 ===== BLOG NOTES =====
 
+* Blender fracture: https://www.youtube.com/watch?v=aXTcqpfWmSk
+
 * Making particles in blender: https://www.youtube.com/watch?v=UdD1wAbZUww
 * Writing blender exporter: https://en.wikibooks.org/wiki/Blender_3D:_Noob_to_Pro/Advanced_Tutorials/Python_Scripting/Export_scripts
 
