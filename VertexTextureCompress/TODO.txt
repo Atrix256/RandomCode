@@ -1,0 +1,49 @@
+* make particles in blender
+ * figure out how to export data (maybe to csv?)
+
+* need to make a program that fits the data with curves
+
+? put this file in github next to project!
+
+===== NOTES =====
+
+* vertex animations can be baked out to textures.
+ * (what was that game?)
+
+* idea:
+ * try with quadratic / cubic
+ * find a stride of N, where every N data points are fit by a curve.
+ * find whatever minimizes error
+ * try c0 continuous / not?
+ * compare texture sizes
+ * make webgl2 thing to show difference in quality side by side vs regular data
+ ? i wonder if warps to zero etc could happen earlier / later to minimize error.
+ ? color over time too?
+ ? how to interpolate rotations? i wonder what houdini data looks like?
+
+* Try with...
+ * fluid sim (won't compress, not stable mesh!) - but can show it anyways.
+ * Particle Systems
+  * single particle with gravity (perfect quadratic?)
+  * multiple particles with gravity (fountain?)
+  * ... spawn offset in time? they can start at zero and return to zero or something.
+  * ... colliding against something
+ * Destruction
+  * just a breakable object?
+ * Skeletal mesh deform
+ * moving objects
+ * ask cryder if it's representative of usage cases / am i missing anything?
+
+* rotational data will be a challenge
+
+===== BLOG NOTES =====
+
+* Making particles in blender: https://www.youtube.com/watch?v=UdD1wAbZUww
+* Writing blender exporter: https://en.wikibooks.org/wiki/Blender_3D:_Noob_to_Pro/Advanced_Tutorials/Python_Scripting/Export_scripts
+
+===== DONE =====
+--5/9/17
+* re-started today!
+
+
+==================== LANDFILL ====================
