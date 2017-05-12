@@ -7,7 +7,9 @@
 
 typedef uint8_t uint8;
 
-#define NUM_SAMPLES 100
+// TODO: put this back to 11
+#define NUM_SAMPLES 64
+#define NUM_SAMPLES_FOR_COLORING 100
 
 #define IMAGE1D_WIDTH 600
 #define IMAGE1D_HEIGHT 50
@@ -26,7 +28,6 @@ typedef uint8_t uint8;
 
 #define COLOR_FILL SColor(255,255,255)
 #define COLOR_AXIS SColor(0, 0, 0)
-#define COLOR_DATAPOINT SColor(255, 0, 0)
 
 //======================================================================================
 struct SImageData
@@ -152,15 +153,21 @@ void DrawDecorations1DPost (SImageData& image)
 void DrawDecorations2DPost (SImageData& image)
 {
     // draw a box
-	ImageBox(image, IMAGE_PAD - 1, IMAGE2D_WIDTH + IMAGE_PAD + 1, IMAGE_PAD - 1, IMAGE2D_HEIGHT + IMAGE_PAD + 1, COLOR_AXIS);
-	ImageBox(image, IMAGE_PAD, IMAGE2D_WIDTH + IMAGE_PAD, IMAGE_PAD, IMAGE2D_HEIGHT + IMAGE_PAD, COLOR_FILL);
+
+    // horizontal lines
+    ImageBox(image, IMAGE_PAD - 1, IMAGE2D_WIDTH + IMAGE_PAD + 1, IMAGE_PAD - 1, IMAGE_PAD, COLOR_AXIS);
+    ImageBox(image, IMAGE_PAD - 1, IMAGE2D_WIDTH + IMAGE_PAD + 1, IMAGE2D_HEIGHT + IMAGE_PAD, IMAGE2D_HEIGHT + IMAGE_PAD + 1, COLOR_AXIS);
+
+    // vertical lines
+    ImageBox(image, IMAGE_PAD - 1, IMAGE_PAD, IMAGE_PAD - 1, IMAGE2D_HEIGHT + IMAGE_PAD + 1, COLOR_AXIS);
+    ImageBox(image, IMAGE_PAD + IMAGE2D_WIDTH, IMAGE_PAD + IMAGE2D_WIDTH + 1, IMAGE_PAD - 1, IMAGE2D_HEIGHT + IMAGE_PAD + 1, COLOR_AXIS);
 }
 
 //======================================================================================
-SColor DataPointColor (size_t sampleIndex, size_t sampleCount)
+SColor DataPointColor (size_t sampleIndex)
 {
     SColor ret;
-    float percent = (float(sampleIndex) / (float(sampleCount) - 1.0f));
+    float percent = (float(sampleIndex) / (float(NUM_SAMPLES_FOR_COLORING) - 1.0f));
 
     ret.R = uint8((1.0f - percent) * 255.0f);
     ret.G = 0;
@@ -184,12 +191,6 @@ float RandomFloat (float min, float max)
 }
 
 //======================================================================================
-size_t GrayCode (size_t input)
-{
-	return input ^ input / 2;;
-}
-
-//======================================================================================
 size_t Ruler (size_t n)
 {
 	size_t ret = 0;
@@ -202,8 +203,7 @@ size_t Ruler (size_t n)
 }
 
 //======================================================================================
-template<bool JITTER>
-void TestUniform1D ()
+void TestUniform1D (bool jitter)
 {
 	// create and clear the image
 	SImageData image;
@@ -218,18 +218,18 @@ void TestUniform1D ()
 	{
 		float sample = float(i+1) / (float(NUM_SAMPLES)+1.0f);
 
-        if (JITTER)
+        if (jitter)
             sample += RandomFloat(-c_halfJitter, c_halfJitter);
 
 		size_t pos = size_t(sample * float(IMAGE1D_WIDTH)) + IMAGE_PAD;
-		ImageBox(image, pos, pos+1, IMAGE1D_CENTERY - DATA_HEIGHT / 2, IMAGE1D_CENTERY + DATA_HEIGHT / 2, DataPointColor(i, NUM_SAMPLES));
+		ImageBox(image, pos, pos+1, IMAGE1D_CENTERY - DATA_HEIGHT / 2, IMAGE1D_CENTERY + DATA_HEIGHT / 2, DataPointColor(i));
 	}
 
     // draw everything else
     DrawDecorations1DPost(image);
 
 	// save the image
-    if (JITTER)
+    if (jitter)
 	    SaveImage("1DUniformJitter.bmp", image);
     else
         SaveImage("1DUniform.bmp", image);
@@ -250,7 +250,7 @@ void TestUniformRandom1D ()
 	{
         float sample = RandomFloat(0.0f, 1.0f);
 		size_t pos = size_t(sample * float(IMAGE1D_WIDTH)) + IMAGE_PAD;
-        ImageBox(image, pos, pos + 1, IMAGE1D_CENTERY - DATA_HEIGHT / 2, IMAGE1D_CENTERY + DATA_HEIGHT / 2, DataPointColor(i, NUM_SAMPLES));
+        ImageBox(image, pos, pos + 1, IMAGE1D_CENTERY - DATA_HEIGHT / 2, IMAGE1D_CENTERY + DATA_HEIGHT / 2, DataPointColor(i));
 	}
 
     // draw everything else
@@ -261,8 +261,7 @@ void TestUniformRandom1D ()
 }
 
 //======================================================================================
-template <size_t BASE>
-void TestVanDerCorput ()
+void TestVanDerCorput (size_t base)
 {
 	// create and clear the image
 	SImageData image;
@@ -275,18 +274,18 @@ void TestVanDerCorput ()
 	for (size_t i = 0; i < NUM_SAMPLES; ++i)
 	{
         float sample = 0.0f;
-        float denominator = float(BASE);
+        float denominator = float(base);
         size_t n = i;
         while (n > 0)
         {
-            size_t multiplier = n % BASE;
+            size_t multiplier = n % base;
             sample += float(multiplier) / denominator;
-            n = n / BASE;
-            denominator *= BASE;
+            n = n / base;
+            denominator *= base;
         }
 
 		size_t pos = size_t(sample * float(IMAGE1D_WIDTH)) + IMAGE_PAD;
-        ImageBox(image, pos, pos + 1, IMAGE1D_CENTERY - DATA_HEIGHT / 2, IMAGE1D_CENTERY + DATA_HEIGHT / 2, DataPointColor(i, NUM_SAMPLES));
+        ImageBox(image, pos, pos + 1, IMAGE1D_CENTERY - DATA_HEIGHT / 2, IMAGE1D_CENTERY + DATA_HEIGHT / 2, DataPointColor(i));
 	}
 
     // draw everything else
@@ -294,12 +293,12 @@ void TestVanDerCorput ()
 
 	// save the image
     char fileName[256];
-	sprintf(fileName, "1DVanDerCorput_%zu.bmp", BASE);
+	sprintf(fileName, "1DVanDerCorput_%zu.bmp", base);
 	SaveImage(fileName, image);
 }
 
 //======================================================================================
-void TestGoldenRatio ()
+void TestGoldenRatio (float seed)
 {
 	// create and clear the image
 	SImageData image;
@@ -310,19 +309,23 @@ void TestGoldenRatio ()
 
 	// draw the sample points
     const float c_goldenRatioConugate = 0.61803398875f;
-    float sample = 0.0f;
+    float sample = seed;
 	for (size_t i = 0; i < NUM_SAMPLES; ++i)
 	{
         sample = std::fmodf(sample + c_goldenRatioConugate, 1.0f);
 		size_t pos = size_t(sample * float(IMAGE1D_WIDTH)) + IMAGE_PAD;
-        ImageBox(image, pos, pos + 1, IMAGE1D_CENTERY - DATA_HEIGHT / 2, IMAGE1D_CENTERY + DATA_HEIGHT / 2, DataPointColor(i, NUM_SAMPLES));
+        ImageBox(image, pos, pos + 1, IMAGE1D_CENTERY - DATA_HEIGHT / 2, IMAGE1D_CENTERY + DATA_HEIGHT / 2, DataPointColor(i));
 	}
 
     // draw everything else
     DrawDecorations1DPost(image);
 
 	// save the image
-	SaveImage("1DGoldenRatio.bmp", image);
+    char seedStr[256];
+    sprintf(seedStr, "%f", seed);
+    char fileName[256];
+    sprintf(fileName, "1DGoldenRatio_%s.bmp", &seedStr[2]);
+	SaveImage(fileName, image);
 }
 
 //======================================================================================
@@ -340,12 +343,12 @@ void TestSobol1D ()
 	for (size_t i = 0; i < NUM_SAMPLES; ++i)
 	{
 		size_t ruler = Ruler(i + 1);
-		size_t direction = 1 << (31 - ruler);
+		size_t direction = size_t(size_t(1) << size_t(31 - ruler));
 		sampleInt = sampleInt ^ direction;
 
 		float sample = float(sampleInt) / std::pow(2.0f, 32.0f);
 		size_t pos = size_t(sample * float(IMAGE1D_WIDTH)) + IMAGE_PAD;
-		ImageBox(image, pos, pos + 1, IMAGE1D_CENTERY - DATA_HEIGHT / 2, IMAGE1D_CENTERY + DATA_HEIGHT / 2, DataPointColor(i, NUM_SAMPLES));
+		ImageBox(image, pos, pos + 1, IMAGE1D_CENTERY - DATA_HEIGHT / 2, IMAGE1D_CENTERY + DATA_HEIGHT / 2, DataPointColor(i));
 	}
 
 	// draw everything else
@@ -356,7 +359,7 @@ void TestSobol1D ()
 }
 
 //======================================================================================
-void TestHammersley1D ()
+void TestHammersley1D (size_t truncateBits)
 {
 	// create and clear the image
 	SImageData image;
@@ -369,7 +372,7 @@ void TestHammersley1D ()
 	size_t sampleInt = 0;
 	for (size_t i = 0; i < NUM_SAMPLES; ++i)
 	{
-		size_t n = i;
+		size_t n = i >> truncateBits;
 		float base = 1.0f / 2.0f;
 		float sample = 0.0f;
 		while (n)
@@ -380,19 +383,20 @@ void TestHammersley1D ()
 			base /= 2.0f;
 		}
 		size_t pos = size_t(sample * float(IMAGE1D_WIDTH)) + IMAGE_PAD;
-		ImageBox(image, pos, pos + 1, IMAGE1D_CENTERY - DATA_HEIGHT / 2, IMAGE1D_CENTERY + DATA_HEIGHT / 2, DataPointColor(i, NUM_SAMPLES));
+		ImageBox(image, pos, pos + 1, IMAGE1D_CENTERY - DATA_HEIGHT / 2, IMAGE1D_CENTERY + DATA_HEIGHT / 2, DataPointColor(i));
 	}
 
 	// draw everything else
 	DrawDecorations1DPost(image);
 
 	// save the image
-	SaveImage("1DHammersley.bmp", image);
+    char fileName[256];
+    sprintf(fileName, "1DHammersley_%zu.bmp", truncateBits);
+	SaveImage(fileName, image);
 }
 
 //======================================================================================
-template<bool JITTER>
-void TestUniform2D ()
+void TestUniform2D (bool jitter)
 {
 	// create and clear the image
 	SImageData image;
@@ -401,42 +405,204 @@ void TestUniform2D ()
     // setup the canvas
     DrawDecorationsPre(image);
 
-	// draw everything else
-	// TODO: make this just draw the lines, not 2 boxes, then put this at the bottom again
-	DrawDecorations2DPost(image);
-	
-	// TODO: y axis jitter doesn't seem to be working?!
-
 	// draw the sample points
 	const size_t c_oneSide = size_t(std::sqrt(NUM_SAMPLES));
-	const float c_halfJitter = 1.0f / float((c_oneSide + 1) * 4);
+	const float c_halfJitter = 1.0f / float((c_oneSide + 1) * 2);
 	for (size_t iy = 0; iy < c_oneSide; ++iy)
 	{
-		float sampley = float(iy + 1) / (float(c_oneSide) + 1.0f);
-
-		if (JITTER)
-			sampley += RandomFloat(-c_halfJitter, c_halfJitter);
-
-		size_t posy = size_t(sampley * float(IMAGE2D_HEIGHT)) + IMAGE_PAD;
-
 		for (size_t ix = 0; ix < c_oneSide; ++ix)
 		{
 			float samplex = float(ix + 1) / (float(c_oneSide) + 1.0f);
 
-			if (JITTER)
+			if (jitter)
 				samplex += RandomFloat(-c_halfJitter, c_halfJitter);
 
 			size_t posx = size_t(samplex * float(IMAGE2D_WIDTH)) + IMAGE_PAD;
 
-			ImageBox(image, posx - 1, posx + 1, posy - 1, posy + 1, DataPointColor(iy*c_oneSide+ix, c_oneSide*c_oneSide));
+            float sampley = float(iy + 1) / (float(c_oneSide) + 1.0f);
+
+            if (jitter)
+                sampley += RandomFloat(-c_halfJitter, c_halfJitter);
+
+            size_t posy = size_t(sampley * float(IMAGE2D_HEIGHT)) + IMAGE_PAD;
+
+			ImageBox(image, posx - 1, posx + 1, posy - 1, posy + 1, DataPointColor(iy*c_oneSide+ix));
 		}
 	}
 
+    // draw everything else
+    DrawDecorations2DPost(image);
+
 	// save the image
-    if (JITTER)
+    if (jitter)
 	    SaveImage("2DUniformJitter.bmp", image);
     else
         SaveImage("2DUniform.bmp", image);
+}
+
+//======================================================================================
+void TestUniformRandom2D ()
+{
+	// create and clear the image
+	SImageData image;
+	ImageInit(image, IMAGE2D_WIDTH + IMAGE_PAD * 2, IMAGE2D_HEIGHT + IMAGE_PAD * 2);
+	
+    // setup the canvas
+    DrawDecorationsPre(image);
+
+	// draw the sample points
+	const size_t c_oneSide = size_t(std::sqrt(NUM_SAMPLES));
+	const float c_halfJitter = 1.0f / float((c_oneSide + 1) * 2);
+	for (size_t iy = 0; iy < c_oneSide; ++iy)
+	{
+		for (size_t ix = 0; ix < c_oneSide; ++ix)
+		{
+            float samplex = RandomFloat(0.0f, 1.0f);
+            size_t posx = size_t(samplex * float(IMAGE2D_WIDTH)) + IMAGE_PAD;
+
+            float sampley = RandomFloat(0.0f, 1.0f);
+            size_t posy = size_t(sampley * float(IMAGE2D_HEIGHT)) + IMAGE_PAD;
+
+			ImageBox(image, posx - 1, posx + 1, posy - 1, posy + 1, DataPointColor(iy*c_oneSide+ix));
+		}
+	}
+
+    // draw everything else
+    DrawDecorations2DPost(image);
+
+	// save the image
+    SaveImage("2DUniformRandom.bmp", image);
+}
+
+//======================================================================================
+void TestHalton (size_t basex, size_t basey)
+{
+	// create and clear the image
+	SImageData image;
+    ImageInit(image, IMAGE2D_WIDTH + IMAGE_PAD * 2, IMAGE2D_HEIGHT + IMAGE_PAD * 2);
+	
+    // setup the canvas
+    DrawDecorationsPre(image);
+
+	// draw the sample points
+	for (size_t i = 0; i < NUM_SAMPLES; ++i)
+	{
+        // x axis
+        float samplex = 0.0f;
+        {
+            float denominator = float(basex);
+            size_t n = i;
+            while (n > 0)
+            {
+                size_t multiplier = n % basex;
+                samplex += float(multiplier) / denominator;
+                n = n / basex;
+                denominator *= basex;
+            }
+        }
+
+        // y axis
+        float sampley = 0.0f;
+        {
+            float denominator = float(basey);
+            size_t n = i;
+            while (n > 0)
+            {
+                size_t multiplier = n % basey;
+                sampley += float(multiplier) / denominator;
+                n = n / basey;
+                denominator *= basey;
+            }
+        }
+
+		size_t posx = size_t(samplex * float(IMAGE2D_WIDTH)) + IMAGE_PAD;
+        size_t posy = size_t(sampley * float(IMAGE2D_HEIGHT)) + IMAGE_PAD;
+
+        ImageBox(image, posx - 1, posx + 1, posy - 1, posy + 1, DataPointColor(i));
+	}
+
+    // draw everything else
+    DrawDecorations2DPost(image);
+
+	// save the image
+    char fileName[256];
+	sprintf(fileName, "2DHalton_%zu_%zu.bmp", basex, basey);
+	SaveImage(fileName, image);
+}
+
+//======================================================================================
+void TestHammersley2D (size_t truncateBits)
+{
+	// create and clear the image
+	SImageData image;
+	ImageInit(image, IMAGE2D_WIDTH + IMAGE_PAD * 2, IMAGE2D_HEIGHT + IMAGE_PAD * 2);
+
+	// setup the canvas
+	DrawDecorationsPre(image);
+
+    // figure out how many bits we are working in.
+    size_t value = 1;
+    size_t numBits = 0;
+    while (value < NUM_SAMPLES)
+    {
+        value *= 2;
+        ++numBits;
+    }
+
+    // TODO: verify 2d is correct vs http://mathworld.wolfram.com/HammersleyPointSet.html
+    // * truncating bits is not correct!
+    // * 0 truncation seems fine, but the others mismatch somehow
+
+    // TODO: make x axis use mask like y axis does.
+    // TODO: make 1d also use mask! cleaner looking imo.
+
+	// draw the sample points
+	size_t sampleInt = 0;
+	for (size_t i = 0; i < NUM_SAMPLES; ++i)
+	{
+        // x axis
+        float samplex = 0.0f;
+        {
+            size_t n = i >> truncateBits;
+            float base = 1.0f / 2.0f;
+            while (n)
+            {
+                if (n & 1)
+                    samplex += base;
+                n /= 2;
+                base /= 2.0f;
+            }
+        }
+
+        // y axis
+        float sampley = 0.0f;
+        {
+            size_t maskTruncation = size_t(1) << (truncateBits);
+            size_t n = i;
+            size_t mask = size_t(1) << (numBits - 1);
+            float base = 1.0f / 2.0f;
+            while (mask >= maskTruncation)
+            {
+                if (n & mask)
+                    sampley += base;
+                mask /= 2;
+                base /= 2.0f;
+            }
+        }
+
+        size_t posx = size_t(samplex * float(IMAGE2D_WIDTH)) + IMAGE_PAD;
+        size_t posy = size_t(sampley * float(IMAGE2D_HEIGHT)) + IMAGE_PAD;
+
+        ImageBox(image, posx - 1, posx + 1, posy - 1, posy + 1, DataPointColor(i));
+	}
+
+	// draw everything else
+	DrawDecorations2DPost(image);
+
+	// save the image
+    char fileName[256];
+    sprintf(fileName, "2DHammersley_%zu.bmp", truncateBits);
+	SaveImage(fileName, image);
 }
 
 //======================================================================================
@@ -444,27 +610,49 @@ int main (int argc, char **argv)
 {
     // 1D tests
     {
-        TestUniform1D<false>();
-        TestUniform1D<true>();
+        TestUniform1D(false);
+        TestUniform1D(true);
 
         TestUniformRandom1D();
 
-        TestVanDerCorput<2>();
-        TestVanDerCorput<3>();
-        TestVanDerCorput<4>();
-		TestVanDerCorput<5>();
+        TestVanDerCorput(2);
+        TestVanDerCorput(3);
+        TestVanDerCorput(4);
+		TestVanDerCorput(5);
 
-        TestGoldenRatio();
+        TestGoldenRatio(0.0f);
+        TestGoldenRatio(0.385180f);
+        TestGoldenRatio(0.775719f);
+        TestGoldenRatio(0.287194f);
 
 		TestSobol1D();
 
-		TestHammersley1D();
+		TestHammersley1D(0);
+        TestHammersley1D(1);
+        TestHammersley1D(2);
     }
 
 	// 2D tests
 	{
-		TestUniform2D<false>();
-		TestUniform2D<true>();
+		TestUniform2D(false);
+		TestUniform2D(true);
+
+        TestUniformRandom2D();
+
+        TestHalton(2, 3);
+        TestHalton(5, 7);
+        TestHalton(13, 9);
+
+        // TODO: Sobol2d
+
+        TestHammersley2D(0);
+        TestHammersley2D(1);
+        TestHammersley2D(2);
+
+        // TODO: temp!
+        TestHammersley2D(3);
+        TestHammersley2D(4);
+        TestHammersley2D(5);
 	}
 
 
@@ -478,18 +666,14 @@ TODO:
  * if not, how do we analyze quality?
  * maybe we calculate variance? i dunno...
 
- ? could it be a generalization of hammersley to not always use base 2? sounds more like van der corput though
+? could it be a generalization of hammersley to not always use base 2? sounds more like van der corput though
 
 * 1d
  ? faure sequence?
 
 * 2d
  * SOBOL 2D is more involved!
- * halton sequence
  * Hammersly
- * uniform (grid)
- * uniform random
- ? jitter all 2d versions?
  ? does fibanoci come in 2d?
  * ??
 
@@ -499,11 +683,15 @@ TODO:
 
 ? count the bits to make white noise into gaussian? or save this for another post?
 
+* test on x86 and x64!
+
 BLOG:
 ? should i show the sequence with fewer points then more and more?
 * i tried adding a progressively smaller jitter to van der corput but it seemed to make the sampling worse
 * golden ratio, van der corput are nice in that you don't have to know in advance how many samples you want to take.
 * 1D sobol (which is a simplified sobol) is actually van der corput sequence re-arranged a little bit.
+* truncating 1D hammersley doesn't make sense. it is a way better idea in 2d since it makes more variation.
+* halton is 2d van der corput
 
 LINKS:
 fibanocci colors: http://martin.ankerl.com/2009/12/09/how-to-create-random-colors-programmatically/
