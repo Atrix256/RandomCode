@@ -4,10 +4,12 @@
 #include <vector>
 #include <stdint.h>
 #include <random>
+#include <array>
+#include <algorithm>
 
 typedef uint8_t uint8;
 
-// TODO: put this back to 11
+// TODO: put this back to 100
 #define NUM_SAMPLES 64
 #define NUM_SAMPLES_FOR_COLORING 100
 
@@ -261,6 +263,59 @@ void TestUniformRandom1D ()
 }
 
 //======================================================================================
+void TestSubRandomA1D ()
+{
+	// create and clear the image
+	SImageData image;
+	ImageInit(image, IMAGE1D_WIDTH + IMAGE_PAD * 2, IMAGE1D_HEIGHT + IMAGE_PAD * 2);
+
+    // setup the canvas
+    DrawDecorationsPre(image);
+
+	// draw the sample points
+	for (size_t i = 0; i < NUM_SAMPLES; ++i)
+	{
+        float sample = RandomFloat(0.0f, 0.5f);
+		if ((i % 2) == 1)
+			sample += 0.5f;
+		size_t pos = size_t(sample * float(IMAGE1D_WIDTH)) + IMAGE_PAD;
+        ImageBox(image, pos, pos + 1, IMAGE1D_CENTERY - DATA_HEIGHT / 2, IMAGE1D_CENTERY + DATA_HEIGHT / 2, DataPointColor(i));
+	}
+
+    // draw everything else
+    DrawDecorations1DPost(image);
+
+	// save the image
+	SaveImage("1DSubRandomA.bmp", image);
+}
+
+//======================================================================================
+void TestSubRandomB1D ()
+{
+	// create and clear the image
+	SImageData image;
+	ImageInit(image, IMAGE1D_WIDTH + IMAGE_PAD * 2, IMAGE1D_HEIGHT + IMAGE_PAD * 2);
+
+    // setup the canvas
+    DrawDecorationsPre(image);
+
+	// draw the sample points
+	float sample = RandomFloat(0.0f, 0.5f);
+	for (size_t i = 0; i < NUM_SAMPLES; ++i)
+	{
+		sample = std::fmodf(sample + 0.5f + RandomFloat(0.0f, 0.5f), 1.0f);
+		size_t pos = size_t(sample * float(IMAGE1D_WIDTH)) + IMAGE_PAD;
+        ImageBox(image, pos, pos + 1, IMAGE1D_CENTERY - DATA_HEIGHT / 2, IMAGE1D_CENTERY + DATA_HEIGHT / 2, DataPointColor(i));
+	}
+
+    // draw everything else
+    DrawDecorations1DPost(image);
+
+	// save the image
+	SaveImage("1DSubRandomB.bmp", image);
+}
+
+//======================================================================================
 void TestVanDerCorput (size_t base)
 {
 	// create and clear the image
@@ -298,7 +353,7 @@ void TestVanDerCorput (size_t base)
 }
 
 //======================================================================================
-void TestGoldenRatio (float seed)
+void TestIrrational1D (float irrational, float seed)
 {
 	// create and clear the image
 	SImageData image;
@@ -308,11 +363,10 @@ void TestGoldenRatio (float seed)
     DrawDecorationsPre(image);
 
 	// draw the sample points
-    const float c_goldenRatioConugate = 0.61803398875f;
     float sample = seed;
 	for (size_t i = 0; i < NUM_SAMPLES; ++i)
 	{
-        sample = std::fmodf(sample + c_goldenRatioConugate, 1.0f);
+        sample = std::fmodf(sample + irrational, 1.0f);
 		size_t pos = size_t(sample * float(IMAGE1D_WIDTH)) + IMAGE_PAD;
         ImageBox(image, pos, pos + 1, IMAGE1D_CENTERY - DATA_HEIGHT / 2, IMAGE1D_CENTERY + DATA_HEIGHT / 2, DataPointColor(i));
 	}
@@ -321,10 +375,12 @@ void TestGoldenRatio (float seed)
     DrawDecorations1DPost(image);
 
 	// save the image
+	char irrationalStr[256];
+	sprintf(irrationalStr, "%f", irrational);
     char seedStr[256];
     sprintf(seedStr, "%f", seed);
     char fileName[256];
-    sprintf(fileName, "1DGoldenRatio_%s.bmp", &seedStr[2]);
+    sprintf(fileName, "1DIrrational_%s_%s.bmp", &irrationalStr[2], &seedStr[2]);
 	SaveImage(fileName, image);
 }
 
@@ -606,6 +662,89 @@ void TestHammersley2D (size_t truncateBits)
 }
 
 //======================================================================================
+void TestRooks2D ()
+{
+	// create and clear the image
+	SImageData image;
+    ImageInit(image, IMAGE2D_WIDTH + IMAGE_PAD * 2, IMAGE2D_HEIGHT + IMAGE_PAD * 2);
+	
+    // setup the canvas
+    DrawDecorationsPre(image);
+
+	// make and shuffle rook positions
+	std::random_device rd;
+	std::mt19937 mt(rd());
+	std::array<size_t, NUM_SAMPLES> rookPositions;
+	for (size_t i = 0; i < NUM_SAMPLES; ++i)
+		rookPositions[i] = i;
+	std::shuffle(rookPositions.begin(), rookPositions.end(), mt);
+
+	// draw the sample points
+	for (size_t i = 0; i < NUM_SAMPLES; ++i)
+	{
+        // x axis
+        float samplex = float(rookPositions[i]) / float(NUM_SAMPLES-1);
+
+        // y axis
+		float sampley = float(i) / float(NUM_SAMPLES - 1);
+
+		size_t posx = size_t(samplex * float(IMAGE2D_WIDTH)) + IMAGE_PAD;
+        size_t posy = size_t(sampley * float(IMAGE2D_HEIGHT)) + IMAGE_PAD;
+
+        ImageBox(image, posx - 1, posx + 1, posy - 1, posy + 1, DataPointColor(i));
+	}
+
+    // draw everything else
+    DrawDecorations2DPost(image);
+
+	// save the image
+    char fileName[256];
+	sprintf(fileName, "2DRooks.bmp");
+	SaveImage(fileName, image);
+}
+
+//======================================================================================
+void TestIrrational2D (float irrationalx, float irrationaly, float seedx, float seedy)
+{
+	// create and clear the image
+	SImageData image;
+    ImageInit(image, IMAGE2D_WIDTH + IMAGE_PAD * 2, IMAGE2D_HEIGHT + IMAGE_PAD * 2);
+	
+    // setup the canvas
+    DrawDecorationsPre(image);
+
+	// draw the sample points
+	float samplex = seedx;
+	float sampley = seedy;
+	for (size_t i = 0; i < NUM_SAMPLES; ++i)
+	{
+		samplex = std::fmodf(samplex + irrationalx, 1.0f);
+		sampley = std::fmodf(sampley + irrationaly, 1.0f);
+
+		size_t posx = size_t(samplex * float(IMAGE2D_WIDTH)) + IMAGE_PAD;
+        size_t posy = size_t(sampley * float(IMAGE2D_HEIGHT)) + IMAGE_PAD;
+
+        ImageBox(image, posx - 1, posx + 1, posy - 1, posy + 1, DataPointColor(i));
+	}
+
+    // draw everything else
+    DrawDecorations2DPost(image);
+
+	// save the image
+	char irrationalxStr[256];
+	sprintf(irrationalxStr, "%f", irrationalx);
+	char irrationalyStr[256];
+	sprintf(irrationalyStr, "%f", irrationaly);
+	char seedxStr[256];
+	sprintf(seedxStr, "%f", seedx);
+	char seedyStr[256];
+	sprintf(seedyStr, "%f", seedy);
+	char fileName[256];
+	sprintf(fileName, "2DIrrational_%s_%s_%s_%s.bmp", &irrationalxStr[2], &irrationalyStr[2], &seedxStr[2], &seedyStr[2]);
+	SaveImage(fileName, image);
+}
+
+//======================================================================================
 int main (int argc, char **argv)
 {
     // 1D tests
@@ -615,21 +754,39 @@ int main (int argc, char **argv)
 
         TestUniformRandom1D();
 
+		TestSubRandomA1D();
+		TestSubRandomB1D();
+
         TestVanDerCorput(2);
         TestVanDerCorput(3);
         TestVanDerCorput(4);
 		TestVanDerCorput(5);
 
-        TestGoldenRatio(0.0f);
-        TestGoldenRatio(0.385180f);
-        TestGoldenRatio(0.775719f);
-        TestGoldenRatio(0.287194f);
+		// golden ratio mod 1 aka (sqrt(5) - 1)/2
+		TestIrrational1D(0.618034f, 0.0f);
+		TestIrrational1D(0.618034f, 0.385180f);
+		TestIrrational1D(0.618034f, 0.775719f);
+		TestIrrational1D(0.618034f, 0.287194f);
 
+		// sqrt(2) - 1
+		TestIrrational1D(0.414214f, 0.0f);
+		TestIrrational1D(0.414214f, 0.385180f);
+		TestIrrational1D(0.414214f, 0.775719f);
+		TestIrrational1D(0.414214f, 0.287194f);
+
+		// PI mod 1
+		TestIrrational1D(0.141593f, 0.0f);
+		TestIrrational1D(0.141593f, 0.385180f);
+		TestIrrational1D(0.141593f, 0.775719f);
+		TestIrrational1D(0.141593f, 0.287194f);
+		
 		TestSobol1D();
 
 		TestHammersley1D(0);
         TestHammersley1D(1);
         TestHammersley1D(2);
+
+		// TODO: faure sequence
     }
 
 	// 2D tests
@@ -639,11 +796,13 @@ int main (int argc, char **argv)
 
         TestUniformRandom2D();
 
+		// TODO: subrandom versions!
+
         TestHalton(2, 3);
         TestHalton(5, 7);
         TestHalton(13, 9);
 
-        // TODO: Sobol2d
+        // TODO: Sobol2d (more involved than 1d!)
 
         TestHammersley2D(0);
         TestHammersley2D(1);
@@ -653,7 +812,22 @@ int main (int argc, char **argv)
         TestHammersley2D(3);
         TestHammersley2D(4);
         TestHammersley2D(5);
+
+		TestRooks2D();
+
+		// X axis = golden ratio mod 1 aka (sqrt(5)-1)/2
+		// Y axis = sqrt(2) mod 1
+		TestIrrational2D(0.618034f, 0.414214f, 0.0f, 0.0f);
+		TestIrrational2D(0.618034f, 0.414214f, 0.775719f, 0.264045f);
+
+		// sqrt(2) mod 1, sqrt(3) mod 1
+		TestIrrational2D(std::fmodf((float)std::sqrt(2.0f), 1.0f), std::fmodf((float)std::sqrt(3.0f), 1.0f), 0.0f, 0.0f);
+		TestIrrational2D(std::fmodf((float)std::sqrt(2.0f), 1.0f), std::fmodf((float)std::sqrt(3.0f), 1.0f), 0.775719f, 0.264045f);
 	}
+
+	for (int i = 0; i < 3; ++i)
+		printf("%f\n", RandomFloat(0.0f, 1.0f));
+	int ijkl = 0;
 
 
 }
@@ -665,17 +839,9 @@ TODO:
 * do fft for both 1d and 2d? does it make sense for sample points?
  * if not, how do we analyze quality?
  * maybe we calculate variance? i dunno...
+ * figure out how to calculate discrepancy: https://math.stackexchange.com/q/1681562/138443
 
 ? could it be a generalization of hammersley to not always use base 2? sounds more like van der corput though
-
-* 1d
- ? faure sequence?
-
-* 2d
- * SOBOL 2D is more involved!
- * Hammersly
- ? does fibanoci come in 2d?
- * ??
 
 * van der corput based shuffling.
  * can seed (kind of) by changing base
@@ -686,12 +852,23 @@ TODO:
 * test on x86 and x64!
 
 BLOG:
+* explanation at top should be like
+ * "imagine you want to calculate the average of a function"
+ * low numbers of samples... random could clump and you don't get a good result.
+ * even distribution is good, but you can get aliasing.
+ * want something pretty even but still have randomness
+ * the randomness turns aliasing into noise
 ? should i show the sequence with fewer points then more and more?
 * i tried adding a progressively smaller jitter to van der corput but it seemed to make the sampling worse
+* not only is golden ratio a good irrational, it's supposedly the best says wikipedia!  https://en.wikipedia.org/wiki/Low-discrepancy_sequence#Additive_recurrence
 * golden ratio, van der corput are nice in that you don't have to know in advance how many samples you want to take.
+ * many of these are
 * 1D sobol (which is a simplified sobol) is actually van der corput sequence re-arranged a little bit.
 * truncating 1D hammersley doesn't make sense. it is a way better idea in 2d since it makes more variation.
 * halton is 2d van der corput
+* 2D rooks sort of are uniform on one axis (y in my case) and random on x, although the randomness on x is also not quite random since it's a shuffle
+* 2D irrational... use sqrt of primes mod 1. (from wikipedia)
+ * not good results though. wikipedia says so too so shrug. says to look at PRNGs.
 
 LINKS:
 fibanocci colors: http://martin.ankerl.com/2009/12/09/how-to-create-random-colors-programmatically/
@@ -699,8 +876,6 @@ fibanocci colors: http://martin.ankerl.com/2009/12/09/how-to-create-random-color
 https://en.m.wikipedia.org/wiki/Halton_sequence
 
 https://en.m.wikipedia.org/wiki/Van_der_Corput_sequence
-
-grey codes
 
 format preserving encryption post
 
