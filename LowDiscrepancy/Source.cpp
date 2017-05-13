@@ -6,6 +6,7 @@
 #include <random>
 #include <array>
 #include <algorithm>
+#include <stdlib.h>
 
 typedef uint8_t uint8;
 
@@ -40,18 +41,18 @@ struct SImageData
     { }
   
     size_t m_width;
-	size_t m_height;
-	size_t m_pitch;
+    size_t m_height;
+    size_t m_pitch;
     std::vector<uint8> m_pixels;
 };
 
 struct SColor
 {
-	SColor (uint8 _R = 0, uint8 _G = 0, uint8 _B = 0)
-		: R(_R), G(_G), B(_B)
-	{ }
+    SColor (uint8 _R = 0, uint8 _G = 0, uint8 _B = 0)
+        : R(_R), G(_G), B(_B)
+    { }
 
-	uint8 B, G, R;
+    uint8 B, G, R;
 };
 
 //======================================================================================
@@ -94,61 +95,48 @@ bool SaveImage (const char *fileName, const SImageData &image)
     fwrite(&image.m_pixels[0], infoHeader.biSizeImage, 1, file);
     fclose(file);
  
-    printf("%s saved\n", fileName);
     return true;
 }
 
 //======================================================================================
 void ImageInit (SImageData& image, size_t width, size_t height)
 {
-	image.m_width = width;
-	image.m_height = height;
-	image.m_pitch = 4 * ((width * 24 + 31) / 32);
-	image.m_pixels.resize(image.m_pitch * image.m_width);
-	std::fill(image.m_pixels.begin(), image.m_pixels.end(), 0);
+    image.m_width = width;
+    image.m_height = height;
+    image.m_pitch = 4 * ((width * 24 + 31) / 32);
+    image.m_pixels.resize(image.m_pitch * image.m_width);
+    std::fill(image.m_pixels.begin(), image.m_pixels.end(), 0);
 }
 
 //======================================================================================
 void ImageClear (SImageData& image, const SColor& color)
 {
-	uint8* row = &image.m_pixels[0];
-	for (size_t rowIndex = 0; rowIndex < image.m_height; ++rowIndex)
-	{
-		SColor* pixels = (SColor*)row;
-		std::fill(pixels, pixels + image.m_width, color);
+    uint8* row = &image.m_pixels[0];
+    for (size_t rowIndex = 0; rowIndex < image.m_height; ++rowIndex)
+    {
+        SColor* pixels = (SColor*)row;
+        std::fill(pixels, pixels + image.m_width, color);
 
-		row += image.m_pitch;
-	}
+        row += image.m_pitch;
+    }
 }
 
 //======================================================================================
 void ImageBox (SImageData& image, size_t x1, size_t x2, size_t y1, size_t y2, const SColor& color)
 {
-	for (size_t y = y1; y < y2; ++y)
-	{
-		uint8* row = &image.m_pixels[y * image.m_pitch];
-		SColor* start = &((SColor*)row)[x1];
-		std::fill(start, start + x2 - x1, color);
-	}
+    for (size_t y = y1; y < y2; ++y)
+    {
+        uint8* row = &image.m_pixels[y * image.m_pitch];
+        SColor* start = &((SColor*)row)[x1];
+        std::fill(start, start + x2 - x1, color);
+    }
 }
 
 //======================================================================================
 void DrawDecorationsPre (SImageData& image)
 {
+    // TODO: get rid of when no longer needed!
     ImageClear(image, COLOR_FILL);
-}
-
-//======================================================================================
-void DrawDecorations1DPost (SImageData& image)
-{
-    // draw the axes lines
-
-    // Horizontal line
-    ImageBox(image, IMAGE_PAD, IMAGE1D_WIDTH + IMAGE_PAD, IMAGE1D_CENTERY, IMAGE1D_CENTERY + 1, COLOR_AXIS);
-
-    // vertical lines
-    ImageBox(image, IMAGE_PAD, IMAGE_PAD + 1, IMAGE1D_CENTERY - AXIS_HEIGHT / 2, IMAGE1D_CENTERY + AXIS_HEIGHT / 2, COLOR_AXIS);
-    ImageBox(image, IMAGE1D_WIDTH + IMAGE_PAD, IMAGE1D_WIDTH + IMAGE_PAD + 1, IMAGE1D_CENTERY - AXIS_HEIGHT / 2, IMAGE1D_CENTERY + AXIS_HEIGHT / 2, COLOR_AXIS);
 }
 
 //======================================================================================
@@ -195,285 +183,256 @@ float RandomFloat (float min, float max)
 //======================================================================================
 size_t Ruler (size_t n)
 {
-	size_t ret = 0;
-	while (n != 0 && (n & 1) == 0)
-	{
-		n /= 2;
-		++ret;
-	}
-	return ret;
+    size_t ret = 0;
+    while (n != 0 && (n & 1) == 0)
+    {
+        n /= 2;
+        ++ret;
+    }
+    return ret;
+}
+
+//======================================================================================
+template <size_t NumItems>
+float CalculateStarDiscrepancy1D (const std::array<float, NumItems>& samples)
+{
+    // Calculates the star discrepancy of this data vs the same number of evenly distributed samples.
+    // Assumes the data is [0,1).
+    std::array<float, NumItems> sortedSamples = samples;
+    std::sort(sortedSamples.begin(), sortedSamples.end());
+
+    float maxDifference = 0;
+    for (size_t lengthIndex = 0; lengthIndex < sortedSamples.size(); ++lengthIndex)
+    {
+        // get the length (aka 1 dimensional volume)
+        float length = float(lengthIndex + 1) / float(NumItems);
+
+        // find out what percentage of the points are in this volume
+        size_t sampleIndex = 0;
+        while (sampleIndex < sortedSamples.size() && sortedSamples[sampleIndex] <= length)
+            ++sampleIndex;
+        float samplePercent = float(sampleIndex) / float(sortedSamples.size());
+
+        // keep track of the maximum absolute difference of percentages
+        float difference = std::abs(length - samplePercent);
+        if (difference > maxDifference)
+            maxDifference = difference;
+    }
+
+    return maxDifference;
+}
+
+//======================================================================================
+void Test1D (const char* fileName, const std::array<float, NUM_SAMPLES>& samples)
+{
+    // create and clear the image
+    SImageData image;
+    ImageInit(image, IMAGE1D_WIDTH + IMAGE_PAD * 2, IMAGE1D_HEIGHT + IMAGE_PAD * 2);
+
+    // setup the canvas
+    ImageClear(image, COLOR_FILL);
+
+    // calculate the discrepancy
+    float starDiscrepancy = CalculateStarDiscrepancy1D(samples);
+    printf("%s Discrepancy = %i%%\n", fileName, int(starDiscrepancy*100.0f));
+
+    // draw the sample points
+    for (size_t i = 0; i < NUM_SAMPLES; ++i)
+    {
+        size_t pos = size_t(samples[i] * float(IMAGE1D_WIDTH)) + IMAGE_PAD;
+        ImageBox(image, pos, pos + 1, IMAGE1D_CENTERY - DATA_HEIGHT / 2, IMAGE1D_CENTERY + DATA_HEIGHT / 2, DataPointColor(i));
+    }
+
+    // draw the axes lines. horizontal first then the two vertical
+    ImageBox(image, IMAGE_PAD, IMAGE1D_WIDTH + IMAGE_PAD, IMAGE1D_CENTERY, IMAGE1D_CENTERY + 1, COLOR_AXIS);
+    ImageBox(image, IMAGE_PAD, IMAGE_PAD + 1, IMAGE1D_CENTERY - AXIS_HEIGHT / 2, IMAGE1D_CENTERY + AXIS_HEIGHT / 2, COLOR_AXIS);
+    ImageBox(image, IMAGE1D_WIDTH + IMAGE_PAD, IMAGE1D_WIDTH + IMAGE_PAD + 1, IMAGE1D_CENTERY - AXIS_HEIGHT / 2, IMAGE1D_CENTERY + AXIS_HEIGHT / 2, COLOR_AXIS);
+
+    // save the image
+    SaveImage(fileName, image);
 }
 
 //======================================================================================
 void TestUniform1D (bool jitter)
 {
-	// create and clear the image
-	SImageData image;
-	ImageInit(image, IMAGE1D_WIDTH + IMAGE_PAD * 2, IMAGE1D_HEIGHT + IMAGE_PAD * 2);
-	
-    // setup the canvas
-    DrawDecorationsPre(image);
-
-	// draw the sample points
+    // calculate the sample points
     const float c_halfJitter = 1.0f / float((NUM_SAMPLES + 1) * 2);
-	for (size_t i = 0; i < NUM_SAMPLES; ++i)
-	{
-		float sample = float(i+1) / (float(NUM_SAMPLES)+1.0f);
+    std::array<float, NUM_SAMPLES> samples;
+    for (size_t i = 0; i < NUM_SAMPLES; ++i)
+    {
+        samples[i] = float(i + 1) / float(NUM_SAMPLES);
 
         if (jitter)
-            sample += RandomFloat(-c_halfJitter, c_halfJitter);
+            samples[i] += RandomFloat(-c_halfJitter, c_halfJitter);
+    }
 
-		size_t pos = size_t(sample * float(IMAGE1D_WIDTH)) + IMAGE_PAD;
-		ImageBox(image, pos, pos+1, IMAGE1D_CENTERY - DATA_HEIGHT / 2, IMAGE1D_CENTERY + DATA_HEIGHT / 2, DataPointColor(i));
-	}
-
-    // draw everything else
-    DrawDecorations1DPost(image);
-
-	// save the image
+    // save bitmap etc
     if (jitter)
-	    SaveImage("1DUniformJitter.bmp", image);
+        Test1D("1DUniformJitter.bmp", samples);
     else
-        SaveImage("1DUniform.bmp", image);
+        Test1D("1DUniform.bmp", samples);
 }
 
 //======================================================================================
 void TestUniformRandom1D ()
 {
-	// create and clear the image
-	SImageData image;
-	ImageInit(image, IMAGE1D_WIDTH + IMAGE_PAD * 2, IMAGE1D_HEIGHT + IMAGE_PAD * 2);
+    // calculate the sample points
+    const float c_halfJitter = 1.0f / float((NUM_SAMPLES + 1) * 2);
+    std::array<float, NUM_SAMPLES> samples;
+    for (size_t i = 0; i < NUM_SAMPLES; ++i)
+        samples[i] = RandomFloat(0.0f, 1.0f);
 
-    // setup the canvas
-    DrawDecorationsPre(image);
-
-	// draw the sample points
-	for (size_t i = 0; i < NUM_SAMPLES; ++i)
-	{
-        float sample = RandomFloat(0.0f, 1.0f);
-		size_t pos = size_t(sample * float(IMAGE1D_WIDTH)) + IMAGE_PAD;
-        ImageBox(image, pos, pos + 1, IMAGE1D_CENTERY - DATA_HEIGHT / 2, IMAGE1D_CENTERY + DATA_HEIGHT / 2, DataPointColor(i));
-	}
-
-    // draw everything else
-    DrawDecorations1DPost(image);
-
-	// save the image
-	SaveImage("1DUniformRandom.bmp", image);
+    // save bitmap etc
+    Test1D("1DUniformRandom.bmp", samples);
 }
 
 //======================================================================================
 void TestSubRandomA1D ()
 {
-	// create and clear the image
-	SImageData image;
-	ImageInit(image, IMAGE1D_WIDTH + IMAGE_PAD * 2, IMAGE1D_HEIGHT + IMAGE_PAD * 2);
+    // calculate the sample points
+    const float c_halfJitter = 1.0f / float((NUM_SAMPLES + 1) * 2);
+    std::array<float, NUM_SAMPLES> samples;
+    for (size_t i = 0; i < NUM_SAMPLES; ++i)
+    {
+        samples[i] = RandomFloat(0.0f, 0.5f);
+        if ((i % 2) == 1)
+            samples[i] += 0.5f;
+    }
 
-    // setup the canvas
-    DrawDecorationsPre(image);
-
-	// draw the sample points
-	for (size_t i = 0; i < NUM_SAMPLES; ++i)
-	{
-        float sample = RandomFloat(0.0f, 0.5f);
-		if ((i % 2) == 1)
-			sample += 0.5f;
-		size_t pos = size_t(sample * float(IMAGE1D_WIDTH)) + IMAGE_PAD;
-        ImageBox(image, pos, pos + 1, IMAGE1D_CENTERY - DATA_HEIGHT / 2, IMAGE1D_CENTERY + DATA_HEIGHT / 2, DataPointColor(i));
-	}
-
-    // draw everything else
-    DrawDecorations1DPost(image);
-
-	// save the image
-	SaveImage("1DSubRandomA.bmp", image);
+    // save bitmap etc
+    Test1D("1DSubRandomA.bmp", samples);
 }
 
 //======================================================================================
 void TestSubRandomB1D ()
 {
-	// create and clear the image
-	SImageData image;
-	ImageInit(image, IMAGE1D_WIDTH + IMAGE_PAD * 2, IMAGE1D_HEIGHT + IMAGE_PAD * 2);
+    // calculate the sample points
+    std::array<float, NUM_SAMPLES> samples;
+    float sample = RandomFloat(0.0f, 0.5f);
+    for (size_t i = 0; i < NUM_SAMPLES; ++i)
+    {
+        sample = std::fmodf(sample + 0.5f + RandomFloat(0.0f, 0.5f), 1.0f);
+        samples[i] = sample;
+    }
 
-    // setup the canvas
-    DrawDecorationsPre(image);
-
-	// draw the sample points
-	float sample = RandomFloat(0.0f, 0.5f);
-	for (size_t i = 0; i < NUM_SAMPLES; ++i)
-	{
-		sample = std::fmodf(sample + 0.5f + RandomFloat(0.0f, 0.5f), 1.0f);
-		size_t pos = size_t(sample * float(IMAGE1D_WIDTH)) + IMAGE_PAD;
-        ImageBox(image, pos, pos + 1, IMAGE1D_CENTERY - DATA_HEIGHT / 2, IMAGE1D_CENTERY + DATA_HEIGHT / 2, DataPointColor(i));
-	}
-
-    // draw everything else
-    DrawDecorations1DPost(image);
-
-	// save the image
-	SaveImage("1DSubRandomB.bmp", image);
+    // save bitmap etc
+    Test1D("1DSubRandomB.bmp", samples);
 }
 
 //======================================================================================
 void TestVanDerCorput (size_t base)
 {
-	// create and clear the image
-	SImageData image;
-	ImageInit(image, IMAGE1D_WIDTH + IMAGE_PAD * 2, IMAGE1D_HEIGHT + IMAGE_PAD * 2);
-	
-    // setup the canvas
-    DrawDecorationsPre(image);
-
-	// draw the sample points
-	for (size_t i = 0; i < NUM_SAMPLES; ++i)
-	{
-        float sample = 0.0f;
+    // calculate the sample points
+    std::array<float, NUM_SAMPLES> samples;
+    for (size_t i = 0; i < NUM_SAMPLES; ++i)
+    {
+        samples[i] = 0.0f;
         float denominator = float(base);
         size_t n = i;
         while (n > 0)
         {
             size_t multiplier = n % base;
-            sample += float(multiplier) / denominator;
+            samples[i] += float(multiplier) / denominator;
             n = n / base;
             denominator *= base;
         }
+    }
 
-		size_t pos = size_t(sample * float(IMAGE1D_WIDTH)) + IMAGE_PAD;
-        ImageBox(image, pos, pos + 1, IMAGE1D_CENTERY - DATA_HEIGHT / 2, IMAGE1D_CENTERY + DATA_HEIGHT / 2, DataPointColor(i));
-	}
-
-    // draw everything else
-    DrawDecorations1DPost(image);
-
-	// save the image
+    // save bitmap etc
     char fileName[256];
-	sprintf(fileName, "1DVanDerCorput_%zu.bmp", base);
-	SaveImage(fileName, image);
+    sprintf(fileName, "1DVanDerCorput_%zu.bmp", base);
+    Test1D(fileName, samples);
 }
 
 //======================================================================================
 void TestIrrational1D (float irrational, float seed)
 {
-	// create and clear the image
-	SImageData image;
-	ImageInit(image, IMAGE1D_WIDTH + IMAGE_PAD * 2, IMAGE1D_HEIGHT + IMAGE_PAD * 2);
-	
-    // setup the canvas
-    DrawDecorationsPre(image);
-
-	// draw the sample points
+    // calculate the sample points
+    std::array<float, NUM_SAMPLES> samples;
     float sample = seed;
-	for (size_t i = 0; i < NUM_SAMPLES; ++i)
-	{
+    for (size_t i = 0; i < NUM_SAMPLES; ++i)
+    {
         sample = std::fmodf(sample + irrational, 1.0f);
-		size_t pos = size_t(sample * float(IMAGE1D_WIDTH)) + IMAGE_PAD;
-        ImageBox(image, pos, pos + 1, IMAGE1D_CENTERY - DATA_HEIGHT / 2, IMAGE1D_CENTERY + DATA_HEIGHT / 2, DataPointColor(i));
-	}
+        samples[i] = sample;
+    }
 
-    // draw everything else
-    DrawDecorations1DPost(image);
-
-	// save the image
-	char irrationalStr[256];
-	sprintf(irrationalStr, "%f", irrational);
+    // save bitmap etc
+    char irrationalStr[256];
+    sprintf(irrationalStr, "%f", irrational);
     char seedStr[256];
     sprintf(seedStr, "%f", seed);
     char fileName[256];
     sprintf(fileName, "1DIrrational_%s_%s.bmp", &irrationalStr[2], &seedStr[2]);
-	SaveImage(fileName, image);
+    Test1D(fileName, samples);
 }
 
 //======================================================================================
 void TestSobol1D ()
 {
-	// create and clear the image
-	SImageData image;
-	ImageInit(image, IMAGE1D_WIDTH + IMAGE_PAD * 2, IMAGE1D_HEIGHT + IMAGE_PAD * 2);
+    // calculate the sample points
+    std::array<float, NUM_SAMPLES> samples;
+    size_t sampleInt = 0;
+    for (size_t i = 0; i < NUM_SAMPLES; ++i)
+    {
+        size_t ruler = Ruler(i + 1);
+        size_t direction = size_t(size_t(1) << size_t(31 - ruler));
+        sampleInt = sampleInt ^ direction;
+        samples[i] = float(sampleInt) / std::pow(2.0f, 32.0f);
+    }
 
-	// setup the canvas
-	DrawDecorationsPre(image);
-
-	// draw the sample points
-	size_t sampleInt = 0;
-	for (size_t i = 0; i < NUM_SAMPLES; ++i)
-	{
-		size_t ruler = Ruler(i + 1);
-		size_t direction = size_t(size_t(1) << size_t(31 - ruler));
-		sampleInt = sampleInt ^ direction;
-
-		float sample = float(sampleInt) / std::pow(2.0f, 32.0f);
-		size_t pos = size_t(sample * float(IMAGE1D_WIDTH)) + IMAGE_PAD;
-		ImageBox(image, pos, pos + 1, IMAGE1D_CENTERY - DATA_HEIGHT / 2, IMAGE1D_CENTERY + DATA_HEIGHT / 2, DataPointColor(i));
-	}
-
-	// draw everything else
-	DrawDecorations1DPost(image);
-
-	// save the image
-	SaveImage("1DSobol.bmp", image);
+    // save bitmap etc
+    Test1D("1DSobol.bmp", samples);
 }
 
 //======================================================================================
 void TestHammersley1D (size_t truncateBits)
 {
-	// create and clear the image
-	SImageData image;
-	ImageInit(image, IMAGE1D_WIDTH + IMAGE_PAD * 2, IMAGE1D_HEIGHT + IMAGE_PAD * 2);
+    // calculate the sample points
+    std::array<float, NUM_SAMPLES> samples;
+    size_t sampleInt = 0;
+    for (size_t i = 0; i < NUM_SAMPLES; ++i)
+    {
+        size_t n = i >> truncateBits;
+        float base = 1.0f / 2.0f;
+        samples[i] = 0.0f;
+        while (n)
+        {
+            if (n & 1)
+                samples[i] += base;
+            n /= 2;
+            base /= 2.0f;
+        }
+    }
 
-	// setup the canvas
-	DrawDecorationsPre(image);
-
-	// draw the sample points
-	size_t sampleInt = 0;
-	for (size_t i = 0; i < NUM_SAMPLES; ++i)
-	{
-		size_t n = i >> truncateBits;
-		float base = 1.0f / 2.0f;
-		float sample = 0.0f;
-		while (n)
-		{
-			if (n & 1)
-				sample += base;
-			n /= 2;
-			base /= 2.0f;
-		}
-		size_t pos = size_t(sample * float(IMAGE1D_WIDTH)) + IMAGE_PAD;
-		ImageBox(image, pos, pos + 1, IMAGE1D_CENTERY - DATA_HEIGHT / 2, IMAGE1D_CENTERY + DATA_HEIGHT / 2, DataPointColor(i));
-	}
-
-	// draw everything else
-	DrawDecorations1DPost(image);
-
-	// save the image
+    // save bitmap etc
     char fileName[256];
     sprintf(fileName, "1DHammersley_%zu.bmp", truncateBits);
-	SaveImage(fileName, image);
+    Test1D(fileName, samples);
 }
 
 //======================================================================================
 void TestUniform2D (bool jitter)
 {
-	// create and clear the image
-	SImageData image;
-	ImageInit(image, IMAGE2D_WIDTH + IMAGE_PAD * 2, IMAGE2D_HEIGHT + IMAGE_PAD * 2);
-	
+    // create and clear the image
+    SImageData image;
+    ImageInit(image, IMAGE2D_WIDTH + IMAGE_PAD * 2, IMAGE2D_HEIGHT + IMAGE_PAD * 2);
+    
     // setup the canvas
     DrawDecorationsPre(image);
 
-	// draw the sample points
-	const size_t c_oneSide = size_t(std::sqrt(NUM_SAMPLES));
-	const float c_halfJitter = 1.0f / float((c_oneSide + 1) * 2);
-	for (size_t iy = 0; iy < c_oneSide; ++iy)
-	{
-		for (size_t ix = 0; ix < c_oneSide; ++ix)
-		{
-			float samplex = float(ix + 1) / (float(c_oneSide) + 1.0f);
+    // draw the sample points
+    const size_t c_oneSide = size_t(std::sqrt(NUM_SAMPLES));
+    const float c_halfJitter = 1.0f / float((c_oneSide + 1) * 2);
+    for (size_t iy = 0; iy < c_oneSide; ++iy)
+    {
+        for (size_t ix = 0; ix < c_oneSide; ++ix)
+        {
+            float samplex = float(ix + 1) / (float(c_oneSide) + 1.0f);
 
-			if (jitter)
-				samplex += RandomFloat(-c_halfJitter, c_halfJitter);
+            if (jitter)
+                samplex += RandomFloat(-c_halfJitter, c_halfJitter);
 
-			size_t posx = size_t(samplex * float(IMAGE2D_WIDTH)) + IMAGE_PAD;
+            size_t posx = size_t(samplex * float(IMAGE2D_WIDTH)) + IMAGE_PAD;
 
             float sampley = float(iy + 1) / (float(c_oneSide) + 1.0f);
 
@@ -482,16 +441,16 @@ void TestUniform2D (bool jitter)
 
             size_t posy = size_t(sampley * float(IMAGE2D_HEIGHT)) + IMAGE_PAD;
 
-			ImageBox(image, posx - 1, posx + 1, posy - 1, posy + 1, DataPointColor(iy*c_oneSide+ix));
-		}
-	}
+            ImageBox(image, posx - 1, posx + 1, posy - 1, posy + 1, DataPointColor(iy*c_oneSide+ix));
+        }
+    }
 
     // draw everything else
     DrawDecorations2DPost(image);
 
-	// save the image
+    // save the image
     if (jitter)
-	    SaveImage("2DUniformJitter.bmp", image);
+        SaveImage("2DUniformJitter.bmp", image);
     else
         SaveImage("2DUniform.bmp", image);
 }
@@ -499,50 +458,50 @@ void TestUniform2D (bool jitter)
 //======================================================================================
 void TestUniformRandom2D ()
 {
-	// create and clear the image
-	SImageData image;
-	ImageInit(image, IMAGE2D_WIDTH + IMAGE_PAD * 2, IMAGE2D_HEIGHT + IMAGE_PAD * 2);
-	
+    // create and clear the image
+    SImageData image;
+    ImageInit(image, IMAGE2D_WIDTH + IMAGE_PAD * 2, IMAGE2D_HEIGHT + IMAGE_PAD * 2);
+    
     // setup the canvas
     DrawDecorationsPre(image);
 
-	// draw the sample points
-	const size_t c_oneSide = size_t(std::sqrt(NUM_SAMPLES));
-	const float c_halfJitter = 1.0f / float((c_oneSide + 1) * 2);
-	for (size_t iy = 0; iy < c_oneSide; ++iy)
-	{
-		for (size_t ix = 0; ix < c_oneSide; ++ix)
-		{
+    // draw the sample points
+    const size_t c_oneSide = size_t(std::sqrt(NUM_SAMPLES));
+    const float c_halfJitter = 1.0f / float((c_oneSide + 1) * 2);
+    for (size_t iy = 0; iy < c_oneSide; ++iy)
+    {
+        for (size_t ix = 0; ix < c_oneSide; ++ix)
+        {
             float samplex = RandomFloat(0.0f, 1.0f);
             size_t posx = size_t(samplex * float(IMAGE2D_WIDTH)) + IMAGE_PAD;
 
             float sampley = RandomFloat(0.0f, 1.0f);
             size_t posy = size_t(sampley * float(IMAGE2D_HEIGHT)) + IMAGE_PAD;
 
-			ImageBox(image, posx - 1, posx + 1, posy - 1, posy + 1, DataPointColor(iy*c_oneSide+ix));
-		}
-	}
+            ImageBox(image, posx - 1, posx + 1, posy - 1, posy + 1, DataPointColor(iy*c_oneSide+ix));
+        }
+    }
 
     // draw everything else
     DrawDecorations2DPost(image);
 
-	// save the image
+    // save the image
     SaveImage("2DUniformRandom.bmp", image);
 }
 
 //======================================================================================
 void TestHalton (size_t basex, size_t basey)
 {
-	// create and clear the image
-	SImageData image;
+    // create and clear the image
+    SImageData image;
     ImageInit(image, IMAGE2D_WIDTH + IMAGE_PAD * 2, IMAGE2D_HEIGHT + IMAGE_PAD * 2);
-	
+    
     // setup the canvas
     DrawDecorationsPre(image);
 
-	// draw the sample points
-	for (size_t i = 0; i < NUM_SAMPLES; ++i)
-	{
+    // draw the sample points
+    for (size_t i = 0; i < NUM_SAMPLES; ++i)
+    {
         // x axis
         float samplex = 0.0f;
         {
@@ -571,30 +530,30 @@ void TestHalton (size_t basex, size_t basey)
             }
         }
 
-		size_t posx = size_t(samplex * float(IMAGE2D_WIDTH)) + IMAGE_PAD;
+        size_t posx = size_t(samplex * float(IMAGE2D_WIDTH)) + IMAGE_PAD;
         size_t posy = size_t(sampley * float(IMAGE2D_HEIGHT)) + IMAGE_PAD;
 
         ImageBox(image, posx - 1, posx + 1, posy - 1, posy + 1, DataPointColor(i));
-	}
+    }
 
     // draw everything else
     DrawDecorations2DPost(image);
 
-	// save the image
+    // save the image
     char fileName[256];
-	sprintf(fileName, "2DHalton_%zu_%zu.bmp", basex, basey);
-	SaveImage(fileName, image);
+    sprintf(fileName, "2DHalton_%zu_%zu.bmp", basex, basey);
+    SaveImage(fileName, image);
 }
 
 //======================================================================================
 void TestHammersley2D (size_t truncateBits)
 {
-	// create and clear the image
-	SImageData image;
-	ImageInit(image, IMAGE2D_WIDTH + IMAGE_PAD * 2, IMAGE2D_HEIGHT + IMAGE_PAD * 2);
+    // create and clear the image
+    SImageData image;
+    ImageInit(image, IMAGE2D_WIDTH + IMAGE_PAD * 2, IMAGE2D_HEIGHT + IMAGE_PAD * 2);
 
-	// setup the canvas
-	DrawDecorationsPre(image);
+    // setup the canvas
+    DrawDecorationsPre(image);
 
     // figure out how many bits we are working in.
     size_t value = 1;
@@ -612,10 +571,10 @@ void TestHammersley2D (size_t truncateBits)
     // TODO: make x axis use mask like y axis does.
     // TODO: make 1d also use mask! cleaner looking imo.
 
-	// draw the sample points
-	size_t sampleInt = 0;
-	for (size_t i = 0; i < NUM_SAMPLES; ++i)
-	{
+    // draw the sample points
+    size_t sampleInt = 0;
+    for (size_t i = 0; i < NUM_SAMPLES; ++i)
+    {
         // x axis
         float samplex = 0.0f;
         {
@@ -650,98 +609,98 @@ void TestHammersley2D (size_t truncateBits)
         size_t posy = size_t(sampley * float(IMAGE2D_HEIGHT)) + IMAGE_PAD;
 
         ImageBox(image, posx - 1, posx + 1, posy - 1, posy + 1, DataPointColor(i));
-	}
+    }
 
-	// draw everything else
-	DrawDecorations2DPost(image);
+    // draw everything else
+    DrawDecorations2DPost(image);
 
-	// save the image
+    // save the image
     char fileName[256];
     sprintf(fileName, "2DHammersley_%zu.bmp", truncateBits);
-	SaveImage(fileName, image);
+    SaveImage(fileName, image);
 }
 
 //======================================================================================
 void TestRooks2D ()
 {
-	// create and clear the image
-	SImageData image;
+    // create and clear the image
+    SImageData image;
     ImageInit(image, IMAGE2D_WIDTH + IMAGE_PAD * 2, IMAGE2D_HEIGHT + IMAGE_PAD * 2);
-	
+    
     // setup the canvas
     DrawDecorationsPre(image);
 
-	// make and shuffle rook positions
-	std::random_device rd;
-	std::mt19937 mt(rd());
-	std::array<size_t, NUM_SAMPLES> rookPositions;
-	for (size_t i = 0; i < NUM_SAMPLES; ++i)
-		rookPositions[i] = i;
-	std::shuffle(rookPositions.begin(), rookPositions.end(), mt);
+    // make and shuffle rook positions
+    std::random_device rd;
+    std::mt19937 mt(rd());
+    std::array<size_t, NUM_SAMPLES> rookPositions;
+    for (size_t i = 0; i < NUM_SAMPLES; ++i)
+        rookPositions[i] = i;
+    std::shuffle(rookPositions.begin(), rookPositions.end(), mt);
 
-	// draw the sample points
-	for (size_t i = 0; i < NUM_SAMPLES; ++i)
-	{
+    // draw the sample points
+    for (size_t i = 0; i < NUM_SAMPLES; ++i)
+    {
         // x axis
         float samplex = float(rookPositions[i]) / float(NUM_SAMPLES-1);
 
         // y axis
-		float sampley = float(i) / float(NUM_SAMPLES - 1);
+        float sampley = float(i) / float(NUM_SAMPLES - 1);
 
-		size_t posx = size_t(samplex * float(IMAGE2D_WIDTH)) + IMAGE_PAD;
+        size_t posx = size_t(samplex * float(IMAGE2D_WIDTH)) + IMAGE_PAD;
         size_t posy = size_t(sampley * float(IMAGE2D_HEIGHT)) + IMAGE_PAD;
 
         ImageBox(image, posx - 1, posx + 1, posy - 1, posy + 1, DataPointColor(i));
-	}
+    }
 
     // draw everything else
     DrawDecorations2DPost(image);
 
-	// save the image
+    // save the image
     char fileName[256];
-	sprintf(fileName, "2DRooks.bmp");
-	SaveImage(fileName, image);
+    sprintf(fileName, "2DRooks.bmp");
+    SaveImage(fileName, image);
 }
 
 //======================================================================================
 void TestIrrational2D (float irrationalx, float irrationaly, float seedx, float seedy)
 {
-	// create and clear the image
-	SImageData image;
+    // create and clear the image
+    SImageData image;
     ImageInit(image, IMAGE2D_WIDTH + IMAGE_PAD * 2, IMAGE2D_HEIGHT + IMAGE_PAD * 2);
-	
+    
     // setup the canvas
     DrawDecorationsPre(image);
 
-	// draw the sample points
-	float samplex = seedx;
-	float sampley = seedy;
-	for (size_t i = 0; i < NUM_SAMPLES; ++i)
-	{
-		samplex = std::fmodf(samplex + irrationalx, 1.0f);
-		sampley = std::fmodf(sampley + irrationaly, 1.0f);
+    // draw the sample points
+    float samplex = seedx;
+    float sampley = seedy;
+    for (size_t i = 0; i < NUM_SAMPLES; ++i)
+    {
+        samplex = std::fmodf(samplex + irrationalx, 1.0f);
+        sampley = std::fmodf(sampley + irrationaly, 1.0f);
 
-		size_t posx = size_t(samplex * float(IMAGE2D_WIDTH)) + IMAGE_PAD;
+        size_t posx = size_t(samplex * float(IMAGE2D_WIDTH)) + IMAGE_PAD;
         size_t posy = size_t(sampley * float(IMAGE2D_HEIGHT)) + IMAGE_PAD;
 
         ImageBox(image, posx - 1, posx + 1, posy - 1, posy + 1, DataPointColor(i));
-	}
+    }
 
     // draw everything else
     DrawDecorations2DPost(image);
 
-	// save the image
-	char irrationalxStr[256];
-	sprintf(irrationalxStr, "%f", irrationalx);
-	char irrationalyStr[256];
-	sprintf(irrationalyStr, "%f", irrationaly);
-	char seedxStr[256];
-	sprintf(seedxStr, "%f", seedx);
-	char seedyStr[256];
-	sprintf(seedyStr, "%f", seedy);
-	char fileName[256];
-	sprintf(fileName, "2DIrrational_%s_%s_%s_%s.bmp", &irrationalxStr[2], &irrationalyStr[2], &seedxStr[2], &seedyStr[2]);
-	SaveImage(fileName, image);
+    // save the image
+    char irrationalxStr[256];
+    sprintf(irrationalxStr, "%f", irrationalx);
+    char irrationalyStr[256];
+    sprintf(irrationalyStr, "%f", irrationaly);
+    char seedxStr[256];
+    sprintf(seedxStr, "%f", seedx);
+    char seedyStr[256];
+    sprintf(seedyStr, "%f", seedy);
+    char fileName[256];
+    sprintf(fileName, "2DIrrational_%s_%s_%s_%s.bmp", &irrationalxStr[2], &irrationalyStr[2], &seedxStr[2], &seedyStr[2]);
+    SaveImage(fileName, image);
 }
 
 //======================================================================================
@@ -754,49 +713,51 @@ int main (int argc, char **argv)
 
         TestUniformRandom1D();
 
-		TestSubRandomA1D();
-		TestSubRandomB1D();
+        TestSubRandomA1D();
+        TestSubRandomB1D();
 
         TestVanDerCorput(2);
         TestVanDerCorput(3);
         TestVanDerCorput(4);
-		TestVanDerCorput(5);
+        TestVanDerCorput(5);
 
-		// golden ratio mod 1 aka (sqrt(5) - 1)/2
-		TestIrrational1D(0.618034f, 0.0f);
-		TestIrrational1D(0.618034f, 0.385180f);
-		TestIrrational1D(0.618034f, 0.775719f);
-		TestIrrational1D(0.618034f, 0.287194f);
+        // golden ratio mod 1 aka (sqrt(5) - 1)/2
+        TestIrrational1D(0.618034f, 0.0f);
+        TestIrrational1D(0.618034f, 0.385180f);
+        TestIrrational1D(0.618034f, 0.775719f);
+        TestIrrational1D(0.618034f, 0.287194f);
 
-		// sqrt(2) - 1
-		TestIrrational1D(0.414214f, 0.0f);
-		TestIrrational1D(0.414214f, 0.385180f);
-		TestIrrational1D(0.414214f, 0.775719f);
-		TestIrrational1D(0.414214f, 0.287194f);
+        // sqrt(2) - 1
+        TestIrrational1D(0.414214f, 0.0f);
+        TestIrrational1D(0.414214f, 0.385180f);
+        TestIrrational1D(0.414214f, 0.775719f);
+        TestIrrational1D(0.414214f, 0.287194f);
 
-		// PI mod 1
-		TestIrrational1D(0.141593f, 0.0f);
-		TestIrrational1D(0.141593f, 0.385180f);
-		TestIrrational1D(0.141593f, 0.775719f);
-		TestIrrational1D(0.141593f, 0.287194f);
-		
-		TestSobol1D();
+        // PI mod 1
+        TestIrrational1D(0.141593f, 0.0f);
+        TestIrrational1D(0.141593f, 0.385180f);
+        TestIrrational1D(0.141593f, 0.775719f);
+        TestIrrational1D(0.141593f, 0.287194f);
+        
+        TestSobol1D();
 
-		TestHammersley1D(0);
+        TestHammersley1D(0);
         TestHammersley1D(1);
         TestHammersley1D(2);
 
-		// TODO: faure sequence
+        // TODO: faure sequence
     }
 
-	// 2D tests
-	{
-		TestUniform2D(false);
-		TestUniform2D(true);
+    // 2D tests
+    {
+        // TODO: convert all 2D functions to use new unified setup!
+
+        TestUniform2D(false);
+        TestUniform2D(true);
 
         TestUniformRandom2D();
 
-		// TODO: subrandom versions!
+        // TODO: subrandom versions!
 
         TestHalton(2, 3);
         TestHalton(5, 7);
@@ -813,28 +774,29 @@ int main (int argc, char **argv)
         TestHammersley2D(4);
         TestHammersley2D(5);
 
-		TestRooks2D();
+        TestRooks2D();
 
-		// X axis = golden ratio mod 1 aka (sqrt(5)-1)/2
-		// Y axis = sqrt(2) mod 1
-		TestIrrational2D(0.618034f, 0.414214f, 0.0f, 0.0f);
-		TestIrrational2D(0.618034f, 0.414214f, 0.775719f, 0.264045f);
+        // X axis = golden ratio mod 1 aka (sqrt(5)-1)/2
+        // Y axis = sqrt(2) mod 1
+        TestIrrational2D(0.618034f, 0.414214f, 0.0f, 0.0f);
+        TestIrrational2D(0.618034f, 0.414214f, 0.775719f, 0.264045f);
 
-		// sqrt(2) mod 1, sqrt(3) mod 1
-		TestIrrational2D(std::fmodf((float)std::sqrt(2.0f), 1.0f), std::fmodf((float)std::sqrt(3.0f), 1.0f), 0.0f, 0.0f);
-		TestIrrational2D(std::fmodf((float)std::sqrt(2.0f), 1.0f), std::fmodf((float)std::sqrt(3.0f), 1.0f), 0.775719f, 0.264045f);
-	}
+        // sqrt(2) mod 1, sqrt(3) mod 1
+        TestIrrational2D(std::fmodf((float)std::sqrt(2.0f), 1.0f), std::fmodf((float)std::sqrt(3.0f), 1.0f), 0.0f, 0.0f);
+        TestIrrational2D(std::fmodf((float)std::sqrt(2.0f), 1.0f), std::fmodf((float)std::sqrt(3.0f), 1.0f), 0.775719f, 0.264045f);
+    }
 
-	for (int i = 0; i < 3; ++i)
-		printf("%f\n", RandomFloat(0.0f, 1.0f));
-	int ijkl = 0;
-
-
+    printf("\n");
+    system("pause");
 }
 
 /*
 
 TODO:
+
+* separate the presentation from generation and re-use presentation
+ * useful for people who just want to grab functions
+ * also useful for unifying things like rendering and calculating discrepancy
 
 * do fft for both 1d and 2d? does it make sense for sample points?
  * if not, how do we analyze quality?
@@ -858,6 +820,8 @@ BLOG:
  * even distribution is good, but you can get aliasing.
  * want something pretty even but still have randomness
  * the randomness turns aliasing into noise
+ * maybe also how for instance in this case, uniform sampling is limited to rational numbers (numbers that can be expressed as a fraction), but random sampling doesn't have that limitation.
+ * note many types of discrepancy calculations, I'm using star discrepancy
 ? should i show the sequence with fewer points then more and more?
 * i tried adding a progressively smaller jitter to van der corput but it seemed to make the sampling worse
 * not only is golden ratio a good irrational, it's supposedly the best says wikipedia!  https://en.wikipedia.org/wiki/Low-discrepancy_sequence#Additive_recurrence
