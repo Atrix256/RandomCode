@@ -10,8 +10,7 @@
 
 typedef uint8_t uint8;
 
-// TODO: put this back to 100
-#define NUM_SAMPLES 64
+#define NUM_SAMPLES 100
 #define NUM_SAMPLES_FOR_COLORING 100
 
 #define IMAGE1D_WIDTH 600
@@ -287,20 +286,24 @@ void TestUniformRandom1D ()
 }
 
 //======================================================================================
-void TestSubRandomA1D ()
+void TestSubRandomA1D (size_t numBits)
 {
+    const size_t c_regions = size_t(1) << numBits;
+    const float c_randomRange = 1.0f / float(c_regions);
+
     // calculate the sample points
     const float c_halfJitter = 1.0f / float((NUM_SAMPLES + 1) * 2);
     std::array<float, NUM_SAMPLES> samples;
     for (size_t i = 0; i < NUM_SAMPLES; ++i)
     {
-        samples[i] = RandomFloat(0.0f, 0.5f);
-        if ((i % 2) == 1)
-            samples[i] += 0.5f;
+        samples[i] = RandomFloat(0.0f, c_randomRange);
+        samples[i] += float(i % c_regions) / float(c_regions);
     }
 
     // save bitmap etc
-    Test1D("1DSubRandomA.bmp", samples);
+    char fileName[256];
+    sprintf(fileName, "1DSubRandomA_%zu.bmp", numBits);
+    Test1D(fileName, samples);
 }
 
 //======================================================================================
@@ -564,13 +567,6 @@ void TestHammersley2D (size_t truncateBits)
         ++numBits;
     }
 
-    // TODO: verify 2d is correct vs http://mathworld.wolfram.com/HammersleyPointSet.html
-    // * truncating bits is not correct!
-    // * 0 truncation seems fine, but the others mismatch somehow
-
-    // TODO: make x axis use mask like y axis does.
-    // TODO: make 1d also use mask! cleaner looking imo.
-
     // draw the sample points
     size_t sampleInt = 0;
     for (size_t i = 0; i < NUM_SAMPLES; ++i)
@@ -592,11 +588,10 @@ void TestHammersley2D (size_t truncateBits)
         // y axis
         float sampley = 0.0f;
         {
-            size_t maskTruncation = size_t(1) << (truncateBits);
-            size_t n = i;
-            size_t mask = size_t(1) << (numBits - 1);
+            size_t n = i >> truncateBits;
+            size_t mask = size_t(1) << (numBits - 1 - truncateBits);
             float base = 1.0f / 2.0f;
-            while (mask >= maskTruncation)
+            while (mask)
             {
                 if (n & mask)
                     sampley += base;
@@ -713,7 +708,12 @@ int main (int argc, char **argv)
 
         TestUniformRandom1D();
 
-        TestSubRandomA1D();
+        TestSubRandomA1D(1);
+        TestSubRandomA1D(2);
+        TestSubRandomA1D(3);
+        TestSubRandomA1D(4);
+        TestSubRandomA1D(5);
+
         TestSubRandomB1D();
 
         TestVanDerCorput(2);
@@ -757,7 +757,7 @@ int main (int argc, char **argv)
 
         TestUniformRandom2D();
 
-        // TODO: subrandom versions!
+        // TODO: subrandom versions! which lead up to jittered grid
 
         TestHalton(2, 3);
         TestHalton(5, 7);
@@ -793,6 +793,8 @@ int main (int argc, char **argv)
 /*
 
 TODO:
+
+? re-init the seed to a deterministic value each run?
 
 * separate the presentation from generation and re-use presentation
  * useful for people who just want to grab functions
@@ -833,6 +835,11 @@ BLOG:
 * 2D rooks sort of are uniform on one axis (y in my case) and random on x, although the randomness on x is also not quite random since it's a shuffle
 * 2D irrational... use sqrt of primes mod 1. (from wikipedia)
  * not good results though. wikipedia says so too so shrug. says to look at PRNGs.
+* 2D Hammersley truncation: i couldn't get the same results with truncation as wolfram page did.  Not sure if i'm doing it wrong or they are, can't find another source
+ * http://mathworld.wolfram.com/HammersleyPointSet.html
+ * i could get either the first three the same or the second 3, but not both.  Makes me think their thing could be wrong.
+* Subrandom approaches jittered grid when taken to logical extreme
+ * is it also like subrandom is taking away 1 bit of randomness? sorta? but not really....
 
 LINKS:
 fibanocci colors: http://martin.ankerl.com/2009/12/09/how-to-create-random-colors-programmatically/
