@@ -193,31 +193,50 @@ size_t Ruler (size_t n)
 
 //======================================================================================
 template <size_t NumItems>
-float CalculateStarDiscrepancy1D (const std::array<float, NumItems>& samples)
+float CalculateDiscrepancy1D (const std::array<float, NumItems>& samples)
 {
+    // TODO: uniform1d should have 0 discrepancy I think, why doesn't it?
+
+    // some info about calculating discrepancy
+    // https://math.stackexchange.com/questions/1681562/how-to-calculate-discrepancy-of-a-sequence
+
     // Calculates the star discrepancy of this data vs the same number of evenly distributed samples.
     // Assumes the data is [0,1).
     std::array<float, NumItems> sortedSamples = samples;
     std::sort(sortedSamples.begin(), sortedSamples.end());
 
-    float maxDifference = 0;
-    for (size_t lengthIndex = 0; lengthIndex < sortedSamples.size(); ++lengthIndex)
+    float maxDifference = 0.0f;
+    for (size_t startIndex = 0; startIndex <= sortedSamples.size(); ++startIndex)
     {
-        // get the length (aka 1 dimensional volume)
-        float length = float(lengthIndex + 1) / float(NumItems);
+        // startIndex 0 = 0.0f.  startIndex 1 = sortedSamples[0]. etc
 
-        // find out what percentage of the points are in this volume
-        size_t sampleIndex = 0;
-        while (sampleIndex < sortedSamples.size() && sortedSamples[sampleIndex] <= length)
-            ++sampleIndex;
-        float samplePercent = float(sampleIndex) / float(sortedSamples.size());
+        float startValue = 0.0f;
+        if (startIndex > 0)
+            startValue = sortedSamples[startIndex - 1];
 
-        // keep track of the maximum absolute difference of percentages
-        float difference = std::abs(length - samplePercent);
-        if (difference > maxDifference)
-            maxDifference = difference;
+        for (size_t stopIndex = startIndex; stopIndex <= sortedSamples.size(); ++stopIndex)
+        {
+            // stopIndex 0 = sortedSamples[0].  startIndex[N] = 1.0f. etc
+
+            float stopValue = 1.0f;
+            if (stopIndex < sortedSamples.size())
+                stopValue = sortedSamples[stopIndex];
+
+            float length = stopValue - startValue;
+
+            // half open interval [startValue, stopValue)
+            float density = (stopIndex - startIndex) / float(sortedSamples.size());
+            float difference = std::abs(density - length);
+            if (difference > maxDifference)
+                maxDifference = difference;
+
+            // closed interval [startValue, stopValue]
+            density = (stopIndex - startIndex + 1) / float(sortedSamples.size());
+            difference = std::abs(density - length);
+            if (difference > maxDifference)
+                maxDifference = difference;
+        }
     }
-
     return maxDifference;
 }
 
@@ -232,8 +251,8 @@ void Test1D (const char* fileName, const std::array<float, NUM_SAMPLES>& samples
     ImageClear(image, COLOR_FILL);
 
     // calculate the discrepancy
-    float starDiscrepancy = CalculateStarDiscrepancy1D(samples);
-    printf("%s Discrepancy = %i%%\n", fileName, int(starDiscrepancy*100.0f));
+    float discrepancy = CalculateDiscrepancy1D(samples);
+    printf("%s Discrepancy = %0.2f%%\n", fileName, discrepancy*100.0f);
 
     // draw the sample points
     for (size_t i = 0; i < NUM_SAMPLES; ++i)
@@ -246,6 +265,38 @@ void Test1D (const char* fileName, const std::array<float, NUM_SAMPLES>& samples
     ImageBox(image, IMAGE_PAD, IMAGE1D_WIDTH + IMAGE_PAD, IMAGE1D_CENTERY, IMAGE1D_CENTERY + 1, COLOR_AXIS);
     ImageBox(image, IMAGE_PAD, IMAGE_PAD + 1, IMAGE1D_CENTERY - AXIS_HEIGHT / 2, IMAGE1D_CENTERY + AXIS_HEIGHT / 2, COLOR_AXIS);
     ImageBox(image, IMAGE1D_WIDTH + IMAGE_PAD, IMAGE1D_WIDTH + IMAGE_PAD + 1, IMAGE1D_CENTERY - AXIS_HEIGHT / 2, IMAGE1D_CENTERY + AXIS_HEIGHT / 2, COLOR_AXIS);
+
+    // save the image
+    SaveImage(fileName, image);
+}
+
+//======================================================================================
+void Test2D (const char* fileName, const std::array<std::array<float,2>, NUM_SAMPLES>& samples)
+{
+    // create and clear the image
+    SImageData image;
+    ImageInit(image, IMAGE2D_WIDTH + IMAGE_PAD * 2, IMAGE2D_HEIGHT + IMAGE_PAD * 2);
+    
+    // setup the canvas
+    ImageClear(image, COLOR_FILL);
+
+    // TODO: calculate discrepancy
+
+    // draw the sample points
+    for (size_t i = 0; i < NUM_SAMPLES; ++i)
+    {
+        size_t posx = size_t(samples[i][0] * float(IMAGE2D_WIDTH)) + IMAGE_PAD;
+        size_t posy = size_t(samples[i][1] * float(IMAGE2D_WIDTH)) + IMAGE_PAD;
+        ImageBox(image, posx - 1, posx + 1, posy - 1, posy + 1, DataPointColor(i));
+    }
+
+    // horizontal lines
+    ImageBox(image, IMAGE_PAD - 1, IMAGE2D_WIDTH + IMAGE_PAD + 1, IMAGE_PAD - 1, IMAGE_PAD, COLOR_AXIS);
+    ImageBox(image, IMAGE_PAD - 1, IMAGE2D_WIDTH + IMAGE_PAD + 1, IMAGE2D_HEIGHT + IMAGE_PAD, IMAGE2D_HEIGHT + IMAGE_PAD + 1, COLOR_AXIS);
+
+    // vertical lines
+    ImageBox(image, IMAGE_PAD - 1, IMAGE_PAD, IMAGE_PAD - 1, IMAGE2D_HEIGHT + IMAGE_PAD + 1, COLOR_AXIS);
+    ImageBox(image, IMAGE_PAD + IMAGE2D_WIDTH, IMAGE_PAD + IMAGE2D_WIDTH + 1, IMAGE_PAD - 1, IMAGE2D_HEIGHT + IMAGE_PAD + 1, COLOR_AXIS);
 
     // save the image
     SaveImage(fileName, image);
@@ -416,136 +467,93 @@ void TestHammersley1D (size_t truncateBits)
 //======================================================================================
 void TestUniform2D (bool jitter)
 {
-    // create and clear the image
-    SImageData image;
-    ImageInit(image, IMAGE2D_WIDTH + IMAGE_PAD * 2, IMAGE2D_HEIGHT + IMAGE_PAD * 2);
-    
-    // setup the canvas
-    DrawDecorationsPre(image);
-
-    // draw the sample points
+    // calculate the sample points
+    std::array<std::array<float, 2>, NUM_SAMPLES> samples;
     const size_t c_oneSide = size_t(std::sqrt(NUM_SAMPLES));
     const float c_halfJitter = 1.0f / float((c_oneSide + 1) * 2);
     for (size_t iy = 0; iy < c_oneSide; ++iy)
     {
         for (size_t ix = 0; ix < c_oneSide; ++ix)
         {
-            float samplex = float(ix + 1) / (float(c_oneSide) + 1.0f);
+            size_t sampleIndex = iy * c_oneSide + ix;
 
+            samples[sampleIndex][0] = float(ix + 1) / (float(c_oneSide) + 1.0f);
             if (jitter)
-                samplex += RandomFloat(-c_halfJitter, c_halfJitter);
+                samples[sampleIndex][0] += RandomFloat(-c_halfJitter, c_halfJitter);
 
-            size_t posx = size_t(samplex * float(IMAGE2D_WIDTH)) + IMAGE_PAD;
-
-            float sampley = float(iy + 1) / (float(c_oneSide) + 1.0f);
-
+            samples[sampleIndex][1] = float(iy + 1) / (float(c_oneSide) + 1.0f);
             if (jitter)
-                sampley += RandomFloat(-c_halfJitter, c_halfJitter);
-
-            size_t posy = size_t(sampley * float(IMAGE2D_HEIGHT)) + IMAGE_PAD;
-
-            ImageBox(image, posx - 1, posx + 1, posy - 1, posy + 1, DataPointColor(iy*c_oneSide+ix));
+                samples[sampleIndex][1] += RandomFloat(-c_halfJitter, c_halfJitter);
         }
     }
+    // TODO: need to fill all sample values! can't round down like the above does! Maybe repeat points? do a loop for num samples but mod by c_oneSide to get one axis etc.
 
-    // draw everything else
-    DrawDecorations2DPost(image);
-
-    // save the image
+    // save bitmap etc
     if (jitter)
-        SaveImage("2DUniformJitter.bmp", image);
+        Test2D("2DUniformJitter.bmp", samples);
     else
-        SaveImage("2DUniform.bmp", image);
+        Test2D("2DUniform.bmp", samples);
 }
 
 //======================================================================================
 void TestUniformRandom2D ()
 {
-    // create and clear the image
-    SImageData image;
-    ImageInit(image, IMAGE2D_WIDTH + IMAGE_PAD * 2, IMAGE2D_HEIGHT + IMAGE_PAD * 2);
-    
-    // setup the canvas
-    DrawDecorationsPre(image);
-
-    // draw the sample points
+    // calculate the sample points
+    std::array<std::array<float, 2>, NUM_SAMPLES> samples;
     const size_t c_oneSide = size_t(std::sqrt(NUM_SAMPLES));
     const float c_halfJitter = 1.0f / float((c_oneSide + 1) * 2);
-    for (size_t iy = 0; iy < c_oneSide; ++iy)
+    for (size_t i = 0; i < NUM_SAMPLES; ++i)
     {
-        for (size_t ix = 0; ix < c_oneSide; ++ix)
-        {
-            float samplex = RandomFloat(0.0f, 1.0f);
-            size_t posx = size_t(samplex * float(IMAGE2D_WIDTH)) + IMAGE_PAD;
-
-            float sampley = RandomFloat(0.0f, 1.0f);
-            size_t posy = size_t(sampley * float(IMAGE2D_HEIGHT)) + IMAGE_PAD;
-
-            ImageBox(image, posx - 1, posx + 1, posy - 1, posy + 1, DataPointColor(iy*c_oneSide+ix));
-        }
+        samples[i][0] = RandomFloat(0.0f, 1.0f);
+        samples[i][1] = RandomFloat(0.0f, 1.0f);
     }
 
-    // draw everything else
-    DrawDecorations2DPost(image);
-
-    // save the image
-    SaveImage("2DUniformRandom.bmp", image);
+    // save bitmap etc
+    Test2D("2DUniformRandom.bmp", samples);
 }
 
 //======================================================================================
 void TestHalton (size_t basex, size_t basey)
 {
-    // create and clear the image
-    SImageData image;
-    ImageInit(image, IMAGE2D_WIDTH + IMAGE_PAD * 2, IMAGE2D_HEIGHT + IMAGE_PAD * 2);
-    
-    // setup the canvas
-    DrawDecorationsPre(image);
-
-    // draw the sample points
+    // calculate the sample points
+    std::array<std::array<float, 2>, NUM_SAMPLES> samples;
+    const size_t c_oneSide = size_t(std::sqrt(NUM_SAMPLES));
+    const float c_halfJitter = 1.0f / float((c_oneSide + 1) * 2);
     for (size_t i = 0; i < NUM_SAMPLES; ++i)
     {
         // x axis
-        float samplex = 0.0f;
+        samples[i][0] = 0.0f;
         {
             float denominator = float(basex);
             size_t n = i;
             while (n > 0)
             {
                 size_t multiplier = n % basex;
-                samplex += float(multiplier) / denominator;
+                samples[i][0] += float(multiplier) / denominator;
                 n = n / basex;
                 denominator *= basex;
             }
         }
 
         // y axis
-        float sampley = 0.0f;
+        samples[i][1] = 0.0f;
         {
             float denominator = float(basey);
             size_t n = i;
             while (n > 0)
             {
                 size_t multiplier = n % basey;
-                sampley += float(multiplier) / denominator;
+                samples[i][1] += float(multiplier) / denominator;
                 n = n / basey;
                 denominator *= basey;
             }
         }
-
-        size_t posx = size_t(samplex * float(IMAGE2D_WIDTH)) + IMAGE_PAD;
-        size_t posy = size_t(sampley * float(IMAGE2D_HEIGHT)) + IMAGE_PAD;
-
-        ImageBox(image, posx - 1, posx + 1, posy - 1, posy + 1, DataPointColor(i));
     }
 
-    // draw everything else
-    DrawDecorations2DPost(image);
-
-    // save the image
+    // save bitmap etc
     char fileName[256];
     sprintf(fileName, "2DHalton_%zu_%zu.bmp", basex, basey);
-    SaveImage(fileName, image);
+    Test2D(fileName, samples);
 }
 
 //======================================================================================
@@ -794,20 +802,17 @@ int main (int argc, char **argv)
 
 TODO:
 
-? re-init the seed to a deterministic value each run?
+* 2d hammersley doesn't look right, thought i fixed it at work but the top is missing samples ?!
+
+? re-init the seed to a deterministic value each run? to get apples to apples comparisons for random? or no?
 
 * separate the presentation from generation and re-use presentation
  * useful for people who just want to grab functions
  * also useful for unifying things like rendering and calculating discrepancy
 
-* do fft for both 1d and 2d? does it make sense for sample points?
- * if not, how do we analyze quality?
- * maybe we calculate variance? i dunno...
- * figure out how to calculate discrepancy: https://math.stackexchange.com/q/1681562/138443
-
 ? could it be a generalization of hammersley to not always use base 2? sounds more like van der corput though
 
-* van der corput based shuffling.
+* BONUS: van der corput based shuffling.
  * can seed (kind of) by changing base
  * 2d shuffle?
 
@@ -864,5 +869,8 @@ http://mathworld.wolfram.com/HammersleyPointSet.html
  
 faure:
 http://sas.uwaterloo.ca/~dlmcleis/s906/lds.pdf
+
+calculating discrepancy:
+https://math.stackexchange.com/questions/1681562/how-to-calculate-discrepancy-of-a-sequence
 
 */
