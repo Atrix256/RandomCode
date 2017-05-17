@@ -132,6 +132,15 @@ void ImageBox (SImageData& image, size_t x1, size_t x2, size_t y1, size_t y2, co
 }
 
 //======================================================================================
+float Distance (float x1, float y1, float x2, float y2)
+{
+    float dx = (x2 - x1);
+    float dy = (y2 - y1);
+
+    return std::sqrtf(dx*dx + dy*dy);
+}
+
+//======================================================================================
 SColor DataPointColor (size_t sampleIndex)
 {
     SColor ret;
@@ -172,10 +181,14 @@ size_t Ruler (size_t n)
 
 //======================================================================================
 template <size_t NumItems>
-float CalculateDiscrepancy1D (const std::array<float, NumItems>& samples)
+float CalculateDiscrepancy1D (std::array<float, NumItems>& samples, size_t numSamplesValid)
 {
     // some info about calculating discrepancy
     // https://math.stackexchange.com/questions/1681562/how-to-calculate-discrepancy-of-a-sequence
+
+    // give invalid samples a value of 1.0 so they go to the end where they can be ignored
+    for (size_t index = numSamplesValid; index < NumItems; ++index)
+        samples[index] = 1.0f;
 
     // Calculates the star discrepancy of this data vs the same number of evenly distributed samples.
     // Assumes the data is [0,1).
@@ -183,7 +196,7 @@ float CalculateDiscrepancy1D (const std::array<float, NumItems>& samples)
     std::sort(sortedSamples.begin(), sortedSamples.end());
 
     float maxDifference = 0.0f;
-    for (size_t startIndex = 0; startIndex <= sortedSamples.size(); ++startIndex)
+    for (size_t startIndex = 0; startIndex <= numSamplesValid; ++startIndex)
     {
         // startIndex 0 = 0.0f.  startIndex 1 = sortedSamples[0]. etc
 
@@ -191,24 +204,24 @@ float CalculateDiscrepancy1D (const std::array<float, NumItems>& samples)
         if (startIndex > 0)
             startValue = sortedSamples[startIndex - 1];
 
-        for (size_t stopIndex = startIndex; stopIndex <= sortedSamples.size(); ++stopIndex)
+        for (size_t stopIndex = startIndex; stopIndex <= numSamplesValid; ++stopIndex)
         {
             // stopIndex 0 = sortedSamples[0].  startIndex[N] = 1.0f. etc
 
             float stopValue = 1.0f;
-            if (stopIndex < sortedSamples.size())
+            if (stopIndex < numSamplesValid)
                 stopValue = sortedSamples[stopIndex];
 
             float length = stopValue - startValue;
 
             // half open interval [startValue, stopValue)
-            float density = (stopIndex - startIndex) / float(sortedSamples.size());
+            float density = (stopIndex - startIndex) / float(numSamplesValid);
             float difference = std::abs(density - length);
             if (difference > maxDifference)
                 maxDifference = difference;
 
             // closed interval [startValue, stopValue]
-            density = (stopIndex - startIndex + 1) / float(sortedSamples.size());
+            density = (stopIndex - startIndex + 1) / float(numSamplesValid);
             difference = std::abs(density - length);
             if (difference > maxDifference)
                 maxDifference = difference;
@@ -218,7 +231,7 @@ float CalculateDiscrepancy1D (const std::array<float, NumItems>& samples)
 }
 
 //======================================================================================
-void Test1D (const char* fileName, const std::array<float, NUM_SAMPLES>& samples)
+void Test1D (const char* fileName, std::array<float, NUM_SAMPLES>& samples, size_t numSamplesValid = NUM_SAMPLES)
 {
     // create and clear the image
     SImageData image;
@@ -228,11 +241,11 @@ void Test1D (const char* fileName, const std::array<float, NUM_SAMPLES>& samples
     ImageClear(image, COLOR_FILL);
 
     // calculate the discrepancy
-    float discrepancy = CalculateDiscrepancy1D(samples);
+    float discrepancy = CalculateDiscrepancy1D(samples, numSamplesValid);
     printf("%s Discrepancy = %0.2f%%\n", fileName, discrepancy*100.0f);
 
     // draw the sample points
-    for (size_t i = 0; i < NUM_SAMPLES; ++i)
+    for (size_t i = 0; i < numSamplesValid; ++i)
     {
         size_t pos = size_t(samples[i] * float(IMAGE1D_WIDTH)) + IMAGE_PAD;
         ImageBox(image, pos, pos + 1, IMAGE1D_CENTERY - DATA_HEIGHT / 2, IMAGE1D_CENTERY + DATA_HEIGHT / 2, DataPointColor(i));
@@ -248,7 +261,7 @@ void Test1D (const char* fileName, const std::array<float, NUM_SAMPLES>& samples
 }
 
 //======================================================================================
-void Test2D (const char* fileName, const std::array<std::array<float,2>, NUM_SAMPLES>& samples)
+void Test2D (const char* fileName, const std::array<std::array<float,2>, NUM_SAMPLES>& samples, size_t numSamplesValid = NUM_SAMPLES)
 {
     // create and clear the image
     SImageData image;
@@ -260,7 +273,7 @@ void Test2D (const char* fileName, const std::array<std::array<float,2>, NUM_SAM
     // TODO: calculate discrepancy
 
     // draw the sample points
-    for (size_t i = 0; i < NUM_SAMPLES; ++i)
+    for (size_t i = 0; i < numSamplesValid; ++i)
     {
         size_t posx = size_t(samples[i][0] * float(IMAGE2D_WIDTH)) + IMAGE_PAD;
         size_t posy = size_t(samples[i][1] * float(IMAGE2D_WIDTH)) + IMAGE_PAD;
@@ -441,6 +454,49 @@ void TestHammersley1D (size_t truncateBits)
 }
 
 //======================================================================================
+void TestPoisson1D (float minDist)
+{
+    const size_t c_failedAttemptsAllowed = 30;
+
+    // calculate the sample points
+    std::array<float, NUM_SAMPLES> samples;
+    size_t sampleIndex = 0;
+    bool failed = false;
+    while (sampleIndex < NUM_SAMPLES && !failed)
+    {
+        size_t failedAttemptsRemaining = c_failedAttemptsAllowed;
+        while (failedAttemptsRemaining > 0)
+        {
+            float value = RandomFloat(0.0f, 1.0f);
+
+            size_t testSampleIndex = 0;
+            while (testSampleIndex < sampleIndex && std::abs(value - samples[testSampleIndex]) >= minDist)
+                ++testSampleIndex;
+
+            if (testSampleIndex == sampleIndex)
+            {
+                samples[sampleIndex] = value;
+                break;
+            }
+            else
+            {
+                --failedAttemptsRemaining;
+            }
+        }
+
+        if (failedAttemptsRemaining == 0)
+            failed = true;
+        else
+            ++sampleIndex;
+    }
+
+    // save bitmap etc
+    char fileName[256];
+    sprintf(fileName, "1DPoisson_%f.bmp", minDist);
+    Test1D(fileName, samples, sampleIndex - 1);
+}
+
+//======================================================================================
 void TestUniform2D (bool jitter)
 {
     // calculate the sample points
@@ -494,7 +550,6 @@ void TestSubRandomA2D (size_t regionsX, size_t regionsY)
     const float c_randomRangeY = 1.0f / float(regionsY);
 
     // calculate the sample points
-    const float c_halfJitter = 1.0f / float((NUM_SAMPLES + 1) * 2);
     std::array<std::array<float, 2>, NUM_SAMPLES> samples;
     for (size_t i = 0; i < NUM_SAMPLES; ++i)
     {
@@ -509,6 +564,25 @@ void TestSubRandomA2D (size_t regionsX, size_t regionsY)
     char fileName[256];
     sprintf(fileName, "2DSubRandomA_%zu_%zu.bmp", regionsX, regionsY);
     Test2D(fileName, samples);
+}
+
+//======================================================================================
+void TestSubRandomB2D ()
+{
+    // calculate the sample points
+    float samplex = RandomFloat(0.0f, 0.5f);
+    float sampley = RandomFloat(0.0f, 0.5f);
+    std::array<std::array<float, 2>, NUM_SAMPLES> samples;
+    for (size_t i = 0; i < NUM_SAMPLES; ++i)
+    {
+        samplex = std::fmodf(samplex + 0.5f + RandomFloat(0.0f, 0.5f), 1.0f);
+        sampley = std::fmodf(sampley + 0.5f + RandomFloat(0.0f, 0.5f), 1.0f);
+        samples[i][0] = samplex;
+        samples[i][1] = sampley;
+    }
+    
+    // save bitmap etc
+    Test2D("2DSubRandomB.bmp", samples);
 }
 
 //======================================================================================
@@ -667,6 +741,51 @@ void TestIrrational2D (float irrationalx, float irrationaly, float seedx, float 
 }
 
 //======================================================================================
+void TestPoisson2D (float minDist)
+{
+    const size_t c_failedAttemptsAllowed = 30;
+
+    // calculate the sample points
+    std::array<std::array<float, 2>, NUM_SAMPLES> samples;
+    size_t sampleIndex = 0;
+    bool failed = false;
+    while (sampleIndex < NUM_SAMPLES && !failed)
+    {
+        size_t failedAttemptsRemaining = c_failedAttemptsAllowed;
+        while (failedAttemptsRemaining > 0)
+        {
+            float valueX = RandomFloat(0.0f, 1.0f);
+            float valueY = RandomFloat(0.0f, 1.0f);
+
+            size_t testSampleIndex = 0;
+            while (testSampleIndex < sampleIndex && Distance(valueX, valueY, samples[testSampleIndex][0], samples[testSampleIndex][1]) >= minDist)
+                ++testSampleIndex;
+
+            if (testSampleIndex == sampleIndex)
+            {
+                samples[sampleIndex][0] = valueX;
+                samples[sampleIndex][1] = valueY;
+                break;
+            }
+            else
+            {
+                --failedAttemptsRemaining;
+            }
+        }
+
+        if (failedAttemptsRemaining == 0)
+            failed = true;
+        else
+            ++sampleIndex;
+    }
+
+    // save bitmap etc
+    char fileName[256];
+    sprintf(fileName, "2DPoisson_%f.bmp", minDist);
+    Test2D(fileName, samples, sampleIndex - 1);
+}
+
+//======================================================================================
 int main (int argc, char **argv)
 {
     // 1D tests
@@ -713,6 +832,10 @@ int main (int argc, char **argv)
         TestHammersley1D(1);
         TestHammersley1D(2);
 
+        TestPoisson1D(0.0001f);
+        TestPoisson1D(0.0075f);
+        TestPoisson1D(0.1f);
+
         // TODO: faure sequence
     }
 
@@ -728,8 +851,7 @@ int main (int argc, char **argv)
         TestSubRandomA2D(3, 11);
         TestSubRandomA2D(3, 97);
 
-        // TODO: subrandom B versions! which lead up to jittered grid
-        // starting values (?) from wikipedia = 0.5545497, 0.308517
+        TestSubRandomB2D();
 
         TestHalton(2, 3);
         TestHalton(5, 7);
@@ -752,7 +874,9 @@ int main (int argc, char **argv)
         TestIrrational2D(std::fmodf((float)std::sqrt(2.0f), 1.0f), std::fmodf((float)std::sqrt(3.0f), 1.0f), 0.0f, 0.0f);
         TestIrrational2D(std::fmodf((float)std::sqrt(2.0f), 1.0f), std::fmodf((float)std::sqrt(3.0f), 1.0f), 0.775719f, 0.264045f);
 
-        // TODO: Poisson
+        TestPoisson2D(0.01f);
+        TestPoisson2D(0.1f);
+        TestPoisson2D(0.5f);
     }
 
     printf("\n");
@@ -791,6 +915,11 @@ BLOG:
 * Subrandom approaches jittered grid when taken to logical extreme
  * is it also like subrandom is taking away 1 bit of randomness? sorta? but not really....
 * Hammersley only fits the whole space if you go through the full power of 2
+* 1d Poisson Notes (and 2d?)
+ * If doing N samples, need to choose a good minimum distance...
+ * too small and the space won't be maximally filled to that distance so will appear random aka high discrepancy.
+ * too large and you won't be able to find places for all your samples, so there will be large gaps and high discrepancy.
+ * with the perfect value, you'll have N samples all there, and they will be maximally far apart from each other.
 
 LINKS:
 fibanocci colors: http://martin.ankerl.com/2009/12/09/how-to-create-random-colors-programmatically/
@@ -839,5 +968,8 @@ while rambling reflected gray codes can be impl. with trailing zero count and sm
 
 * weyl sequence
 http://marc-b-reynolds.github.io/math/2016/02/24/weyl.html
+
+* poisson disc
+https://www.jasondavies.com/poisson-disc/
 
 */
