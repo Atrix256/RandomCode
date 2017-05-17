@@ -314,10 +314,9 @@ void TestUniformRandom1D ()
 }
 
 //======================================================================================
-void TestSubRandomA1D (size_t numBits)
+void TestSubRandomA1D (size_t numRegions)
 {
-    const size_t c_regions = size_t(1) << numBits;
-    const float c_randomRange = 1.0f / float(c_regions);
+    const float c_randomRange = 1.0f / float(numRegions);
 
     // calculate the sample points
     const float c_halfJitter = 1.0f / float((NUM_SAMPLES + 1) * 2);
@@ -325,12 +324,12 @@ void TestSubRandomA1D (size_t numBits)
     for (size_t i = 0; i < NUM_SAMPLES; ++i)
     {
         samples[i] = RandomFloat(0.0f, c_randomRange);
-        samples[i] += float(i % c_regions) / float(c_regions);
+        samples[i] += float(i % numRegions) / float(numRegions);
     }
 
     // save bitmap etc
     char fileName[256];
-    sprintf(fileName, "1DSubRandomA_%zu.bmp", numBits);
+    sprintf(fileName, "1DSubRandomA_%zu.bmp", numRegions);
     Test1D(fileName, samples);
 }
 
@@ -489,6 +488,30 @@ void TestUniformRandom2D ()
 }
 
 //======================================================================================
+void TestSubRandomA2D (size_t regionsX, size_t regionsY)
+{
+    const float c_randomRangeX = 1.0f / float(regionsX);
+    const float c_randomRangeY = 1.0f / float(regionsY);
+
+    // calculate the sample points
+    const float c_halfJitter = 1.0f / float((NUM_SAMPLES + 1) * 2);
+    std::array<std::array<float, 2>, NUM_SAMPLES> samples;
+    for (size_t i = 0; i < NUM_SAMPLES; ++i)
+    {
+        samples[i][0] = RandomFloat(0.0f, c_randomRangeX);
+        samples[i][0] += float(i % regionsX) / float(regionsX);
+
+        samples[i][1] = RandomFloat(0.0f, c_randomRangeY);
+        samples[i][1] += float(i % regionsY) / float(regionsY);
+    }
+
+    // save bitmap etc
+    char fileName[256];
+    sprintf(fileName, "2DSubRandomA_%zu_%zu.bmp", regionsX, regionsY);
+    Test2D(fileName, samples);
+}
+
+//======================================================================================
 void TestHalton (size_t basex, size_t basey)
 {
     // calculate the sample points
@@ -535,8 +558,6 @@ void TestHalton (size_t basex, size_t basey)
 //======================================================================================
 void TestHammersley2D (size_t truncateBits)
 {
-    // TODO: this isn't using the full height available ?!
-
     // figure out how many bits we are working in.
     size_t value = 1;
     size_t numBits = 0;
@@ -570,6 +591,7 @@ void TestHammersley2D (size_t truncateBits)
         {
             size_t n = i >> truncateBits;
             size_t mask = size_t(1) << (numBits - 1 - truncateBits);
+
             float base = 1.0f / 2.0f;
             while (mask)
             {
@@ -654,11 +676,11 @@ int main (int argc, char **argv)
 
         TestUniformRandom1D();
 
-        TestSubRandomA1D(1);
         TestSubRandomA1D(2);
-        TestSubRandomA1D(3);
         TestSubRandomA1D(4);
-        TestSubRandomA1D(5);
+        TestSubRandomA1D(8);
+        TestSubRandomA1D(16);
+        TestSubRandomA1D(32);
 
         TestSubRandomB1D();
 
@@ -701,7 +723,13 @@ int main (int argc, char **argv)
 
         TestUniformRandom2D();
 
-        // TODO: subrandom versions! which lead up to jittered grid
+        TestSubRandomA2D(2, 2);
+        TestSubRandomA2D(2, 3);
+        TestSubRandomA2D(3, 11);
+        TestSubRandomA2D(3, 97);
+
+        // TODO: subrandom B versions! which lead up to jittered grid
+        // starting values (?) from wikipedia = 0.5545497, 0.308517
 
         TestHalton(2, 3);
         TestHalton(5, 7);
@@ -712,11 +740,6 @@ int main (int argc, char **argv)
         TestHammersley2D(0);
         TestHammersley2D(1);
         TestHammersley2D(2);
-
-        // TODO: temp!
-        TestHammersley2D(3);
-        TestHammersley2D(4);
-        TestHammersley2D(5);
 
         TestRooks2D();
 
@@ -729,7 +752,7 @@ int main (int argc, char **argv)
         TestIrrational2D(std::fmodf((float)std::sqrt(2.0f), 1.0f), std::fmodf((float)std::sqrt(3.0f), 1.0f), 0.0f, 0.0f);
         TestIrrational2D(std::fmodf((float)std::sqrt(2.0f), 1.0f), std::fmodf((float)std::sqrt(3.0f), 1.0f), 0.775719f, 0.264045f);
 
-        // Poisson?
+        // TODO: Poisson
     }
 
     printf("\n");
@@ -739,17 +762,6 @@ int main (int argc, char **argv)
 /*
 
 TODO:
-
-* 2d hammersley doesn't look right, thought i fixed it at work but the top is missing samples ?!
-
-? could it be a generalization of hammersley to not always use base 2? sounds more like van der corput though
-
-* BONUS: van der corput based shuffling.
- * can seed (kind of) by changing base
- * 2d shuffle?
-
-? count the bits to make white noise into gaussian? or save this for another post?
-
 * test on x86 and x64!
 
 BLOG:
@@ -778,6 +790,7 @@ BLOG:
  * i could get either the first three the same or the second 3, but not both.  Makes me think their thing could be wrong.
 * Subrandom approaches jittered grid when taken to logical extreme
  * is it also like subrandom is taking away 1 bit of randomness? sorta? but not really....
+* Hammersley only fits the whole space if you go through the full power of 2
 
 LINKS:
 fibanocci colors: http://martin.ankerl.com/2009/12/09/how-to-create-random-colors-programmatically/
