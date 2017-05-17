@@ -10,7 +10,7 @@
 
 typedef uint8_t uint8;
 
-#define NUM_SAMPLES 100
+#define NUM_SAMPLES 100  // to simplify some 2d code, this must be a square
 #define NUM_SAMPLES_FOR_COLORING 100
 
 #define IMAGE1D_WIDTH 600
@@ -132,27 +132,6 @@ void ImageBox (SImageData& image, size_t x1, size_t x2, size_t y1, size_t y2, co
 }
 
 //======================================================================================
-void DrawDecorationsPre (SImageData& image)
-{
-    // TODO: get rid of when no longer needed!
-    ImageClear(image, COLOR_FILL);
-}
-
-//======================================================================================
-void DrawDecorations2DPost (SImageData& image)
-{
-    // draw a box
-
-    // horizontal lines
-    ImageBox(image, IMAGE_PAD - 1, IMAGE2D_WIDTH + IMAGE_PAD + 1, IMAGE_PAD - 1, IMAGE_PAD, COLOR_AXIS);
-    ImageBox(image, IMAGE_PAD - 1, IMAGE2D_WIDTH + IMAGE_PAD + 1, IMAGE2D_HEIGHT + IMAGE_PAD, IMAGE2D_HEIGHT + IMAGE_PAD + 1, COLOR_AXIS);
-
-    // vertical lines
-    ImageBox(image, IMAGE_PAD - 1, IMAGE_PAD, IMAGE_PAD - 1, IMAGE2D_HEIGHT + IMAGE_PAD + 1, COLOR_AXIS);
-    ImageBox(image, IMAGE_PAD + IMAGE2D_WIDTH, IMAGE_PAD + IMAGE2D_WIDTH + 1, IMAGE_PAD - 1, IMAGE2D_HEIGHT + IMAGE_PAD + 1, COLOR_AXIS);
-}
-
-//======================================================================================
 SColor DataPointColor (size_t sampleIndex)
 {
     SColor ret;
@@ -195,8 +174,6 @@ size_t Ruler (size_t n)
 template <size_t NumItems>
 float CalculateDiscrepancy1D (const std::array<float, NumItems>& samples)
 {
-    // TODO: uniform1d should have 0 discrepancy I think, why doesn't it?
-
     // some info about calculating discrepancy
     // https://math.stackexchange.com/questions/1681562/how-to-calculate-discrepancy-of-a-sequence
 
@@ -486,7 +463,6 @@ void TestUniform2D (bool jitter)
                 samples[sampleIndex][1] += RandomFloat(-c_halfJitter, c_halfJitter);
         }
     }
-    // TODO: need to fill all sample values! can't round down like the above does! Maybe repeat points? do a loop for num samples but mod by c_oneSide to get one axis etc.
 
     // save bitmap etc
     if (jitter)
@@ -559,12 +535,7 @@ void TestHalton (size_t basex, size_t basey)
 //======================================================================================
 void TestHammersley2D (size_t truncateBits)
 {
-    // create and clear the image
-    SImageData image;
-    ImageInit(image, IMAGE2D_WIDTH + IMAGE_PAD * 2, IMAGE2D_HEIGHT + IMAGE_PAD * 2);
-
-    // setup the canvas
-    DrawDecorationsPre(image);
+    // TODO: this isn't using the full height available ?!
 
     // figure out how many bits we are working in.
     size_t value = 1;
@@ -575,26 +546,27 @@ void TestHammersley2D (size_t truncateBits)
         ++numBits;
     }
 
-    // draw the sample points
+    // calculate the sample points
+    std::array<std::array<float, 2>, NUM_SAMPLES> samples;
     size_t sampleInt = 0;
     for (size_t i = 0; i < NUM_SAMPLES; ++i)
     {
         // x axis
-        float samplex = 0.0f;
+        samples[i][0] = 0.0f;
         {
             size_t n = i >> truncateBits;
             float base = 1.0f / 2.0f;
             while (n)
             {
                 if (n & 1)
-                    samplex += base;
+                    samples[i][0] += base;
                 n /= 2;
                 base /= 2.0f;
             }
         }
 
         // y axis
-        float sampley = 0.0f;
+        samples[i][1] = 0.0f;
         {
             size_t n = i >> truncateBits;
             size_t mask = size_t(1) << (numBits - 1 - truncateBits);
@@ -602,37 +574,23 @@ void TestHammersley2D (size_t truncateBits)
             while (mask)
             {
                 if (n & mask)
-                    sampley += base;
+                    samples[i][1] += base;
                 mask /= 2;
                 base /= 2.0f;
             }
         }
-
-        size_t posx = size_t(samplex * float(IMAGE2D_WIDTH)) + IMAGE_PAD;
-        size_t posy = size_t(sampley * float(IMAGE2D_HEIGHT)) + IMAGE_PAD;
-
-        ImageBox(image, posx - 1, posx + 1, posy - 1, posy + 1, DataPointColor(i));
     }
 
-    // draw everything else
-    DrawDecorations2DPost(image);
 
-    // save the image
+    // save bitmap etc
     char fileName[256];
     sprintf(fileName, "2DHammersley_%zu.bmp", truncateBits);
-    SaveImage(fileName, image);
+    Test2D(fileName, samples);
 }
 
 //======================================================================================
 void TestRooks2D ()
 {
-    // create and clear the image
-    SImageData image;
-    ImageInit(image, IMAGE2D_WIDTH + IMAGE_PAD * 2, IMAGE2D_HEIGHT + IMAGE_PAD * 2);
-    
-    // setup the canvas
-    DrawDecorationsPre(image);
-
     // make and shuffle rook positions
     std::random_device rd;
     std::mt19937 mt(rd());
@@ -641,41 +599,26 @@ void TestRooks2D ()
         rookPositions[i] = i;
     std::shuffle(rookPositions.begin(), rookPositions.end(), mt);
 
-    // draw the sample points
+    // calculate the sample points
+    std::array<std::array<float, 2>, NUM_SAMPLES> samples;
     for (size_t i = 0; i < NUM_SAMPLES; ++i)
     {
         // x axis
-        float samplex = float(rookPositions[i]) / float(NUM_SAMPLES-1);
+        samples[i][0] = float(rookPositions[i]) / float(NUM_SAMPLES-1);
 
         // y axis
-        float sampley = float(i) / float(NUM_SAMPLES - 1);
-
-        size_t posx = size_t(samplex * float(IMAGE2D_WIDTH)) + IMAGE_PAD;
-        size_t posy = size_t(sampley * float(IMAGE2D_HEIGHT)) + IMAGE_PAD;
-
-        ImageBox(image, posx - 1, posx + 1, posy - 1, posy + 1, DataPointColor(i));
+        samples[i][1] = float(i) / float(NUM_SAMPLES - 1);
     }
 
-    // draw everything else
-    DrawDecorations2DPost(image);
-
-    // save the image
-    char fileName[256];
-    sprintf(fileName, "2DRooks.bmp");
-    SaveImage(fileName, image);
+    // save bitmap etc
+    Test2D("2DRooks.bmp", samples);
 }
 
 //======================================================================================
 void TestIrrational2D (float irrationalx, float irrationaly, float seedx, float seedy)
 {
-    // create and clear the image
-    SImageData image;
-    ImageInit(image, IMAGE2D_WIDTH + IMAGE_PAD * 2, IMAGE2D_HEIGHT + IMAGE_PAD * 2);
-    
-    // setup the canvas
-    DrawDecorationsPre(image);
-
-    // draw the sample points
+    // calculate the sample points
+    std::array<std::array<float, 2>, NUM_SAMPLES> samples;
     float samplex = seedx;
     float sampley = seedy;
     for (size_t i = 0; i < NUM_SAMPLES; ++i)
@@ -683,16 +626,11 @@ void TestIrrational2D (float irrationalx, float irrationaly, float seedx, float 
         samplex = std::fmodf(samplex + irrationalx, 1.0f);
         sampley = std::fmodf(sampley + irrationaly, 1.0f);
 
-        size_t posx = size_t(samplex * float(IMAGE2D_WIDTH)) + IMAGE_PAD;
-        size_t posy = size_t(sampley * float(IMAGE2D_HEIGHT)) + IMAGE_PAD;
-
-        ImageBox(image, posx - 1, posx + 1, posy - 1, posy + 1, DataPointColor(i));
+        samples[i][0] = samplex;
+        samples[i][1] = sampley;
     }
 
-    // draw everything else
-    DrawDecorations2DPost(image);
-
-    // save the image
+    // save bitmap etc
     char irrationalxStr[256];
     sprintf(irrationalxStr, "%f", irrationalx);
     char irrationalyStr[256];
@@ -703,7 +641,7 @@ void TestIrrational2D (float irrationalx, float irrationaly, float seedx, float 
     sprintf(seedyStr, "%f", seedy);
     char fileName[256];
     sprintf(fileName, "2DIrrational_%s_%s_%s_%s.bmp", &irrationalxStr[2], &irrationalyStr[2], &seedxStr[2], &seedyStr[2]);
-    SaveImage(fileName, image);
+    Test2D(fileName, samples);
 }
 
 //======================================================================================
@@ -758,8 +696,6 @@ int main (int argc, char **argv)
 
     // 2D tests
     {
-        // TODO: convert all 2D functions to use new unified setup!
-
         TestUniform2D(false);
         TestUniform2D(true);
 
@@ -792,6 +728,8 @@ int main (int argc, char **argv)
         // sqrt(2) mod 1, sqrt(3) mod 1
         TestIrrational2D(std::fmodf((float)std::sqrt(2.0f), 1.0f), std::fmodf((float)std::sqrt(3.0f), 1.0f), 0.0f, 0.0f);
         TestIrrational2D(std::fmodf((float)std::sqrt(2.0f), 1.0f), std::fmodf((float)std::sqrt(3.0f), 1.0f), 0.775719f, 0.264045f);
+
+        // Poisson?
     }
 
     printf("\n");
@@ -803,12 +741,6 @@ int main (int argc, char **argv)
 TODO:
 
 * 2d hammersley doesn't look right, thought i fixed it at work but the top is missing samples ?!
-
-? re-init the seed to a deterministic value each run? to get apples to apples comparisons for random? or no?
-
-* separate the presentation from generation and re-use presentation
- * useful for people who just want to grab functions
- * also useful for unifying things like rendering and calculating discrepancy
 
 ? could it be a generalization of hammersley to not always use base 2? sounds more like van der corput though
 
@@ -828,7 +760,8 @@ BLOG:
  * want something pretty even but still have randomness
  * the randomness turns aliasing into noise
  * maybe also how for instance in this case, uniform sampling is limited to rational numbers (numbers that can be expressed as a fraction), but random sampling doesn't have that limitation.
- * note many types of discrepancy calculations, I'm using star discrepancy
+ * note many types of discrepancy calculations, I'm using star discrepancy (not star anymore)
+ * Better example: give player 5 random items, don't want them all to be bad or all good. A good mix usually. ??
 ? should i show the sequence with fewer points then more and more?
 * i tried adding a progressively smaller jitter to van der corput but it seemed to make the sampling worse
 * not only is golden ratio a good irrational, it's supposedly the best says wikipedia!  https://en.wikipedia.org/wiki/Low-discrepancy_sequence#Additive_recurrence
@@ -872,5 +805,26 @@ http://sas.uwaterloo.ca/~dlmcleis/s906/lds.pdf
 
 calculating discrepancy:
 https://math.stackexchange.com/questions/1681562/how-to-calculate-discrepancy-of-a-sequence
+
+2d discrepancy info:
+https://math.stackexchange.com/questions/2283671/is-it-expected-that-uniform-points-would-have-non-zero-discrepancy/2284163#2284163
+
+random vs uniform
+https://math.stackexchange.com/q/425782/138443
+
+sampling
+http://gruenschloss.org/
+
+===discrepancy info:===
+Matthias Moulin (@matt77hias) tweeted at 7:27 AM on Sat, May 13, 2017:
+R. E. Caflisch: Monte Carlo and quasi-Monte Carlo methods https://t.co/f6o1n6o4pk Page 25 contains different discrepancies
+(https://twitter.com/matt77hias/status/863400295086403586?s=03)
+
+@marc_b_reynolds FOLLOWS YOU
+https://github.com/Marc-B-Reynolds/Stand-alone-junk/blob/master/src/SFH/Sobol.h
+while rambling reflected gray codes can be impl. with trailing zero count and small tables. My sobol code does this:
+
+* weyl sequence
+http://marc-b-reynolds.github.io/math/2016/02/24/weyl.html
 
 */
