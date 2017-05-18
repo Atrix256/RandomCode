@@ -296,14 +296,16 @@ void Test2D (const char* fileName, const std::array<std::array<float,2>, NUM_SAM
 void TestUniform1D (bool jitter)
 {
     // calculate the sample points
-    const float c_halfJitter = 1.0f / float((NUM_SAMPLES + 1) * 2);
+    const float c_cellSize = 1.0f / float(NUM_SAMPLES);
     std::array<float, NUM_SAMPLES> samples;
     for (size_t i = 0; i < NUM_SAMPLES; ++i)
     {
-        samples[i] = float(i + 1) / float(NUM_SAMPLES);
+        samples[i] = float(i) / float(NUM_SAMPLES);
 
         if (jitter)
-            samples[i] += RandomFloat(-c_halfJitter, c_halfJitter);
+            samples[i] += RandomFloat(0.0f, c_cellSize);
+        else
+            samples[i] += c_cellSize * 0.5f;
     }
 
     // save bitmap etc
@@ -502,20 +504,24 @@ void TestUniform2D (bool jitter)
     // calculate the sample points
     std::array<std::array<float, 2>, NUM_SAMPLES> samples;
     const size_t c_oneSide = size_t(std::sqrt(NUM_SAMPLES));
-    const float c_halfJitter = 1.0f / float((c_oneSide + 1) * 2);
+    const float c_cellSize = 1.0f / float(c_oneSide);
     for (size_t iy = 0; iy < c_oneSide; ++iy)
     {
         for (size_t ix = 0; ix < c_oneSide; ++ix)
         {
             size_t sampleIndex = iy * c_oneSide + ix;
 
-            samples[sampleIndex][0] = float(ix + 1) / (float(c_oneSide) + 1.0f);
+            samples[sampleIndex][0] = float(ix) / (float(c_oneSide) + 1.0f);
             if (jitter)
-                samples[sampleIndex][0] += RandomFloat(-c_halfJitter, c_halfJitter);
+                samples[sampleIndex][0] += RandomFloat(0.0f, c_cellSize);
+            else
+                samples[sampleIndex][0] += c_cellSize * 0.5f;
 
-            samples[sampleIndex][1] = float(iy + 1) / (float(c_oneSide) + 1.0f);
+            samples[sampleIndex][1] = float(iy) / (float(c_oneSide) + 1.0f);
             if (jitter)
-                samples[sampleIndex][1] += RandomFloat(-c_halfJitter, c_halfJitter);
+                samples[sampleIndex][1] += RandomFloat(0.0f, c_cellSize);
+            else
+                samples[sampleIndex][1] += c_cellSize * 0.5f;
         }
     }
 
@@ -924,6 +930,8 @@ int main (int argc, char **argv)
 /*
 
 TODO:
+* calculate 2d discrepancy
+* 1d and 2d uniform / jitter aren't working quite right.  check it out especially at low sample sizes!
 * test on x86 and x64!
 
 BLOG:
@@ -958,6 +966,7 @@ BLOG:
  * too small and the space won't be maximally filled to that distance so will appear random aka high discrepancy.
  * too large and you won't be able to find places for all your samples, so there will be large gaps and high discrepancy.
  * with the perfect value, you'll have N samples all there, and they will be maximally far apart from each other.
+ * there are better methods for generating poisson. (link? the thing about generating multiple candidate points and using the best one? mitchels? mitchelsons?)
 
 LINKS:
 fibanocci colors: http://martin.ankerl.com/2009/12/09/how-to-create-random-colors-programmatically/
