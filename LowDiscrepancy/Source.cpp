@@ -630,6 +630,48 @@ void TestHalton (size_t basex, size_t basey)
 }
 
 //======================================================================================
+void TestSobol2D ()
+{
+    // calculate the sample points
+
+    // x axis
+    std::array<std::array<float, 2>, NUM_SAMPLES> samples;
+    size_t sampleInt = 0;
+    for (size_t i = 0; i < NUM_SAMPLES; ++i)
+    {
+        size_t ruler = Ruler(i + 1);
+        size_t direction = size_t(size_t(1) << size_t(31 - ruler));
+        sampleInt = sampleInt ^ direction;
+        samples[i][0] = float(sampleInt) / std::pow(2.0f, 32.0f);
+    }
+
+    // y axis - Code adapted from http://web.maths.unsw.edu.au/~fkuo/sobol/
+
+    // TODO: continue clean up!
+
+    // Compute direction numbers
+    std::vector<unsigned> V;
+    V.resize((size_t)ceil(log((double)NUM_SAMPLES) / log(2.0)));
+    V[0] = 1 << 31;
+    for (unsigned i = 1; i < V.size(); i++)
+        V[i] = V[i - 1] ^ (V[i - 1] >> 1);
+
+    // Evalulate X[0] to X[N-1], scaled by pow(2,32)
+    samples[0][1] = 0.0f;
+    size_t j = 0;
+    std::array<unsigned, NUM_SAMPLES> X;
+    X[0] = 0;
+    for (unsigned i = 1; i <= NUM_SAMPLES - 1; i++) {
+        X[i] = X[i - 1] ^ V[Ruler(i)];
+        samples[i][1] = (double)X[i] / pow(2.0, 32); // *** the actual points
+                                                    //        ^ j for dimension (j+1)
+    }
+
+    // save bitmap etc
+    Test2D("2DSobol.bmp", samples);
+}
+
+//======================================================================================
 void TestHammersley2D (size_t truncateBits)
 {
     // figure out how many bits we are working in.
@@ -857,7 +899,7 @@ int main (int argc, char **argv)
         TestHalton(5, 7);
         TestHalton(13, 9);
 
-        // TODO: Sobol2d (more involved than 1d!)
+        TestSobol2D();
 
         TestHammersley2D(0);
         TestHammersley2D(1);
