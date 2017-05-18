@@ -645,15 +645,14 @@ void TestSobol2D ()
         samples[i][0] = float(sampleInt) / std::pow(2.0f, 32.0f);
     }
 
-    // y axis - Code adapted from http://web.maths.unsw.edu.au/~fkuo/sobol/
-    // uses numbers from: new-joe-kuo-6.21201
-
-    // TODO: continue clean up!
+    // y axis
+    // Code adapted from http://web.maths.unsw.edu.au/~fkuo/sobol/
+    // uses numbers: new-joe-kuo-6.21201
 
     // Direction numbers
-    std::vector<unsigned> V;
+    std::vector<size_t> V;
     V.resize((size_t)ceil(log((double)NUM_SAMPLES) / log(2.0)));
-    V[0] = 1 << 31;
+    V[0] = size_t(1) << size_t(31);
     for (size_t i = 1; i < V.size(); ++i)
         V[i] = V[i - 1] ^ (V[i - 1] >> 1);
 
@@ -875,8 +874,6 @@ int main (int argc, char **argv)
         TestPoisson1D(0.0001f);
         TestPoisson1D(0.0075f);
         TestPoisson1D(0.1f);
-
-        // TODO: faure sequence
     }
 
     // 2D tests
@@ -910,7 +907,8 @@ int main (int argc, char **argv)
         TestIrrational2D(0.618034f, 0.414214f, 0.0f, 0.0f);
         TestIrrational2D(0.618034f, 0.414214f, 0.775719f, 0.264045f);
 
-        // sqrt(2) mod 1, sqrt(3) mod 1
+        // X axis = sqrt(2) mod 1
+        // Y axis = sqrt(3) mod 1
         TestIrrational2D(std::fmodf((float)std::sqrt(2.0f), 1.0f), std::fmodf((float)std::sqrt(3.0f), 1.0f), 0.0f, 0.0f);
         TestIrrational2D(std::fmodf((float)std::sqrt(2.0f), 1.0f), std::fmodf((float)std::sqrt(3.0f), 1.0f), 0.775719f, 0.264045f);
 
