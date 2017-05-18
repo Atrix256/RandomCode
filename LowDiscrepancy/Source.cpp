@@ -7,6 +7,7 @@
 #include <array>
 #include <algorithm>
 #include <stdlib.h>
+#include <set>
 
 typedef uint8_t uint8;
 
@@ -181,17 +182,13 @@ size_t Ruler (size_t n)
 
 //======================================================================================
 template <size_t NumItems>
-float CalculateDiscrepancy1D (std::array<float, NumItems>& samples, size_t numSamplesValid)
+float CalculateDiscrepancy1D (const std::array<float, NumItems>& samples, size_t numSamplesValid)
 {
     // some info about calculating discrepancy
     // https://math.stackexchange.com/questions/1681562/how-to-calculate-discrepancy-of-a-sequence
 
-    // give invalid samples a value of 1.0 so they go to the end where they can be ignored
-    for (size_t index = numSamplesValid; index < NumItems; ++index)
-        samples[index] = 1.0f;
-
-    // Calculates the star discrepancy of this data vs the same number of evenly distributed samples.
-    // Assumes the data is [0,1).
+    // Calculates the discrepancy of this data.
+    // Assumes the data is [0,1) for valid sample range
     std::array<float, NumItems> sortedSamples = samples;
     std::sort(sortedSamples.begin(), sortedSamples.end());
 
@@ -231,7 +228,113 @@ float CalculateDiscrepancy1D (std::array<float, NumItems>& samples, size_t numSa
 }
 
 //======================================================================================
-void Test1D (const char* fileName, std::array<float, NUM_SAMPLES>& samples, size_t numSamplesValid = NUM_SAMPLES)
+template <size_t NumItems>
+float CalculateDiscrepancy2D (const std::array<std::array<float, 2>, NumItems>& samples, size_t numSamplesValid)
+{
+    // some info about calculating discrepancy
+    // https://math.stackexchange.com/questions/1681562/how-to-calculate-discrepancy-of-a-sequence
+
+    // Calculates the discrepancy of this data.
+    // Assumes the data is [0,1) for valid sample range
+    std::set<float> sortedSamplesX;
+    std::set<float> sortedSamplesY;
+    for (size_t i = 0; i < numSamplesValid; ++i)
+    {
+        sortedSamplesX.insert(samples[i][0]);
+        sortedSamplesY.insert(samples[i][1]);
+    }
+
+    // TODO: finish this!
+
+    /*
+    // TODO: also need to handle the case of going from 0 and to 1! so can't do range based i think. boohoo
+    float maxDifference = 0.0f;
+    for (auto startY = sortedSamplesY.begin(); startY != sortedSamplesY.end(); ++startY)
+    {
+        for (auto startX = sortedSamplesX.begin(); startX != sortedSamplesX.end(); ++startX)
+        {
+            for (auto stopY = startY; stopY != sortedSamplesY.end(); ++stopY)
+            {
+                for (auto stopX = startX; stopX != sortedSamplesX.end(); ++stopX)
+                {
+                    float width = *stopX - *startX;
+                    int ijkl = 0;
+                }
+            }
+        }
+    }
+    */
+
+        /*
+        // TODO: if not using range based, how do i get the i'th value from the set?
+    for (size_t startIndexY = 0; startIndexY <= sortedSamplesY.size(); ++startIndexY)
+    {
+        float startValueY = 0.0f;
+        if (startIndexY > 0)
+            startValueY = *(sortedSamplesY.begin() + 1);
+
+        for (size_t startIndexX = 0; startIndexX <= sortedSamplesX.size(); ++startIndexX)
+        {
+            for (size_t stopIndexY = startIndexY; stopIndexY <= sortedSamplesY.size(); ++stopIndexY)
+            {
+                for (size_t stopIndexX = startIndexX; stopIndexX <= sortedSamplesX.size(); ++stopIndexX)
+                {
+                    // stopIndex 0 = sortedSamples[0].  startIndex[N] = 1.0f. etc
+                }
+            }
+        }
+    }
+    */
+
+
+    int ijkl = 0;
+
+    /*
+    // Calculates the discrepancy of this data.
+    // Assumes the data is [0,1) for valid sample range
+    std::array<float, NumItems> sortedSamples = samples;
+    std::sort(sortedSamples.begin(), sortedSamples.end());
+
+    float maxDifference = 0.0f;
+    for (size_t startIndex = 0; startIndex <= numSamplesValid; ++startIndex)
+    {
+        // startIndex 0 = 0.0f.  startIndex 1 = sortedSamples[0]. etc
+
+        float startValue = 0.0f;
+        if (startIndex > 0)
+            startValue = sortedSamples[startIndex - 1];
+
+        for (size_t stopIndex = startIndex; stopIndex <= numSamplesValid; ++stopIndex)
+        {
+            // stopIndex 0 = sortedSamples[0].  startIndex[N] = 1.0f. etc
+
+            float stopValue = 1.0f;
+            if (stopIndex < numSamplesValid)
+                stopValue = sortedSamples[stopIndex];
+
+            float length = stopValue - startValue;
+
+            // half open interval [startValue, stopValue)
+            float density = (stopIndex - startIndex) / float(numSamplesValid);
+            float difference = std::abs(density - length);
+            if (difference > maxDifference)
+                maxDifference = difference;
+
+            // closed interval [startValue, stopValue]
+            density = (stopIndex - startIndex + 1) / float(numSamplesValid);
+            difference = std::abs(density - length);
+            if (difference > maxDifference)
+                maxDifference = difference;
+        }
+    }
+    return maxDifference;
+    */
+
+    return 0.0f;
+}
+
+//======================================================================================
+void Test1D (const char* fileName, const std::array<float, NUM_SAMPLES>& samples, size_t numSamplesValid = NUM_SAMPLES)
 {
     // create and clear the image
     SImageData image;
@@ -270,7 +373,9 @@ void Test2D (const char* fileName, const std::array<std::array<float,2>, NUM_SAM
     // setup the canvas
     ImageClear(image, COLOR_FILL);
 
-    // TODO: calculate discrepancy
+    // calculate the discrepancy
+    float discrepancy = CalculateDiscrepancy2D(samples, numSamplesValid);
+    printf("%s Discrepancy = %0.2f%%\n", fileName, discrepancy*100.0f);
 
     // draw the sample points
     for (size_t i = 0; i < numSamplesValid; ++i)
@@ -296,16 +401,13 @@ void Test2D (const char* fileName, const std::array<std::array<float,2>, NUM_SAM
 void TestUniform1D (bool jitter)
 {
     // calculate the sample points
-    const float c_cellSize = 1.0f / float(NUM_SAMPLES);
+    const float c_cellSize = 1.0f / float(NUM_SAMPLES+1);
     std::array<float, NUM_SAMPLES> samples;
     for (size_t i = 0; i < NUM_SAMPLES; ++i)
     {
-        samples[i] = float(i) / float(NUM_SAMPLES);
-
+        samples[i] = float(i+1) / float(NUM_SAMPLES+1);
         if (jitter)
-            samples[i] += RandomFloat(0.0f, c_cellSize);
-        else
-            samples[i] += c_cellSize * 0.5f;
+            samples[i] += RandomFloat(-c_cellSize*0.5f, c_cellSize*0.5f);
     }
 
     // save bitmap etc
@@ -462,6 +564,7 @@ void TestPoisson1D (float minDist)
 
     // calculate the sample points
     std::array<float, NUM_SAMPLES> samples;
+    std::fill(samples.begin(), samples.end(), 1000.0f);
     size_t sampleIndex = 0;
     bool failed = false;
     while (sampleIndex < NUM_SAMPLES && !failed)
@@ -504,24 +607,20 @@ void TestUniform2D (bool jitter)
     // calculate the sample points
     std::array<std::array<float, 2>, NUM_SAMPLES> samples;
     const size_t c_oneSide = size_t(std::sqrt(NUM_SAMPLES));
-    const float c_cellSize = 1.0f / float(c_oneSide);
+    const float c_cellSize = 1.0f / float(c_oneSide+1);
     for (size_t iy = 0; iy < c_oneSide; ++iy)
     {
         for (size_t ix = 0; ix < c_oneSide; ++ix)
         {
             size_t sampleIndex = iy * c_oneSide + ix;
 
-            samples[sampleIndex][0] = float(ix) / (float(c_oneSide) + 1.0f);
+            samples[sampleIndex][0] = float(ix + 1) / (float(c_oneSide + 1));
             if (jitter)
-                samples[sampleIndex][0] += RandomFloat(0.0f, c_cellSize);
-            else
-                samples[sampleIndex][0] += c_cellSize * 0.5f;
+                samples[sampleIndex][0] += RandomFloat(-c_cellSize*0.5f, c_cellSize*0.5f);
 
-            samples[sampleIndex][1] = float(iy) / (float(c_oneSide) + 1.0f);
+            samples[sampleIndex][1] = float(iy + 1) / (float(c_oneSide) + 1.0f);
             if (jitter)
-                samples[sampleIndex][1] += RandomFloat(0.0f, c_cellSize);
-            else
-                samples[sampleIndex][1] += c_cellSize * 0.5f;
+                samples[sampleIndex][1] += RandomFloat(-c_cellSize*0.5f, c_cellSize*0.5f);
         }
     }
 
@@ -792,6 +891,8 @@ void TestPoisson2D (float minDist)
 
     // calculate the sample points
     std::array<std::array<float, 2>, NUM_SAMPLES> samples;
+    std::array<float, 2> defaultSample = { 1000.0f, 2000.0f };
+    std::fill(samples.begin(), samples.end(), defaultSample);
     size_t sampleIndex = 0;
     bool failed = false;
     while (sampleIndex < NUM_SAMPLES && !failed)
@@ -931,7 +1032,7 @@ int main (int argc, char **argv)
 
 TODO:
 * calculate 2d discrepancy
-* 1d and 2d uniform / jitter aren't working quite right.  check it out especially at low sample sizes!
+? do better poisson disk samples?
 * test on x86 and x64!
 
 BLOG:
