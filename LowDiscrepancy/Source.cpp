@@ -235,102 +235,104 @@ float CalculateDiscrepancy2D (const std::array<std::array<float, 2>, NumItems>& 
     // https://math.stackexchange.com/questions/1681562/how-to-calculate-discrepancy-of-a-sequence
 
     // Calculates the discrepancy of this data.
-    // Assumes the data is [0,1) for valid sample range
-    std::set<float> sortedSamplesX;
-    std::set<float> sortedSamplesY;
+    // Assumes the data is [0,1) for valid sample range.
+
+    // Get the sorted list of unique values on each axis
+    std::set<float> setSamplesX;
+    std::set<float> setSamplesY;
     for (size_t i = 0; i < numSamplesValid; ++i)
     {
-        sortedSamplesX.insert(samples[i][0]);
-        sortedSamplesY.insert(samples[i][1]);
+        setSamplesX.insert(samples[i][0]);
+        setSamplesY.insert(samples[i][1]);
     }
+    std::vector<float> sortedXSamples;
+    std::vector<float> sortedYSamples;
+    sortedXSamples.reserve(setSamplesX.size());
+    sortedYSamples.reserve(setSamplesY.size());
+    for (float f : setSamplesX)
+        sortedXSamples.push_back(f);
+    for (float f : setSamplesY)
+        sortedYSamples.push_back(f);
 
-    // TODO: finish this!
-
-    /*
-    // TODO: also need to handle the case of going from 0 and to 1! so can't do range based i think. boohoo
-    float maxDifference = 0.0f;
-    for (auto startY = sortedSamplesY.begin(); startY != sortedSamplesY.end(); ++startY)
-    {
-        for (auto startX = sortedSamplesX.begin(); startX != sortedSamplesX.end(); ++startX)
+    // Get the sorted list of samples on the X axis, for faster interval testing
+    std::array<std::array<float, 2>, NumItems> sortedSamplesX = samples;
+    std::sort(sortedSamplesX.begin(), sortedSamplesX.end(),
+        [] (const std::array<float, 2>& itemA, const std::array<float, 2>& itemB)
         {
-            for (auto stopY = startY; stopY != sortedSamplesY.end(); ++stopY)
-            {
-                for (auto stopX = startX; stopX != sortedSamplesX.end(); ++stopX)
-                {
-                    float width = *stopX - *startX;
-                    int ijkl = 0;
-                }
-            }
+            return itemA[0] < itemB[0];
         }
-    }
-    */
+    );
 
-        /*
-        // TODO: if not using range based, how do i get the i'th value from the set?
-    for (size_t startIndexY = 0; startIndexY <= sortedSamplesY.size(); ++startIndexY)
+    // calculate discrepancy
+    float maxDifference = 0.0f;
+    for (size_t startIndexY = 0; startIndexY <= sortedYSamples.size(); ++startIndexY)
     {
         float startValueY = 0.0f;
         if (startIndexY > 0)
-            startValueY = *(sortedSamplesY.begin() + 1);
+            startValueY = *(sortedYSamples.begin() + startIndexY - 1);
 
-        for (size_t startIndexX = 0; startIndexX <= sortedSamplesX.size(); ++startIndexX)
+        for (size_t startIndexX = 0; startIndexX <= sortedXSamples.size(); ++startIndexX)
         {
-            for (size_t stopIndexY = startIndexY; stopIndexY <= sortedSamplesY.size(); ++stopIndexY)
+            float startValueX = 0.0f;
+            if (startIndexX > 0)
+                startValueX = *(sortedXSamples.begin() + startIndexX - 1);
+
+            for (size_t stopIndexY = startIndexY; stopIndexY <= sortedYSamples.size(); ++stopIndexY)
             {
-                for (size_t stopIndexX = startIndexX; stopIndexX <= sortedSamplesX.size(); ++stopIndexX)
+                float stopValueY = 1.0f;
+                if (stopIndexY < sortedYSamples.size())
+                    stopValueY = sortedYSamples[stopIndexY];
+
+                for (size_t stopIndexX = startIndexX; stopIndexX <= sortedXSamples.size(); ++stopIndexX)
                 {
-                    // stopIndex 0 = sortedSamples[0].  startIndex[N] = 1.0f. etc
+                    float stopValueX = 1.0f;
+                    if (stopIndexX < sortedXSamples.size())
+                        stopValueX = sortedXSamples[stopIndexX];
+
+                    // calculate area
+                    float length = stopValueX - startValueX;
+                    float height = stopValueY - startValueY;
+                    float area = length * height;
+
+                    // half open interval [startValue, stopValue)
+                    size_t countInside = 0;
+                    for (size_t sampleIndex = 0; sampleIndex < numSamplesValid; ++sampleIndex)
+                    {
+                        if (samples[sampleIndex][0] >= startValueX &&
+                            samples[sampleIndex][1] >= startValueY &&
+                            samples[sampleIndex][0] < stopValueX &&
+                            samples[sampleIndex][1] < stopValueY)
+                        {
+                            ++countInside;
+                        }
+                    }
+                    float density = float(countInside) / float(numSamplesValid);
+                    float difference = std::abs(density - area);
+                    if (difference > maxDifference)
+                        maxDifference = difference;
+
+                    // closed interval [startValue, stopValue]
+                    countInside = 0;
+                    for (size_t sampleIndex = 0; sampleIndex < numSamplesValid; ++sampleIndex)
+                    {
+                        if (samples[sampleIndex][0] >= startValueX &&
+                            samples[sampleIndex][1] >= startValueY &&
+                            samples[sampleIndex][0] <= stopValueX &&
+                            samples[sampleIndex][1] <= stopValueY)
+                        {
+                            ++countInside;
+                        }
+                    }
+                    density = float(countInside) / float(numSamplesValid);
+                    difference = std::abs(density - area);
+                    if (difference > maxDifference)
+                        maxDifference = difference;
                 }
             }
         }
     }
-    */
 
-
-    int ijkl = 0;
-
-    /*
-    // Calculates the discrepancy of this data.
-    // Assumes the data is [0,1) for valid sample range
-    std::array<float, NumItems> sortedSamples = samples;
-    std::sort(sortedSamples.begin(), sortedSamples.end());
-
-    float maxDifference = 0.0f;
-    for (size_t startIndex = 0; startIndex <= numSamplesValid; ++startIndex)
-    {
-        // startIndex 0 = 0.0f.  startIndex 1 = sortedSamples[0]. etc
-
-        float startValue = 0.0f;
-        if (startIndex > 0)
-            startValue = sortedSamples[startIndex - 1];
-
-        for (size_t stopIndex = startIndex; stopIndex <= numSamplesValid; ++stopIndex)
-        {
-            // stopIndex 0 = sortedSamples[0].  startIndex[N] = 1.0f. etc
-
-            float stopValue = 1.0f;
-            if (stopIndex < numSamplesValid)
-                stopValue = sortedSamples[stopIndex];
-
-            float length = stopValue - startValue;
-
-            // half open interval [startValue, stopValue)
-            float density = (stopIndex - startIndex) / float(numSamplesValid);
-            float difference = std::abs(density - length);
-            if (difference > maxDifference)
-                maxDifference = difference;
-
-            // closed interval [startValue, stopValue]
-            density = (stopIndex - startIndex + 1) / float(numSamplesValid);
-            difference = std::abs(density - length);
-            if (difference > maxDifference)
-                maxDifference = difference;
-        }
-    }
     return maxDifference;
-    */
-
-    return 0.0f;
 }
 
 //======================================================================================
