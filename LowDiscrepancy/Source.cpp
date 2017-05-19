@@ -1032,11 +1032,6 @@ int main (int argc, char **argv)
 
 /*
 
-TODO:
-* calculate 2d discrepancy
-? do better poisson disk samples?
-* test on x86 and x64!
-
 BLOG:
 * explanation at top should be like
  * "imagine you want to calculate the average of a function"
@@ -1070,6 +1065,7 @@ BLOG:
  * too large and you won't be able to find places for all your samples, so there will be large gaps and high discrepancy.
  * with the perfect value, you'll have N samples all there, and they will be maximally far apart from each other.
  * there are better methods for generating poisson. (link? the thing about generating multiple candidate points and using the best one? mitchels? mitchelsons?)
+ * a good place to start: https://www.johndcook.com/blog/2010/06/14/generating-poisson-random-values/
 
 LINKS:
 fibanocci colors: http://martin.ankerl.com/2009/12/09/how-to-create-random-colors-programmatically/
