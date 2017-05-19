@@ -14,6 +14,9 @@ typedef uint8_t uint8;
 #define NUM_SAMPLES 100  // to simplify some 2d code, this must be a square
 #define NUM_SAMPLES_FOR_COLORING 100
 
+// Turning this on will slow things down significantly because it's an O(N^5) operation for 2d!
+#define CALCULATE_DISCREPANCY 0
+
 #define IMAGE1D_WIDTH 600
 #define IMAGE1D_HEIGHT 50
 #define IMAGE2D_WIDTH 300
@@ -181,19 +184,18 @@ size_t Ruler (size_t n)
 }
 
 //======================================================================================
-template <size_t NumItems>
-float CalculateDiscrepancy1D (const std::array<float, NumItems>& samples, size_t numSamplesValid)
+float CalculateDiscrepancy1D (const std::array<float, NUM_SAMPLES>& samples)
 {
     // some info about calculating discrepancy
     // https://math.stackexchange.com/questions/1681562/how-to-calculate-discrepancy-of-a-sequence
 
     // Calculates the discrepancy of this data.
     // Assumes the data is [0,1) for valid sample range
-    std::array<float, NumItems> sortedSamples = samples;
+    std::array<float, NUM_SAMPLES> sortedSamples = samples;
     std::sort(sortedSamples.begin(), sortedSamples.end());
 
     float maxDifference = 0.0f;
-    for (size_t startIndex = 0; startIndex <= numSamplesValid; ++startIndex)
+    for (size_t startIndex = 0; startIndex <= NUM_SAMPLES; ++startIndex)
     {
         // startIndex 0 = 0.0f.  startIndex 1 = sortedSamples[0]. etc
 
@@ -201,24 +203,24 @@ float CalculateDiscrepancy1D (const std::array<float, NumItems>& samples, size_t
         if (startIndex > 0)
             startValue = sortedSamples[startIndex - 1];
 
-        for (size_t stopIndex = startIndex; stopIndex <= numSamplesValid; ++stopIndex)
+        for (size_t stopIndex = startIndex; stopIndex <= NUM_SAMPLES; ++stopIndex)
         {
             // stopIndex 0 = sortedSamples[0].  startIndex[N] = 1.0f. etc
 
             float stopValue = 1.0f;
-            if (stopIndex < numSamplesValid)
+            if (stopIndex < NUM_SAMPLES)
                 stopValue = sortedSamples[stopIndex];
 
             float length = stopValue - startValue;
 
             // half open interval [startValue, stopValue)
-            float density = (stopIndex - startIndex) / float(numSamplesValid);
+            float density = (stopIndex - startIndex) / float(NUM_SAMPLES);
             float difference = std::abs(density - length);
             if (difference > maxDifference)
                 maxDifference = difference;
 
             // closed interval [startValue, stopValue]
-            density = (stopIndex - startIndex + 1) / float(numSamplesValid);
+            density = (stopIndex - startIndex + 1) / float(NUM_SAMPLES);
             difference = std::abs(density - length);
             if (difference > maxDifference)
                 maxDifference = difference;
@@ -228,8 +230,7 @@ float CalculateDiscrepancy1D (const std::array<float, NumItems>& samples, size_t
 }
 
 //======================================================================================
-template <size_t NumItems>
-float CalculateDiscrepancy2D (const std::array<std::array<float, 2>, NumItems>& samples, size_t numSamplesValid)
+float CalculateDiscrepancy2D (const std::array<std::array<float, 2>, NUM_SAMPLES>& samples)
 {
     // some info about calculating discrepancy
     // https://math.stackexchange.com/questions/1681562/how-to-calculate-discrepancy-of-a-sequence
@@ -240,10 +241,10 @@ float CalculateDiscrepancy2D (const std::array<std::array<float, 2>, NumItems>& 
     // Get the sorted list of unique values on each axis
     std::set<float> setSamplesX;
     std::set<float> setSamplesY;
-    for (size_t i = 0; i < numSamplesValid; ++i)
+    for (const std::array<float, 2>& sample : samples)
     {
-        setSamplesX.insert(samples[i][0]);
-        setSamplesY.insert(samples[i][1]);
+        setSamplesX.insert(sample[0]);
+        setSamplesY.insert(sample[1]);
     }
     std::vector<float> sortedXSamples;
     std::vector<float> sortedYSamples;
@@ -255,7 +256,7 @@ float CalculateDiscrepancy2D (const std::array<std::array<float, 2>, NumItems>& 
         sortedYSamples.push_back(f);
 
     // Get the sorted list of samples on the X axis, for faster interval testing
-    std::array<std::array<float, 2>, NumItems> sortedSamplesX = samples;
+    std::array<std::array<float, 2>, NUM_SAMPLES> sortedSamplesX = samples;
     std::sort(sortedSamplesX.begin(), sortedSamplesX.end(),
         [] (const std::array<float, 2>& itemA, const std::array<float, 2>& itemB)
         {
@@ -296,34 +297,34 @@ float CalculateDiscrepancy2D (const std::array<std::array<float, 2>, NumItems>& 
 
                     // half open interval [startValue, stopValue)
                     size_t countInside = 0;
-                    for (size_t sampleIndex = 0; sampleIndex < numSamplesValid; ++sampleIndex)
+                    for (const std::array<float, 2>& sample : samples)
                     {
-                        if (samples[sampleIndex][0] >= startValueX &&
-                            samples[sampleIndex][1] >= startValueY &&
-                            samples[sampleIndex][0] < stopValueX &&
-                            samples[sampleIndex][1] < stopValueY)
+                        if (sample[0] >= startValueX &&
+                            sample[1] >= startValueY &&
+                            sample[0] < stopValueX &&
+                            sample[1] < stopValueY)
                         {
                             ++countInside;
                         }
                     }
-                    float density = float(countInside) / float(numSamplesValid);
+                    float density = float(countInside) / float(NUM_SAMPLES);
                     float difference = std::abs(density - area);
                     if (difference > maxDifference)
                         maxDifference = difference;
 
                     // closed interval [startValue, stopValue]
                     countInside = 0;
-                    for (size_t sampleIndex = 0; sampleIndex < numSamplesValid; ++sampleIndex)
+                    for (const std::array<float, 2>& sample : samples)
                     {
-                        if (samples[sampleIndex][0] >= startValueX &&
-                            samples[sampleIndex][1] >= startValueY &&
-                            samples[sampleIndex][0] <= stopValueX &&
-                            samples[sampleIndex][1] <= stopValueY)
+                        if (sample[0] >= startValueX &&
+                            sample[1] >= startValueY &&
+                            sample[0] <= stopValueX &&
+                            sample[1] <= stopValueY)
                         {
                             ++countInside;
                         }
                     }
-                    density = float(countInside) / float(numSamplesValid);
+                    density = float(countInside) / float(NUM_SAMPLES);
                     difference = std::abs(density - area);
                     if (difference > maxDifference)
                         maxDifference = difference;
@@ -336,7 +337,7 @@ float CalculateDiscrepancy2D (const std::array<std::array<float, 2>, NumItems>& 
 }
 
 //======================================================================================
-void Test1D (const char* fileName, const std::array<float, NUM_SAMPLES>& samples, size_t numSamplesValid = NUM_SAMPLES)
+void Test1D (const char* fileName, const std::array<float, NUM_SAMPLES>& samples)
 {
     // create and clear the image
     SImageData image;
@@ -346,14 +347,18 @@ void Test1D (const char* fileName, const std::array<float, NUM_SAMPLES>& samples
     ImageClear(image, COLOR_FILL);
 
     // calculate the discrepancy
-    float discrepancy = CalculateDiscrepancy1D(samples, numSamplesValid);
-    printf("%s Discrepancy = %0.2f%%\n", fileName, discrepancy*100.0f);
+    #if CALCULATE_DISCREPANCY
+        float discrepancy = CalculateDiscrepancy1D(samples);
+        printf("%s Discrepancy = %0.2f%%\n", fileName, discrepancy*100.0f);
+    #endif
 
     // draw the sample points
-    for (size_t i = 0; i < numSamplesValid; ++i)
+    size_t i = 0;
+    for (float f: samples)
     {
-        size_t pos = size_t(samples[i] * float(IMAGE1D_WIDTH)) + IMAGE_PAD;
+        size_t pos = size_t(f * float(IMAGE1D_WIDTH)) + IMAGE_PAD;
         ImageBox(image, pos, pos + 1, IMAGE1D_CENTERY - DATA_HEIGHT / 2, IMAGE1D_CENTERY + DATA_HEIGHT / 2, DataPointColor(i));
+        ++i;
     }
 
     // draw the axes lines. horizontal first then the two vertical
@@ -366,7 +371,7 @@ void Test1D (const char* fileName, const std::array<float, NUM_SAMPLES>& samples
 }
 
 //======================================================================================
-void Test2D (const char* fileName, const std::array<std::array<float,2>, NUM_SAMPLES>& samples, size_t numSamplesValid = NUM_SAMPLES)
+void Test2D (const char* fileName, const std::array<std::array<float,2>, NUM_SAMPLES>& samples)
 {
     // create and clear the image
     SImageData image;
@@ -376,15 +381,19 @@ void Test2D (const char* fileName, const std::array<std::array<float,2>, NUM_SAM
     ImageClear(image, COLOR_FILL);
 
     // calculate the discrepancy
-    float discrepancy = CalculateDiscrepancy2D(samples, numSamplesValid);
-    printf("%s Discrepancy = %0.2f%%\n", fileName, discrepancy*100.0f);
+    #if CALCULATE_DISCREPANCY
+        float discrepancy = CalculateDiscrepancy2D(samples);
+        printf("%s Discrepancy = %0.2f%%\n", fileName, discrepancy*100.0f);
+    #endif
 
     // draw the sample points
-    for (size_t i = 0; i < numSamplesValid; ++i)
+    size_t i = 0;
+    for (const std::array<float, 2>& sample : samples)
     {
-        size_t posx = size_t(samples[i][0] * float(IMAGE2D_WIDTH)) + IMAGE_PAD;
-        size_t posy = size_t(samples[i][1] * float(IMAGE2D_WIDTH)) + IMAGE_PAD;
+        size_t posx = size_t(sample[0] * float(IMAGE2D_WIDTH)) + IMAGE_PAD;
+        size_t posy = size_t(sample[1] * float(IMAGE2D_WIDTH)) + IMAGE_PAD;
         ImageBox(image, posx - 1, posx + 1, posy - 1, posy + 1, DataPointColor(i));
+        ++i;
     }
 
     // horizontal lines
@@ -560,47 +569,49 @@ void TestHammersley1D (size_t truncateBits)
 }
 
 //======================================================================================
-void TestPoisson1D (float minDist)
+float MinimumDistance1D (const std::array<float, NUM_SAMPLES>& samples, size_t numSamples, float x)
 {
-    const size_t c_failedAttemptsAllowed = 30;
+    // Used by poisson.
+    // This returns the minimum distance that point (x) is away from the sample points, from [0, numSamples).
+    float minimumDistance = 0.0f;
+    for (size_t i = 0; i < numSamples; ++i)
+    {
+        float distance = std::abs(samples[i] - x);
+        if (i == 0 || distance < minimumDistance)
+            minimumDistance = distance;
+    }
+    return minimumDistance;
+}
+
+//======================================================================================
+void TestPoisson1D ()
+{
+    // every time we want to place a point, we generate this many points and choose the one farthest away from all the other points (largest minimum distance)
+    const size_t c_bestOfAttempts = 100;
 
     // calculate the sample points
     std::array<float, NUM_SAMPLES> samples;
-    std::fill(samples.begin(), samples.end(), 1000.0f);
-    size_t sampleIndex = 0;
-    bool failed = false;
-    while (sampleIndex < NUM_SAMPLES && !failed)
+    for (size_t sampleIndex = 0; sampleIndex < NUM_SAMPLES; ++sampleIndex)
     {
-        size_t failedAttemptsRemaining = c_failedAttemptsAllowed;
-        while (failedAttemptsRemaining > 0)
+        // generate some random points and keep the one that has the largest minimum distance from any of the existing points
+        float bestX = 0.0f;
+        float bestMinDistance = 0.0f;
+        for (size_t attempt = 0; attempt < c_bestOfAttempts; ++attempt)
         {
-            float value = RandomFloat(0.0f, 1.0f);
+            float attemptX = RandomFloat(0.0f, 1.0f);
+            float minDistance = MinimumDistance1D(samples, sampleIndex, attemptX);
 
-            size_t testSampleIndex = 0;
-            while (testSampleIndex < sampleIndex && std::abs(value - samples[testSampleIndex]) >= minDist)
-                ++testSampleIndex;
-
-            if (testSampleIndex == sampleIndex)
+            if (minDistance > bestMinDistance)
             {
-                samples[sampleIndex] = value;
-                break;
-            }
-            else
-            {
-                --failedAttemptsRemaining;
+                bestX = attemptX;
+                bestMinDistance = minDistance;
             }
         }
-
-        if (failedAttemptsRemaining == 0)
-            failed = true;
-        else
-            ++sampleIndex;
+        samples[sampleIndex] = bestX;
     }
 
     // save bitmap etc
-    char fileName[256];
-    sprintf(fileName, "1DPoisson_%f.bmp", minDist);
-    Test1D(fileName, samples, sampleIndex - 1);
+    Test1D("1DPoisson.bmp", samples);
 }
 
 //======================================================================================
@@ -887,50 +898,53 @@ void TestIrrational2D (float irrationalx, float irrationaly, float seedx, float 
 }
 
 //======================================================================================
-void TestPoisson2D (float minDist)
+float MinimumDistance2D (const std::array<std::array<float, 2>, NUM_SAMPLES>& samples, size_t numSamples, float x, float y)
 {
-    const size_t c_failedAttemptsAllowed = 30;
+    // Used by poisson.
+    // This returns the minimum distance that point (x,y) is away from the sample points, from [0, numSamples).
+    float minimumDistance = 0.0f;
+    for (size_t i = 0; i < numSamples; ++i)
+    {
+        float distance = Distance(samples[i][0], samples[i][1], x, y);
+        if (i == 0 || distance < minimumDistance)
+            minimumDistance = distance;
+    }
+    return minimumDistance;
+}
+
+//======================================================================================
+void TestPoisson2D ()
+{
+    // every time we want to place a point, we generate this many points and choose the one farthest away from all the other points (largest minimum distance)
+    const size_t c_bestOfAttempts = 100;
 
     // calculate the sample points
     std::array<std::array<float, 2>, NUM_SAMPLES> samples;
-    std::array<float, 2> defaultSample = { 1000.0f, 2000.0f };
-    std::fill(samples.begin(), samples.end(), defaultSample);
-    size_t sampleIndex = 0;
-    bool failed = false;
-    while (sampleIndex < NUM_SAMPLES && !failed)
+    for (size_t sampleIndex = 0; sampleIndex < NUM_SAMPLES; ++sampleIndex)
     {
-        size_t failedAttemptsRemaining = c_failedAttemptsAllowed;
-        while (failedAttemptsRemaining > 0)
+        // generate some random points and keep the one that has the largest minimum distance from any of the existing points
+        float bestX = 0.0f;
+        float bestY = 0.0f;
+        float bestMinDistance = 0.0f;
+        for (size_t attempt = 0; attempt < c_bestOfAttempts; ++attempt)
         {
-            float valueX = RandomFloat(0.0f, 1.0f);
-            float valueY = RandomFloat(0.0f, 1.0f);
+            float attemptX = RandomFloat(0.0f, 1.0f);
+            float attemptY = RandomFloat(0.0f, 1.0f);
+            float minDistance = MinimumDistance2D(samples, sampleIndex, attemptX, attemptY);
 
-            size_t testSampleIndex = 0;
-            while (testSampleIndex < sampleIndex && Distance(valueX, valueY, samples[testSampleIndex][0], samples[testSampleIndex][1]) >= minDist)
-                ++testSampleIndex;
-
-            if (testSampleIndex == sampleIndex)
+            if (minDistance > bestMinDistance)
             {
-                samples[sampleIndex][0] = valueX;
-                samples[sampleIndex][1] = valueY;
-                break;
-            }
-            else
-            {
-                --failedAttemptsRemaining;
+                bestX = attemptX;
+                bestY = attemptY;
+                bestMinDistance = minDistance;
             }
         }
-
-        if (failedAttemptsRemaining == 0)
-            failed = true;
-        else
-            ++sampleIndex;
+        samples[sampleIndex][0] = bestX;
+        samples[sampleIndex][1] = bestY;
     }
 
     // save bitmap etc
-    char fileName[256];
-    sprintf(fileName, "2DPoisson_%f.bmp", minDist);
-    Test2D(fileName, samples, sampleIndex - 1);
+    Test2D("2DPoisson.bmp", samples);
 }
 
 //======================================================================================
@@ -980,9 +994,7 @@ int main (int argc, char **argv)
         TestHammersley1D(1);
         TestHammersley1D(2);
 
-        TestPoisson1D(0.0001f);
-        TestPoisson1D(0.0075f);
-        TestPoisson1D(0.1f);
+        TestPoisson1D();
     }
 
     // 2D tests
@@ -1021,13 +1033,13 @@ int main (int argc, char **argv)
         TestIrrational2D(std::fmodf((float)std::sqrt(2.0f), 1.0f), std::fmodf((float)std::sqrt(3.0f), 1.0f), 0.0f, 0.0f);
         TestIrrational2D(std::fmodf((float)std::sqrt(2.0f), 1.0f), std::fmodf((float)std::sqrt(3.0f), 1.0f), 0.775719f, 0.264045f);
 
-        TestPoisson2D(0.01f);
-        TestPoisson2D(0.1f);
-        TestPoisson2D(0.5f);
+        TestPoisson2D();
     }
 
-    printf("\n");
-    system("pause");
+    #if CALCULATE_DISCREPANCY
+        printf("\n");
+        system("pause");
+    #endif
 }
 
 /*
