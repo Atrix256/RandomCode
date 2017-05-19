@@ -277,6 +277,10 @@ float CalculateDiscrepancy2D (const std::array<std::array<float, 2>, NumItems>& 
             if (startIndexX > 0)
                 startValueX = *(sortedXSamples.begin() + startIndexX - 1);
 
+            size_t sortedSamplesXStartIndex = 0;
+            while (sortedSamplesXStartIndex < sortedSamplesX.size() && sortedSamplesX[sortedSamplesXStartIndex][0] < startValueX)
+                ++sortedSamplesXStartIndex;
+
             for (size_t stopIndexY = startIndexY; stopIndexY <= sortedYSamples.size(); ++stopIndexY)
             {
                 float stopValueY = 1.0f;
@@ -296,15 +300,15 @@ float CalculateDiscrepancy2D (const std::array<std::array<float, 2>, NumItems>& 
 
                     // half open interval [startValue, stopValue)
                     size_t countInside = 0;
-                    for (size_t sampleIndex = 0; sampleIndex < numSamplesValid; ++sampleIndex)
+                    size_t sampleIndex = sortedSamplesXStartIndex;
+                    while (sampleIndex < numSamplesValid && samples[sampleIndex][0] < stopValueX)
                     {
-                        if (samples[sampleIndex][0] >= startValueX &&
-                            samples[sampleIndex][1] >= startValueY &&
-                            samples[sampleIndex][0] < stopValueX &&
+                        if (samples[sampleIndex][1] >= startValueY &&
                             samples[sampleIndex][1] < stopValueY)
                         {
                             ++countInside;
                         }
+                        ++sampleIndex;
                     }
                     float density = float(countInside) / float(numSamplesValid);
                     float difference = std::abs(density - area);
@@ -313,15 +317,15 @@ float CalculateDiscrepancy2D (const std::array<std::array<float, 2>, NumItems>& 
 
                     // closed interval [startValue, stopValue]
                     countInside = 0;
-                    for (size_t sampleIndex = 0; sampleIndex < numSamplesValid; ++sampleIndex)
+                    sampleIndex = sortedSamplesXStartIndex;
+                    while (sampleIndex < numSamplesValid && samples[sampleIndex][0] <= stopValueX)
                     {
-                        if (samples[sampleIndex][0] >= startValueX &&
-                            samples[sampleIndex][1] >= startValueY &&
-                            samples[sampleIndex][0] <= stopValueX &&
+                        if (samples[sampleIndex][1] >= startValueY &&
                             samples[sampleIndex][1] <= stopValueY)
                         {
                             ++countInside;
                         }
+                        ++sampleIndex;
                     }
                     density = float(countInside) / float(numSamplesValid);
                     difference = std::abs(density - area);
