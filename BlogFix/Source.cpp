@@ -28,7 +28,7 @@ int main(int argc, char **argv)
         }
         else
         {
-            static const char* startString = "$latex ";
+            static const char* startString = "$latex";
             if (c == startString[matchIndex])
             {
                 ++matchIndex;
