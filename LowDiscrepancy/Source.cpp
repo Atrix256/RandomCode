@@ -213,14 +213,32 @@ float CalculateDiscrepancy1D (const std::array<float, NUM_SAMPLES>& samples)
 
             float length = stopValue - startValue;
 
-            // half open interval [startValue, stopValue)
-            float density = (stopIndex - startIndex) / float(NUM_SAMPLES);
+            // open interval (startValue, stopValue)
+            size_t countInside = 0;
+            for (float sample : samples)
+            {
+                if (sample > startValue &&
+                    sample < stopValue)
+                {
+                    ++countInside;
+                }
+            }
+            float density = float(countInside) / float(NUM_SAMPLES);
             float difference = std::abs(density - length);
             if (difference > maxDifference)
                 maxDifference = difference;
 
             // closed interval [startValue, stopValue]
-            density = (stopIndex - startIndex + 1) / float(NUM_SAMPLES);
+            countInside = 0;
+            for (float sample : samples)
+            {
+                if (sample >= startValue &&
+                    sample <= stopValue)
+                {
+                    ++countInside;
+                }
+            }
+            density = float(countInside) / float(NUM_SAMPLES);
             difference = std::abs(density - length);
             if (difference > maxDifference)
                 maxDifference = difference;
@@ -295,12 +313,12 @@ float CalculateDiscrepancy2D (const std::array<std::array<float, 2>, NUM_SAMPLES
                     float height = stopValueY - startValueY;
                     float area = length * height;
 
-                    // half open interval [startValue, stopValue)
+                    // open interval (startValue, stopValue)
                     size_t countInside = 0;
                     for (const std::array<float, 2>& sample : samples)
                     {
-                        if (sample[0] >= startValueX &&
-                            sample[1] >= startValueY &&
+                        if (sample[0] > startValueX &&
+                            sample[1] > startValueY &&
                             sample[0] < stopValueX &&
                             sample[1] < stopValueY)
                         {
