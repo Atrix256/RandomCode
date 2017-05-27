@@ -1063,20 +1063,7 @@ int main (int argc, char **argv)
 /*
 
 BLOG:
-* explanation at top should be like
- * "imagine you want to calculate the average of a function"
- * low numbers of samples... random could clump and you don't get a good result.
- * even distribution is good, but you can get aliasing.
- * want something pretty even but still have randomness
- * the randomness turns aliasing into noise
- * maybe also how for instance in this case, uniform sampling is limited to rational numbers (numbers that can be expressed as a fraction), but random sampling doesn't have that limitation.
- * note many types of discrepancy calculations, I'm using star discrepancy (not star anymore)
- * Better example: give player 5 random items, don't want them all to be bad or all good. A good mix usually. ??
-? should i show the sequence with fewer points then more and more?
-* i tried adding a progressively smaller jitter to van der corput but it seemed to make the sampling worse
 * not only is golden ratio a good irrational, it's supposedly the best says wikipedia!  https://en.wikipedia.org/wiki/Low-discrepancy_sequence#Additive_recurrence
-* golden ratio, van der corput are nice in that you don't have to know in advance how many samples you want to take.
- * many of these are
 * 1D sobol (which is a simplified sobol) is actually van der corput sequence re-arranged a little bit.
 * truncating 1D hammersley doesn't make sense. it is a way better idea in 2d since it makes more variation.
 * halton is 2d van der corput
@@ -1148,4 +1135,19 @@ http://marc-b-reynolds.github.io/math/2016/02/24/weyl.html
 * poisson disc
 https://www.jasondavies.com/poisson-disc/
 
+
+
+
+
+BLOG DONE:
+
+* explanation at top should be like
+* "imagine you want to calculate the average of a function"
+* low numbers of samples... random could clump and you don't get a good result.
+* even distribution is good, but you can get aliasing.
+* want something pretty even but still have randomness
+* the randomness turns aliasing into noise
+* maybe also how for instance in this case, uniform sampling is limited to rational numbers (numbers that can be expressed as a fraction), but random sampling doesn't have that limitation.
+* note many types of discrepancy calculations, I'm using star discrepancy (not star anymore)
+* Better example: give player 5 random items, don't want them all to be bad or all good. A good mix usually. ??
 */
