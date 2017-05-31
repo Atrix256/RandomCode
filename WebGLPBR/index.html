@@ -2,8 +2,11 @@
 <head>
 <title>WebGL</title>
 <style type="text/css">
-body { color: #00FF00; background-color:black;}
-canvas#RenderWindow {width:100%; height:100%;}
+body { border-collapse: collapse; margin:0; padding:0;}
+canvas#RenderWindow {position: absolute; left: 0; top: 0; z-index: 0; width:100%; height:100%;}
+span#DebugPanel {position: absolute; right: 0; top: 0; z-index: 1; color: #00FF00; background-color: rgba(255,255,255,0.3); padding: 10px;}
+div#WholeWindow {position:relative; width:100%; height:100%;}
+a#DebugPanelCollapseIcon {color:#00FF00;text-decoration: none; font-weight: bold;}
 }
 </style>
 <script>
@@ -12,10 +15,12 @@ Created by Alan Wolfe
 http://demofox.org
 http://blog.demofox.org
 https://twitter.com/Atrix256
+
 =========================================================================================*/
 
 var g_canvas = null;
 var gl = null;
+var g_debugPanelOpen = true;
 
 var g_program = null;
 var g_vao = null;
@@ -109,7 +114,7 @@ function DrawScene ()
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 
     // Clear the canvas
-    gl.clearColor(0, 0, 0, 0);
+    gl.clearColor(0, 0, 0, 255);
     gl.clear(gl.COLOR_BUFFER_BIT);    
 
     // Tell it to use our program (pair of shaders)
@@ -125,7 +130,25 @@ function DrawScene ()
 
     // request another frame to be drawn
     requestAnimationFrame(DrawScene);
+}
 
+//=========================================================================================
+function ToggleDebugPanel()
+{
+    g_debugPanelOpen = !g_debugPanelOpen;
+
+    if (g_debugPanelOpen)
+    {
+        document.getElementById("DebugPanelControls").style.visibility = "visible";
+        document.getElementById("DebugPanelControls").style.display = "";        
+        document.getElementById("DebugPanelCollapseIcon").innerText="[^] Debug Panel";
+    }
+    else
+    {
+        document.getElementById("DebugPanelControls").style.visibility = "hidden";
+        document.getElementById("DebugPanelControls").style.display = "none";        
+        document.getElementById("DebugPanelCollapseIcon").innerText="[+] Debug Panel";
+    }
 }
 
 //=========================================================================================
@@ -177,5 +200,14 @@ function Initialize()
 </script>
 </head>
 <body onLoad="Initialize();">
-<canvas id="RenderWindow"></canvas>
+<div id="WholeWindow">
+    <canvas id="RenderWindow"></canvas>
+    <span id="DebugPanel">
+        <a href="#" id="DebugPanelCollapseIcon" onClick="ToggleDebugPanel(); return false;">[^] Debug Panel</a><br/>
+        <span id="DebugPanelControls">
+            <hr>
+            <label><input type="checkbox" id="Wireframe"/>Wireframe</label>
+        </span>
+    </span>
+</div>
 </body>
