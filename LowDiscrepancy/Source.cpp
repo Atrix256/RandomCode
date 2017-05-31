@@ -1063,26 +1063,6 @@ int main (int argc, char **argv)
 /*
 
 BLOG:
-* not only is golden ratio a good irrational, it's supposedly the best says wikipedia!  https://en.wikipedia.org/wiki/Low-discrepancy_sequence#Additive_recurrence
-* 1D sobol (which is a simplified sobol) is actually van der corput sequence re-arranged a little bit.
-* truncating 1D hammersley doesn't make sense. it is a way better idea in 2d since it makes more variation.
-* halton is 2d van der corput
-* 2D rooks sort of are uniform on one axis (y in my case) and random on x, although the randomness on x is also not quite random since it's a shuffle
-* 2D irrational... use sqrt of primes mod 1. (from wikipedia)
- * not good results though. wikipedia says so too so shrug. says to look at PRNGs.
-* 2D Hammersley truncation: i couldn't get the same results with truncation as wolfram page did.  Not sure if i'm doing it wrong or they are, can't find another source
- * http://mathworld.wolfram.com/HammersleyPointSet.html
- * i could get either the first three the same or the second 3, but not both.  Makes me think their thing could be wrong.
-* Subrandom approaches jittered grid when taken to logical extreme
- * is it also like subrandom is taking away 1 bit of randomness? sorta? but not really....
-* Hammersley only fits the whole space if you go through the full power of 2
-* 1d Poisson Notes (and 2d?)
- * If doing N samples, need to choose a good minimum distance...
- * too small and the space won't be maximally filled to that distance so will appear random aka high discrepancy.
- * too large and you won't be able to find places for all your samples, so there will be large gaps and high discrepancy.
- * with the perfect value, you'll have N samples all there, and they will be maximally far apart from each other.
- * there are better methods for generating poisson. (link? the thing about generating multiple candidate points and using the best one? mitchels? mitchelsons?)
- * a good place to start: https://www.johndcook.com/blog/2010/06/14/generating-poisson-random-values/
 
 LINKS:
 fibanocci colors: http://martin.ankerl.com/2009/12/09/how-to-create-random-colors-programmatically/
@@ -1150,4 +1130,25 @@ BLOG DONE:
 * maybe also how for instance in this case, uniform sampling is limited to rational numbers (numbers that can be expressed as a fraction), but random sampling doesn't have that limitation.
 * note many types of discrepancy calculations, I'm using star discrepancy (not star anymore)
 * Better example: give player 5 random items, don't want them all to be bad or all good. A good mix usually. ??
+* not only is golden ratio a good irrational, it's supposedly the best says wikipedia!  https://en.wikipedia.org/wiki/Low-discrepancy_sequence#Additive_recurrence
+* truncating 1D hammersley doesn't make sense. it is a way better idea in 2d since it makes more variation.
+* 1D sobol (which is a simplified sobol) is actually van der corput sequence re-arranged a little bit.
+* halton is 2d van der corput
+* 2D rooks sort of are uniform on one axis (y in my case) and random on x, although the randomness on x is also not quite random since it's a shuffle
+* 2D irrational... use sqrt of primes mod 1. (from wikipedia)
+* not good results though. wikipedia says so too so shrug. says to look at PRNGs.
+* 2D Hammersley truncation: i couldn't get the same results with truncation as wolfram page did.  Not sure if i'm doing it wrong or they are, can't find another source
+ * http://mathworld.wolfram.com/HammersleyPointSet.html
+ * i could get either the first three the same or the second 3, but not both.  Makes me think their thing could be wrong.
+* Subrandom approaches jittered grid when taken to logical extreme
+ * is it also like subrandom is taking away 1 bit of randomness? sorta? but not really....
+* Hammersley only fits the whole space if you go through the full power of 2
+* 1d Poisson Notes (and 2d?)
+ * If doing N samples, need to choose a good minimum distance...
+ * too small and the space won't be maximally filled to that distance so will appear random aka high discrepancy.
+ * too large and you won't be able to find places for all your samples, so there will be large gaps and high discrepancy.
+ * with the perfect value, you'll have N samples all there, and they will be maximally far apart from each other.
+ * there are better methods for generating poisson. (link? the thing about generating multiple candidate points and using the best one? mitchels? mitchelsons?)
+ * a good place to start: https://www.johndcook.com/blog/2010/06/14/generating-poisson-random-values/
+
 */
