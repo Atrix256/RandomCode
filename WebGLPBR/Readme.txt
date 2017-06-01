@@ -12,13 +12,9 @@
 * put something meaningful in the debug panel that actually works, whenever it makes sense to.
  * maybe switching between camera styles?
 
-* Blog posts with code and images along the way?
-
 * make shader compiler do non blocking thing with webgl2 render fences
-* Debug displays to see all the buffers
 
-* resize window only when it changes
- * have it update the projection matrix when it does that too, and only then
+* Debug displays to see all the various buffers etc.
 
 * be able to load or define models somehow
 
@@ -27,7 +23,10 @@
 * have a camera matrix
 * have object matrices?
 
-* a decent automatic way of hooking up shader constants (uniforms)
+* a decent automatic way of making vertex formats and vertex output to pixel input.
+
+* Blog posts with code and images along the way?
+ * or at end, re-walk the path knowing the right place to end up
 
 ===== LATER =====
 
@@ -39,6 +38,7 @@
 * spherical harmonics
 * HDR tonemapping and bloom
 * different depth formats (reversed, non linear, etc)
+* raytraced / ray marched shapes. sdUberPrim etc.
 * and so on!
 
 ===== DONE =====
@@ -54,7 +54,12 @@
 --6/1/17
 * morning: frame delta time, FPS display, right align debug panel text so it doesn't move when you open and close it.
  * key presses control scaling.
+* lunch: mostly automatic uniform hookup
 
 ==================== LANDFILL ====================
 
 https://webgl2fundamentals.org/
+
+* resize window only when it changes
+ * have it update the projection matrix when it does that too, and only then
+ * nah, expensive part already gated.

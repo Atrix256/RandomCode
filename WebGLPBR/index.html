@@ -23,9 +23,6 @@ var g_canvas = null;
 var gl = null;
 var g_debugPanelOpen = true;
 
-var u_projectionMatrix = null;
-var u_cameraMatrix = null;
-
 var g_projectionMatrix;
 var g_cameraMatrix;
 
@@ -38,22 +35,29 @@ var g_frameCountTime = 0;
 var g_keyState = new Array();
 
 
+var g_shader = null;
 
-var g_program = null;
 var g_vao = null;
 
 
+var g_uniforms = {
+  "u_projectionMatrix" : "mat4",
+  "u_cameraMatrix" : "mat4",
+};
+
+var g_uniformsShaderSource = "";
+
+//=========================================================================================
+var precisionSource = `
+precision mediump float;
+`;
 
 //=========================================================================================
 var vertexShaderSource = ` 
-// an attribute is an input (in) to a vertex shader.
-// It will receive data from a buffer
+
+// vertex input format
 in vec4 a_position;
 
-uniform mat4 u_projectionMatrix;
-uniform mat4 u_cameraMatrix;
- 
-// all shaders have a main function
 void main() {
  
   // gl_Position is a special variable a vertex shader
@@ -64,11 +68,7 @@ void main() {
  
  //=========================================================================================
 var fragmentShaderSource = ` 
-// fragment shaders don't have a default precision so we need
-// to pick one. mediump is a good default. It means "medium precision"
-precision mediump float;
- 
-// we need to declare an output for the fragment shader
+// pixel output
 out vec4 outColor;
  
 void main() {
@@ -79,7 +79,7 @@ void main() {
 
 //=========================================================================================
 function CreateShader (gl, type, source) {
-  var fullSource = "#version 300 es\n" + source;
+  var fullSource = "#version 300 es\n" + precisionSource + g_uniformsShaderSource + source;
 
   var shader = gl.createShader(type);
   gl.shaderSource(shader, fullSource);
@@ -110,6 +110,25 @@ function CreateProgram (gl, vertexShader, fragmentShader) {
  
   console.log(gl.getProgramInfoLog(program));
   gl.deleteProgram(program);
+}
+
+//=========================================================================================
+function MakeShader (vertexSource, fragmentSource)
+{
+    // compile shader
+    var vertexShader = CreateShader(gl, gl.VERTEX_SHADER, vertexSource);
+    var fragmentShader = CreateShader(gl, gl.FRAGMENT_SHADER, fragmentSource);    
+    var program = CreateProgram(gl, vertexShader, fragmentShader);
+
+    // get the uniform locations, for any uniforms it may use
+    var shader = {};
+    shader.program = program;
+    shader.uniforms = {};
+    for (var key in g_uniforms)
+      shader.uniforms[key] = gl.getUniformLocation(shader.program, key);
+
+    // return the shader to the caller
+    return shader;
 }
 
 //=========================================================================================
@@ -146,6 +165,22 @@ function Perspective (fieldOfViewInRadians, aspect, near, far) {
       0, 0, (near + far) * rangeInv, -1,
       0, 0, near * far * rangeInv * 2, 0
     ];
+}
+
+//=========================================================================================
+function FillUniformValue (key, location)
+{
+  // if the shader doesn't use this uniform, nothing to fill in
+  if (location == null)
+    return;
+
+  // fill in whatever uniform was asked for
+  switch(key)
+  {
+    case "u_projectionMatrix": gl.uniformMatrix4fv(location, false, g_projectionMatrix); break;
+    case "u_cameraMatrix": gl.uniformMatrix4fv(location, false, g_cameraMatrix); break;
+    default: throw new Error("Unknown uniform asked for in FillUniformValue()");
+  }
 }
 
 //=========================================================================================
@@ -209,11 +244,14 @@ function DrawScene (thisFrameTimeStamp)
     gl.clear(gl.COLOR_BUFFER_BIT);    
 
     // Tell it to use our program (pair of shaders)
-    gl.useProgram(g_program);    
+    gl.useProgram(g_shader.program);    
 
-    // send the projection matrix over
-    gl.uniformMatrix4fv(u_projectionMatrix, false, g_projectionMatrix);    
-    gl.uniformMatrix4fv(u_cameraMatrix, false, g_cameraMatrix);
+    // fill out the uniforms
+    // TODO: how to make this more automatic?
+    for (var key in g_shader.uniforms)
+    {
+        FillUniformValue(key, g_shader.uniforms[key]);
+    }
 
     // Bind the attribute/buffer set we want.
     gl.bindVertexArray(g_vao);    
@@ -264,6 +302,12 @@ function Initialize ()
     //debug panel starts closed
     ToggleDebugPanel();
 
+    // make the uniform definitions for the shaders
+    g_uniformsShaderSource = "";
+    for (var key in g_uniforms)
+      g_uniformsShaderSource += "uniform " + g_uniforms[key] + " " + key + ";\n";
+
+    // initialize webgl2
     g_canvas = document.getElementById("RenderWindow");
     gl = g_canvas.getContext("webgl2");
     if (!gl)
@@ -272,14 +316,10 @@ function Initialize ()
         return;
     }
 
-    var vertexShader = CreateShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
-    var fragmentShader = CreateShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);    
-    g_program = CreateProgram(gl, vertexShader, fragmentShader);
+    // make the shader
+    g_shader = MakeShader(vertexShaderSource, fragmentShaderSource);
 
-    u_projectionMatrix = gl.getUniformLocation(g_program, "u_projectionMatrix");
-    u_cameraMatrix = gl.getUniformLocation(g_program, "u_cameraMatrix");
-
-    var positionAttributeLocation = gl.getAttribLocation(g_program, "a_position");
+    var positionAttributeLocation = gl.getAttribLocation(g_shader.program, "a_position");
 
     var positionBuffer = gl.createBuffer();
 
@@ -298,14 +338,13 @@ function Initialize ()
 
     gl.enableVertexAttribArray(positionAttributeLocation);
 
-    var size = 3;          // 2 components per iteration
+    var size = 3;          // 3 components per iteration
     var type = gl.FLOAT;   // the data is 32bit floats
     var normalize = false; // don't normalize the data
     var stride = 0;        // 0 = move forward size * sizeof(type) each iteration to get the next position
     var offset = 0;        // start at the beginning of the buffer
     gl.vertexAttribPointer(
         positionAttributeLocation, size, type, normalize, stride, offset);
-
 
     DrawScene();
 }
