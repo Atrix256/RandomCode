@@ -1,6 +1,10 @@
 * Make a PBR renderer in WebGL:
  * https://learnopengl.com/#!PBR/Theory
 
+* simple camera controls for now: WASD / arrows
+ * handle losing focus to make keys go up?
+ * see key codes here: http://keycode.info/
+
 * Camera:
  * first person
  * overhead too
@@ -24,9 +28,6 @@
 * have object matrices?
 
 * a decent automatic way of hooking up shader constants (uniforms)
-
-* show fps ( http://demofox.org/GPUBezier2016/Demo.html)
-* also get a per frame delta
 
 ===== LATER =====
 
@@ -52,6 +53,7 @@
 
 --6/1/17
 * morning: frame delta time, FPS display, right align debug panel text so it doesn't move when you open and close it.
+ * key presses control scaling.
 
 ==================== LANDFILL ====================
 

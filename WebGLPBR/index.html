@@ -24,17 +24,25 @@ var gl = null;
 var g_debugPanelOpen = true;
 
 var u_projectionMatrix = null;
+var u_cameraMatrix = null;
 
 var g_projectionMatrix;
+var g_cameraMatrix;
 
+var g_cameraPosition = [1, 1, 1];
 
 var g_lastFrameTimeStamp = 0;
 var g_frameCount = 0;
 var g_frameCountTime = 0;
 
+var g_keyState = new Array();
+
+
 
 var g_program = null;
 var g_vao = null;
+
+
 
 //=========================================================================================
 var vertexShaderSource = ` 
@@ -43,13 +51,14 @@ var vertexShaderSource = `
 in vec4 a_position;
 
 uniform mat4 u_projectionMatrix;
+uniform mat4 u_cameraMatrix;
  
 // all shaders have a main function
 void main() {
  
   // gl_Position is a special variable a vertex shader
   // is responsible for setting
-  gl_Position = u_projectionMatrix * a_position;
+  gl_Position = u_cameraMatrix * u_projectionMatrix * a_position;
 }
 `;
  
@@ -162,6 +171,35 @@ function DrawScene (thisFrameTimeStamp)
       g_frameCountTime = 0;
     }
 
+    // TODO: temp!
+    // W or up arrow
+    if (g_keyState[87] || g_keyState[38])
+    {
+      g_cameraPosition[1] += 1.0 * deltaTime;
+    }
+    // S or down arrow
+    if (g_keyState[83] || g_keyState[40])
+    {
+      g_cameraPosition[1] -= 1.0 * deltaTime;
+    }
+    // A or left arrow
+    if (g_keyState[65] || g_keyState[37])
+    {
+      g_cameraPosition[0] -= 1.0 * deltaTime;
+    }    
+    // D or right arrow
+    if (g_keyState[68] || g_keyState[39])
+    {
+      g_cameraPosition[0] += 1.0 * deltaTime;
+    }       
+
+    g_cameraMatrix = [
+      g_cameraPosition[0], 0, 0, 0,
+      0, g_cameraPosition[1], 0, 0,
+      0, 0, g_cameraPosition[2], 0,
+      0, 0, 0, 1
+    ]    
+
 
     Resize(gl.canvas);
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
@@ -175,6 +213,7 @@ function DrawScene (thisFrameTimeStamp)
 
     // send the projection matrix over
     gl.uniformMatrix4fv(u_projectionMatrix, false, g_projectionMatrix);    
+    gl.uniformMatrix4fv(u_cameraMatrix, false, g_cameraMatrix);
 
     // Bind the attribute/buffer set we want.
     gl.bindVertexArray(g_vao);    
@@ -208,6 +247,18 @@ function ToggleDebugPanel ()
 }
 
 //=========================================================================================
+function OnKeyDown(event)
+{
+  g_keyState[event.keyCode] = true;
+}
+
+//=========================================================================================
+function OnKeyUp(event)
+{
+  g_keyState[event.keyCode] = false;
+}
+
+//=========================================================================================
 function Initialize ()
 {
     //debug panel starts closed
@@ -226,6 +277,7 @@ function Initialize ()
     g_program = CreateProgram(gl, vertexShader, fragmentShader);
 
     u_projectionMatrix = gl.getUniformLocation(g_program, "u_projectionMatrix");
+    u_cameraMatrix = gl.getUniformLocation(g_program, "u_cameraMatrix");
 
     var positionAttributeLocation = gl.getAttribLocation(g_program, "a_position");
 
@@ -260,7 +312,7 @@ function Initialize ()
 
 </script>
 </head>
-<body onLoad="Initialize();">
+<body onLoad="Initialize();" onkeydown="return OnKeyDown(event);" onkeyup="return OnKeyUp(event);">
 <div id="WholeWindow">
     <canvas id="RenderWindow"></canvas>
     <span id="FPSDisplay">FPS: ---</span>    
