@@ -22,6 +22,10 @@ var g_canvas = null;
 var gl = null;
 var g_debugPanelOpen = true;
 
+var u_projectionMatrix = null;
+
+var g_projectionMatrix;
+
 var g_program = null;
 var g_vao = null;
 
@@ -30,13 +34,15 @@ var vertexShaderSource = `
 // an attribute is an input (in) to a vertex shader.
 // It will receive data from a buffer
 in vec4 a_position;
+
+uniform mat4 u_projectionMatrix;
  
 // all shaders have a main function
 void main() {
  
   // gl_Position is a special variable a vertex shader
   // is responsible for setting
-  gl_Position = a_position;
+  gl_Position = u_projectionMatrix * a_position;
 }
 `;
  
@@ -56,7 +62,7 @@ void main() {
 `;
 
 //=========================================================================================
-function createShader (gl, type, source) {
+function CreateShader (gl, type, source) {
   var fullSource = "#version 300 es\n" + source;
 
   var shader = gl.createShader(type);
@@ -76,7 +82,7 @@ function createShader (gl, type, source) {
 }
 
 //=========================================================================================
-function createProgram (gl, vertexShader, fragmentShader) {
+function CreateProgram (gl, vertexShader, fragmentShader) {
   var program = gl.createProgram();
   gl.attachShader(program, vertexShader);
   gl.attachShader(program, fragmentShader);
@@ -91,7 +97,12 @@ function createProgram (gl, vertexShader, fragmentShader) {
 }
 
 //=========================================================================================
-function resize (canvas) {
+function UpdateCamera () {
+    g_projectionMatrix = Perspective(45.0 * 3.14 / 180.0, gl.canvas.width / gl.canvas.height, 1.0, 200.0);
+}
+
+//=========================================================================================
+function Resize (canvas) {
   // Lookup the size the browser is displaying the canvas.
   var displayWidth  = canvas.clientWidth;
   var displayHeight = canvas.clientHeight;
@@ -100,17 +111,32 @@ function resize (canvas) {
   if (canvas.width  !== displayWidth ||
       canvas.height !== displayHeight) {
  
-    // Make the canvas the same size
-    canvas.width  = displayWidth;
-    canvas.height = displayHeight;
+      // Make the canvas the same size
+      canvas.width  = displayWidth;
+      canvas.height = displayHeight;
+
+      UpdateCamera();
   }
+}
+
+//=========================================================================================
+function Perspective (fieldOfViewInRadians, aspect, near, far) {
+    var f = Math.tan(Math.PI * 0.5 - 0.5 * fieldOfViewInRadians);
+    var rangeInv = 1.0 / (near - far);
+ 
+    return [
+      f / aspect, 0, 0, 0,
+      0, f, 0, 0,
+      0, 0, (near + far) * rangeInv, -1,
+      0, 0, near * far * rangeInv * 2, 0
+    ];
 }
 
 //=========================================================================================
 function DrawScene ()
 {
 
-    resize(gl.canvas);
+    Resize(gl.canvas);
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 
     // Clear the canvas
@@ -119,6 +145,9 @@ function DrawScene ()
 
     // Tell it to use our program (pair of shaders)
     gl.useProgram(g_program);    
+
+    // send the projection matrix over
+    gl.uniformMatrix4fv(u_projectionMatrix, false, g_projectionMatrix);    
 
     // Bind the attribute/buffer set we want.
     gl.bindVertexArray(g_vao);    
@@ -133,7 +162,7 @@ function DrawScene ()
 }
 
 //=========================================================================================
-function ToggleDebugPanel()
+function ToggleDebugPanel ()
 {
     g_debugPanelOpen = !g_debugPanelOpen;
 
@@ -141,7 +170,7 @@ function ToggleDebugPanel()
     {
         document.getElementById("DebugPanelControls").style.visibility = "visible";
         document.getElementById("DebugPanelControls").style.display = "";        
-        document.getElementById("DebugPanelCollapseIcon").innerText="[^] Debug Panel";
+        document.getElementById("DebugPanelCollapseIcon").innerText="[-] Debug Panel";
     }
     else
     {
@@ -152,8 +181,11 @@ function ToggleDebugPanel()
 }
 
 //=========================================================================================
-function Initialize()
+function Initialize ()
 {
+    //debug panel starts closed
+    ToggleDebugPanel();
+
     g_canvas = document.getElementById("RenderWindow");
     gl = g_canvas.getContext("webgl2");
     if (!gl)
@@ -162,9 +194,11 @@ function Initialize()
         return;
     }
 
-    var vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
-    var fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);    
-    g_program = createProgram(gl, vertexShader, fragmentShader);
+    var vertexShader = CreateShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+    var fragmentShader = CreateShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);    
+    g_program = CreateProgram(gl, vertexShader, fragmentShader);
+
+    u_projectionMatrix = gl.getUniformLocation(g_program, "u_projectionMatrix");
 
     var positionAttributeLocation = gl.getAttribLocation(g_program, "a_position");
 
@@ -174,9 +208,9 @@ function Initialize()
 
     // three 2d points
     var positions = [
-        0, 0,
-        0, 0.5,
-        0.7, 0,
+        0, 0, -2,
+        0, 1, -2,
+        1, 0, -2
     ];
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
 
@@ -185,7 +219,7 @@ function Initialize()
 
     gl.enableVertexAttribArray(positionAttributeLocation);
 
-    var size = 2;          // 2 components per iteration
+    var size = 3;          // 2 components per iteration
     var type = gl.FLOAT;   // the data is 32bit floats
     var normalize = false; // don't normalize the data
     var stride = 0;        // 0 = move forward size * sizeof(type) each iteration to get the next position
@@ -203,10 +237,16 @@ function Initialize()
 <div id="WholeWindow">
     <canvas id="RenderWindow"></canvas>
     <span id="DebugPanel">
-        <a href="#" id="DebugPanelCollapseIcon" onClick="ToggleDebugPanel(); return false;">[^] Debug Panel</a><br/>
+        <a href="#" id="DebugPanelCollapseIcon" onClick="ToggleDebugPanel(); return false;">[-] Debug Panel</a><br/>
         <span id="DebugPanelControls">
             <hr>
-            <label><input type="checkbox" id="Wireframe"/>Wireframe</label>
+            <input type="checkbox" id="Wireframe"/>Wireframe<br>
+            Camera Mode
+            <select>
+                <option value="Overhead">Overhead</option>
+                <option value="FirstPerson">First Person</option>
+                <option value="Free">Free</option>
+            </select>
         </span>
     </span>
 </div>

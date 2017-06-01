@@ -1,8 +1,6 @@
 * Make a PBR renderer in WebGL:
  * https://learnopengl.com/#!PBR/Theory
 
-? make debug panel closed by default?
-
 * Camera:
  * first person
  * overhead too
@@ -14,7 +12,25 @@
 
 * make shader compiler do non blocking thing with webgl2 render fences
 * Debug displays to see all the buffers
-* resize window only when it changes?
+
+* resize window only when it changes
+ * have it update the projection matrix when it does that too, and only then
+
+* be able to load or define models somehow
+
+* be able to load and use textures
+
+* have a camera matrix
+* have object matrices?
+
+* a decent automatic way of hooking up shader constants (uniforms)
+
+* basic camera / camera controls
+ * FPS -> mouse look (drag?) + WASD
+ * overhead -> WASD and mouse drag
+ * Free -> mouse look (drag?) + WASD but not constrained to ground
+
+* show fps
 
 ===== LATER =====
 
@@ -22,6 +38,10 @@
 * shadow maps (temporal soft shadow maps from gpu pro 2?)
 * Deferred rendering w/ gbuffer and forward rendering pass
 * temporal AA / temporal super sampling / temporal filtering
+* red/ blue 3d glasses mode
+* spherical harmonics
+* HDR tonemapping and bloom
+* different depth formats (reversed, non linear, etc)
 * and so on!
 
 ===== DONE =====
@@ -31,6 +51,8 @@
 * lunch
  * got a triangle rendering
  * got a basic collapsible debug panel working that has semi transparent background
+* night
+ * projection matrix
 
 ==================== LANDFILL ====================
 
