@@ -5,8 +5,9 @@
 body { border-collapse: collapse; margin:0; padding:0;}
 canvas#RenderWindow {position: absolute; left: 0; top: 0; z-index: 0; width:100%; height:100%;}
 span#DebugPanel {position: absolute; right: 0; top: 0; z-index: 1; color: #00FF00; background-color: rgba(255,255,255,0.3); padding: 10px;}
+span#FPSDisplay {position: absolute; left: 0; bottom: 0; z-index: 1; color: #00FF00; background-color: rgba(255,255,255,0.0); padding: 10px;}
 div#WholeWindow {position:relative; width:100%; height:100%;}
-a#DebugPanelCollapseIcon {color:#00FF00;text-decoration: none; font-weight: bold;}
+a#DebugPanelCollapseIcon {color:#00FF00;text-decoration: none; font-weight: bold; text-align: right; display: block;}
 }
 </style>
 <script>
@@ -25,6 +26,12 @@ var g_debugPanelOpen = true;
 var u_projectionMatrix = null;
 
 var g_projectionMatrix;
+
+
+var g_lastFrameTimeStamp = 0;
+var g_frameCount = 0;
+var g_frameCountTime = 0;
+
 
 var g_program = null;
 var g_vao = null;
@@ -133,8 +140,28 @@ function Perspective (fieldOfViewInRadians, aspect, near, far) {
 }
 
 //=========================================================================================
-function DrawScene ()
+function DrawScene (thisFrameTimeStamp)
 {
+    // calculate a delta time for our frame
+    var deltaTime = 0.0;
+    if (typeof thisFrameTimeStamp != 'undefined')
+    {
+      thisFrameTimeStamp *= 0.001;
+      deltaTime = thisFrameTimeStamp - g_lastFrameTimeStamp;
+      g_lastFrameTimeStamp = thisFrameTimeStamp;
+    }
+
+    // handle FPS calculation
+    g_frameCount++;
+    g_frameCountTime+=deltaTime;
+    if (g_frameCountTime > 0.5)
+    {
+      var fps = g_frameCount / g_frameCountTime;
+      document.getElementById("FPSDisplay").innerText = "FPS: " + fps.toFixed(2);
+      g_frameCount = 0;
+      g_frameCountTime = 0;
+    }
+
 
     Resize(gl.canvas);
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
@@ -236,8 +263,9 @@ function Initialize ()
 <body onLoad="Initialize();">
 <div id="WholeWindow">
     <canvas id="RenderWindow"></canvas>
+    <span id="FPSDisplay">FPS: ---</span>    
     <span id="DebugPanel">
-        <a href="#" id="DebugPanelCollapseIcon" onClick="ToggleDebugPanel(); return false;">[-] Debug Panel</a><br/>
+        <a href="#" id="DebugPanelCollapseIcon" onClick="ToggleDebugPanel(); return false;">[-] Debug Panel</a>
         <span id="DebugPanelControls">
             <hr>
             <input type="checkbox" id="Wireframe"/>Wireframe<br>

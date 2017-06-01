@@ -25,12 +25,8 @@
 
 * a decent automatic way of hooking up shader constants (uniforms)
 
-* basic camera / camera controls
- * FPS -> mouse look (drag?) + WASD
- * overhead -> WASD and mouse drag
- * Free -> mouse look (drag?) + WASD but not constrained to ground
-
-* show fps
+* show fps ( http://demofox.org/GPUBezier2016/Demo.html)
+* also get a per frame delta
 
 ===== LATER =====
 
@@ -53,6 +49,9 @@
  * got a basic collapsible debug panel working that has semi transparent background
 * night
  * projection matrix
+
+--6/1/17
+* morning: frame delta time, FPS display, right align debug panel text so it doesn't move when you open and close it.
 
 ==================== LANDFILL ====================
 
