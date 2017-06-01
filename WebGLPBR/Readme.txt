@@ -1,9 +1,8 @@
+* mouse look for camera and then onto PBR?
+
 * Make a PBR renderer in WebGL:
  * https://learnopengl.com/#!PBR/Theory
 
-* simple camera controls for now: WASD / arrows
- * handle losing focus to make keys go up?
- * see key codes here: http://keycode.info/
 
 * Camera:
  * first person
@@ -68,3 +67,8 @@ https://webgl2fundamentals.org/
 * resize window only when it changes
  * have it update the projection matrix when it does that too, and only then
  * nah, expensive part already gated.
+
+
+* simple camera controls for now: WASD / arrows
+ * handle losing focus to make keys go up?
+ * see key codes here: http://keycode.info/
