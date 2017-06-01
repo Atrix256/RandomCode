@@ -24,6 +24,11 @@
 * have object matrices?
 
 * a decent automatic way of making vertex formats and vertex output to pixel input.
+ * aka in and out for both vertex and pixel shaders
+ * maybe not out for pixel shaders...
+ * maybe just in for vertex shaders actually.  It might be ok to manually do the link from vertex to pixel shaders i dunno.
+ * yeah, probably just in for vertex shaders.
+ * well actually, give it a try, see if you can do it for vertex -> pixel shaders.
 
 * Blog posts with code and images along the way?
  * or at end, re-walk the path knowing the right place to end up

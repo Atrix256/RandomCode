@@ -26,7 +26,7 @@ var g_debugPanelOpen = true;
 var g_projectionMatrix;
 var g_cameraMatrix;
 
-var g_cameraPosition = [1, 1, 1];
+var g_cameraPosition = [0,0,0];
 
 var g_lastFrameTimeStamp = 0;
 var g_frameCount = 0;
@@ -39,47 +39,56 @@ var g_shader = null;
 
 var g_vao = null;
 
-
+// You can use these uniforms in your vertex or pixel shaders without defining them, they are automatically piped through if used.
+// If editing these, also need to edit FillUniformValue()
 var g_uniforms = {
   "u_projectionMatrix" : "mat4",
   "u_cameraMatrix" : "mat4",
+  "u_screenResolution" : "vec2",
 };
 
 var g_uniformsShaderSource = "";
 
 //=========================================================================================
-var precisionSource = `
-precision mediump float;
-`;
+var precisionSource = "precision mediump float;\n\n";
 
 //=========================================================================================
 var vertexShaderSource = ` 
-
-// vertex input format
+// vertex input
 in vec4 a_position;
 
-void main() {
- 
-  // gl_Position is a special variable a vertex shader
-  // is responsible for setting
-  gl_Position = u_cameraMatrix * u_projectionMatrix * a_position;
+// vertex output
+out vec3 v_worldPos;
+
+void main()
+{
+  v_worldPos = a_position.xyz * 0.5 + 0.5;
+  v_worldPos.z *= -1.0;
+  gl_Position = u_projectionMatrix * u_cameraMatrix * a_position;
 }
 `;
  
  //=========================================================================================
 var fragmentShaderSource = ` 
+// pixel input
+in vec3 v_worldPos;
+
 // pixel output
 out vec4 outColor;
  
-void main() {
-  // Just set the output to a constant redish-purple
-  outColor = vec4(1, 0, 0.5, 1);
+void main()
+{
+  // position in screen space as a percentage
+  //vec2 pos = gl_FragCoord.xy / u_screenResolution;
+
+  // set the output color
+  outColor = vec4(v_worldPos.x / 3.0, v_worldPos.y / 3.0, v_worldPos.z / 3.0, 1);
 }
 `;
 
 //=========================================================================================
 function CreateShader (gl, type, source) {
-  var fullSource = "#version 300 es\n" + precisionSource + g_uniformsShaderSource + source;
+  var fullSource = "#version 300 es\n\n" + precisionSource + g_uniformsShaderSource + source;
 
   var shader = gl.createShader(type);
   gl.shaderSource(shader, fullSource);
@@ -133,7 +142,7 @@ function MakeShader (vertexSource, fragmentSource)
 
 //=========================================================================================
 function UpdateCamera () {
-    g_projectionMatrix = Perspective(45.0 * 3.14 / 180.0, gl.canvas.width / gl.canvas.height, 1.0, 200.0);
+    g_projectionMatrix = Perspective(45.0 * 3.14 / 180.0, gl.canvas.width / gl.canvas.height, 1.0, 2000.0);
 }
 
 //=========================================================================================
@@ -179,6 +188,7 @@ function FillUniformValue (key, location)
   {
     case "u_projectionMatrix": gl.uniformMatrix4fv(location, false, g_projectionMatrix); break;
     case "u_cameraMatrix": gl.uniformMatrix4fv(location, false, g_cameraMatrix); break;
+    case "u_screenResolution": gl.uniform2fv(location, [gl.canvas.width, gl.canvas.height]); break;
     default: throw new Error("Unknown uniform asked for in FillUniformValue()");
   }
 }
@@ -210,29 +220,29 @@ function DrawScene (thisFrameTimeStamp)
     // W or up arrow
     if (g_keyState[87] || g_keyState[38])
     {
-      g_cameraPosition[1] += 1.0 * deltaTime;
+      g_cameraPosition[2] += 1.0 * deltaTime;
     }
     // S or down arrow
     if (g_keyState[83] || g_keyState[40])
     {
-      g_cameraPosition[1] -= 1.0 * deltaTime;
+      g_cameraPosition[2] -= 1.0 * deltaTime;
     }
     // A or left arrow
     if (g_keyState[65] || g_keyState[37])
     {
-      g_cameraPosition[0] -= 1.0 * deltaTime;
+      g_cameraPosition[0] += 1.0 * deltaTime;
     }    
     // D or right arrow
     if (g_keyState[68] || g_keyState[39])
     {
-      g_cameraPosition[0] += 1.0 * deltaTime;
+      g_cameraPosition[0] -= 1.0 * deltaTime;
     }       
 
     g_cameraMatrix = [
-      g_cameraPosition[0], 0, 0, 0,
-      0, g_cameraPosition[1], 0, 0,
-      0, 0, g_cameraPosition[2], 0,
-      0, 0, 0, 1
+      1, 0, 0, 0,
+      0, 1, 0, 0,
+      0, 0, 1, 0,
+      g_cameraPosition[0], g_cameraPosition[1], g_cameraPosition[2], 1
     ]    
 
 
@@ -258,7 +268,7 @@ function DrawScene (thisFrameTimeStamp)
 
     var primitiveType = gl.TRIANGLES;
     var offset = 0;
-    var count = 3;
+    var count = 6;
     gl.drawArrays(primitiveType, offset, count);    
 
     // request another frame to be drawn
@@ -302,11 +312,6 @@ function Initialize ()
     //debug panel starts closed
     ToggleDebugPanel();
 
-    // make the uniform definitions for the shaders
-    g_uniformsShaderSource = "";
-    for (var key in g_uniforms)
-      g_uniformsShaderSource += "uniform " + g_uniforms[key] + " " + key + ";\n";
-
     // initialize webgl2
     g_canvas = document.getElementById("RenderWindow");
     gl = g_canvas.getContext("webgl2");
@@ -316,8 +321,16 @@ function Initialize ()
         return;
     }
 
+    // make the uniform definitions for the shaders
+    g_uniformsShaderSource = "// uniform constants\n";
+    for (var key in g_uniforms)
+      g_uniformsShaderSource += "uniform " + g_uniforms[key] + " " + key + ";\n";    
+
     // make the shader
     g_shader = MakeShader(vertexShaderSource, fragmentShaderSource);
+
+
+
 
     var positionAttributeLocation = gl.getAttribLocation(g_shader.program, "a_position");
 
@@ -325,12 +338,16 @@ function Initialize ()
 
     gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
 
-    // three 2d points
     var positions = [
-        0, 0, -2,
-        0, 1, -2,
-        1, 0, -2
+        -1, -0.5, -2,
+        -1, -0.5, -3,
+         1, -0.75, -2,
+
+         1, -0.5, -2,
+        -1, -0.5, -3,
+         1, -0.5, -3,
     ];
+
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
 
     g_vao = gl.createVertexArray();
