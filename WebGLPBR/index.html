@@ -46,6 +46,7 @@ var g_pointerLocked = false;
 var g_shader = null;
 
 var g_vao = null;
+var g_vaoVertCount = 0;
 
 // You can use these uniforms in your vertex or pixel shaders without defining them, they are automatically piped through if used.
 // If editing these, also need to edit FillUniformValue()
@@ -299,7 +300,7 @@ function DrawScene (thisFrameTimeStamp)
     }
 
     // TODO: temp! Move this to a different function or something.
-    // W or up arrow
+    // W or up arrowd
     var movement = g_cameraMoveSpeed * deltaTime;
     if (g_keyState[87] || g_keyState[38])
     {
@@ -341,6 +342,10 @@ function DrawScene (thisFrameTimeStamp)
     Resize(gl.canvas);
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 
+    // enable depth test
+    gl.enable(gl.DEPTH_TEST);
+    gl.depthFunc(gl.LESS);
+
     // Clear the canvas
     gl.clearColor(0, 0, 0, 255);
     gl.clear(gl.COLOR_BUFFER_BIT);    
@@ -355,9 +360,9 @@ function DrawScene (thisFrameTimeStamp)
     // Bind the attribute/buffer set we want.
     gl.bindVertexArray(g_vao);    
 
-    var primitiveType = gl.TRIANGLES;
+    var primitiveType = document.getElementById("Debug_Wireframe").checked ? gl.LINE_STRIP : gl.TRIANGLES;
     var offset = 0;
-    var count = 6;
+    var count = g_vaoVertCount / 3;
     gl.drawArrays(primitiveType, offset, count);    
 
     // request another frame to be drawn
@@ -441,6 +446,74 @@ function MouseMoveCallback(e)
 }
 
 //=========================================================================================
+function GenerateSphereMesh (slicesX, slicesY, offsetX, offsetY, offsetZ)
+{
+  var ret = [];
+
+  // make the body of the sphere
+  for (var indexY = 1; indexY < slicesY - 1; ++indexY)
+  {
+    var percentY1 = (indexY / slicesY);
+    var percentY2 = ((indexY+1) / slicesY);
+    for (var indexX = 0; indexX < slicesX; ++indexX)
+    {
+      var percentX1 = (indexX / slicesX);
+      var percentX2 = ((indexX+1) / slicesX);
+      var point00 = [Math.cos(percentX1*2*Math.PI) * Math.sin(percentY1*Math.PI), Math.cos(percentY1*Math.PI), Math.sin(percentX1*2*Math.PI) * Math.sin(percentY1*Math.PI)];
+      var point10 = [Math.cos(percentX2*2*Math.PI) * Math.sin(percentY1*Math.PI), Math.cos(percentY1*Math.PI), Math.sin(percentX2*2*Math.PI) * Math.sin(percentY1*Math.PI)];
+      var point01 = [Math.cos(percentX1*2*Math.PI) * Math.sin(percentY2*Math.PI), Math.cos(percentY2*Math.PI), Math.sin(percentX1*2*Math.PI) * Math.sin(percentY2*Math.PI)];
+      var point11 = [Math.cos(percentX2*2*Math.PI) * Math.sin(percentY2*Math.PI), Math.cos(percentY2*Math.PI), Math.sin(percentX2*2*Math.PI) * Math.sin(percentY2*Math.PI)];
+
+      // triangle 1 = 00, 01, 10
+      ret = ret.concat(point00);
+      ret = ret.concat(point01);
+      ret = ret.concat(point10);
+
+      // triangle 2 = 01, 11, 10
+      ret = ret.concat(point01);
+      ret = ret.concat(point11);
+      ret = ret.concat(point10);
+    }
+  }
+
+  // make the caps of the sphere
+  for (var indexX = 0; indexX < slicesX; ++indexX)
+  {
+      var percentX1 = (indexX / slicesX);
+      var percentX2 = ((indexX+1) / slicesX);
+
+      var percentY = (1 / slicesY);
+
+      var point0 = [0, 1, 0];
+      var point1 = [Math.cos(percentX1*2*Math.PI) * Math.sin(percentY*Math.PI), Math.cos(percentY*Math.PI), Math.sin(percentX1*2*Math.PI) * Math.sin(percentY*Math.PI)];
+      var point2 = [Math.cos(percentX2*2*Math.PI) * Math.sin(percentY*Math.PI), Math.cos(percentY*Math.PI), Math.sin(percentX2*2*Math.PI) * Math.sin(percentY*Math.PI)];
+
+      ret = ret.concat(point0);
+      ret = ret.concat(point1);
+      ret = ret.concat(point2);
+
+      percentY = 1.0 - percentY;
+
+      point0 = [0, -1, 0];
+      point1 = [Math.cos(percentX1*2*Math.PI) * Math.sin(percentY*Math.PI), Math.cos(percentY*Math.PI), Math.sin(percentX1*2*Math.PI) * Math.sin(percentY*Math.PI)];
+      point2 = [Math.cos(percentX2*2*Math.PI) * Math.sin(percentY*Math.PI), Math.cos(percentY*Math.PI), Math.sin(percentX2*2*Math.PI) * Math.sin(percentY*Math.PI)];
+
+      ret = ret.concat(point0);
+      ret = ret.concat(point1);
+      ret = ret.concat(point2);
+  }
+
+  for(var index = 0; index < ret.length; index+=3)
+  {
+    ret[index+0] += offsetX;
+    ret[index+1] += offsetY;
+    ret[index+2] += offsetZ;
+  }
+
+  return ret;
+}
+
+//=========================================================================================
 function Initialize ()
 {
     //debug panel starts closed
@@ -501,8 +574,11 @@ function Initialize ()
          1, -0.5, -3,
     ];
 
+    positions = GenerateSphereMesh(20, 20, 0, 0, -5);
+
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
 
+    g_vaoVertCount = positions.length;
     g_vao = gl.createVertexArray();
     gl.bindVertexArray(g_vao);
 
@@ -534,13 +610,7 @@ function Initialize ()
         <a href="#" id="DebugPanelCollapseIcon" onClick="ToggleDebugPanel(); return false;">[-] Debug Panel</a>
         <span id="DebugPanelControls">
             <hr>
-            <input type="checkbox" id="Wireframe"/>Wireframe<br>
-            Camera Mode
-            <select>
-                <option value="Overhead">Overhead</option>
-                <option value="FirstPerson">First Person</option>
-                <option value="Free">Free</option>
-            </select>
+            <input type="checkbox" id="Debug_Wireframe"/>Wireframe<br>
         </span>
     </span>
 </div>

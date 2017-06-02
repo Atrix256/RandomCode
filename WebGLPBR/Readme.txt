@@ -1,3 +1,6 @@
+* be able to render multiple spheres at different locations (per object matrices?), then PBR time
+
+
 * Make a PBR renderer in WebGL:
  * https://learnopengl.com/#!PBR/Theory
 
@@ -12,8 +15,13 @@
 
 * have object matrices?
 
+* make wireframe mode better.
+* turn on back face culling
+
 * a decent automatic way of making vertex formats and vertex output to pixel input.
  * aka in and out for both vertex and pixel shaders
+
+* a "reload" button that reloads the page, but puts you in the same location with the same debug options?
 
 ===== LATER =====
 
