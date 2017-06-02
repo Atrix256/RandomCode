@@ -30,8 +30,8 @@ var g_cameraPosition = [0,0,0];
 
 var g_cameraYawPitch = [0, 0];
 
-var g_cameraMoveSpeed = 1.0;
-var g_cameraRotateSpeed = 0.01;
+var g_cameraMoveSpeed = 2.0;    // meters per second
+var g_cameraRotateSpeed = 0.01; // radians per second
 
 
 var g_lastFrameTimeStamp = 0;
@@ -193,7 +193,21 @@ function Perspective (fieldOfViewInRadians, aspect, near, far) {
 //=========================================================================================
 function MultiplyMatrix4x4 (A, B)
 {
-  return A;
+  var ret = [];
+
+  for (var i = 0; i < 4; ++i)
+  {
+    for (var j = 0; j < 4; ++j)
+    {
+      ret[i*4+j] = 
+        A[i*4+0] * B[0*4+j] + 
+        A[i*4+1] * B[1*4+j] + 
+        A[i*4+2] * B[2*4+j] + 
+        A[i*4+3] * B[3*4+j];
+    }
+  }
+
+  return ret;
 }
 
 //=========================================================================================
@@ -222,7 +236,7 @@ function CameraMatrix (yaw, pitch, roll, positionX, positionY, positionZ) {
     positionX, positionY, positionZ, 1
   ];
 
-  return MultiplyMatrix4x4(rot, trans);
+  return MultiplyMatrix4x4(trans, rot);
 }
 
 //=========================================================================================
@@ -235,13 +249,13 @@ function NormalizeVector (v)
 //=========================================================================================
 function CameraForward ()
 {
-  return NormalizeVector([g_cameraMatrix[2*4+0], g_cameraMatrix[2*4+1], g_cameraMatrix[2*4+2]]);
+  return [g_cameraMatrix[0*4+2], g_cameraMatrix[1*4+2], g_cameraMatrix[2*4+2]];
 }
 
 //=========================================================================================
 function CameraRight ()
 {
-  return NormalizeVector([g_cameraMatrix[0*4+0], g_cameraMatrix[0*4+1], g_cameraMatrix[0*4+2]]);
+  return [g_cameraMatrix[0*4+0], g_cameraMatrix[1*4+0], g_cameraMatrix[2*4+0]];
 }
 
 //=========================================================================================
@@ -293,7 +307,6 @@ function DrawScene (thisFrameTimeStamp)
       g_cameraPosition[0] += vec[0] * movement;
       g_cameraPosition[1] += vec[1] * movement;
       g_cameraPosition[2] += vec[2] * movement;
-      //g_cameraPosition[2] += g_cameraMoveSpeed * deltaTime;
       UpdateCameraMatrix();
     }
     // S or down arrow
@@ -303,7 +316,6 @@ function DrawScene (thisFrameTimeStamp)
       g_cameraPosition[0] -= vec[0] * movement;
       g_cameraPosition[1] -= vec[1] * movement;
       g_cameraPosition[2] -= vec[2] * movement;      
-      //g_cameraPosition[2] -= g_cameraMoveSpeed * deltaTime;
       UpdateCameraMatrix();
     }
     // A or left arrow
@@ -313,7 +325,6 @@ function DrawScene (thisFrameTimeStamp)
       g_cameraPosition[0] += vec[0] * movement;
       g_cameraPosition[1] += vec[1] * movement;
       g_cameraPosition[2] += vec[2] * movement;          
-      //g_cameraPosition[0] += g_cameraMoveSpeed * deltaTime;
       UpdateCameraMatrix();
     }    
     // D or right arrow
@@ -323,7 +334,6 @@ function DrawScene (thisFrameTimeStamp)
       g_cameraPosition[0] -= vec[0] * movement;
       g_cameraPosition[1] -= vec[1] * movement;
       g_cameraPosition[2] -= vec[2] * movement;          
-      //g_cameraPosition[0] -= g_cameraMoveSpeed * deltaTime;
       UpdateCameraMatrix();
     }       
 
