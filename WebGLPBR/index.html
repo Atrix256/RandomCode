@@ -28,11 +28,19 @@ var g_cameraMatrix;
 
 var g_cameraPosition = [0,0,0];
 
+var g_cameraYawPitch = [0, 0];
+
+var g_cameraMoveSpeed = 1.0;
+var g_cameraRotateSpeed = 0.01;
+
+
 var g_lastFrameTimeStamp = 0;
 var g_frameCount = 0;
 var g_frameCountTime = 0;
 
 var g_keyState = new Array();
+
+var g_pointerLocked = false;
 
 
 var g_shader = null;
@@ -140,7 +148,14 @@ function MakeShader (vertexSource, fragmentSource)
 }
 
 //=========================================================================================
-function UpdateCamera () {
+function UpdateCameraMatrix ()
+{
+    g_cameraMatrix = CameraMatrix(g_cameraYawPitch[0], g_cameraYawPitch[1], 0, g_cameraPosition[0], g_cameraPosition[1], g_cameraPosition[2]);
+}
+
+//=========================================================================================
+function UpdateProjectionMatrix ()
+{
     g_projectionMatrix = Perspective(45.0 * 3.14 / 180.0, gl.canvas.width / gl.canvas.height, 1.0, 2000.0);
 }
 
@@ -158,7 +173,7 @@ function Resize (canvas) {
       canvas.width  = displayWidth;
       canvas.height = displayHeight;
 
-      UpdateCamera();
+      UpdateProjectionMatrix();
   }
 }
 
@@ -173,6 +188,60 @@ function Perspective (fieldOfViewInRadians, aspect, near, far) {
       0, 0, (near + far) * rangeInv, -1,
       0, 0, near * far * rangeInv * 2, 0
     ];
+}
+
+//=========================================================================================
+function MultiplyMatrix4x4 (A, B)
+{
+  return A;
+}
+
+//=========================================================================================
+function CameraMatrix (yaw, pitch, roll, positionX, positionY, positionZ) {
+
+  var cosAlpha = Math.cos(roll);
+  var sinAlpha = Math.sin(roll);
+
+  var cosBeta = Math.cos(yaw);
+  var sinBeta = Math.sin(yaw);
+
+  var cosGamma = Math.cos(pitch);
+  var sinGamma = Math.sin(pitch);
+
+  var rot = [
+    cosAlpha * cosBeta, cosAlpha * sinBeta * sinGamma - sinAlpha * cosGamma, cosAlpha * sinBeta * cosGamma + sinAlpha * sinGamma, 0,
+    sinAlpha * cosBeta, sinAlpha * sinBeta * sinGamma + cosAlpha * cosGamma, sinAlpha * sinBeta * cosGamma - cosAlpha * sinGamma, 0,
+    -sinBeta, cosBeta * sinGamma, cosBeta * cosGamma, 0,
+    0, 0, 0, 1
+  ];
+
+  var trans = [
+    1, 0, 0, 0,
+    0, 1, 0, 0,
+    0, 0, 1, 0,
+    positionX, positionY, positionZ, 1
+  ];
+
+  return MultiplyMatrix4x4(rot, trans);
+}
+
+//=========================================================================================
+function NormalizeVector (v)
+{
+  var length = Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]);
+  return [v[0]/length, v[1]/length, v[2]/length];
+}
+
+//=========================================================================================
+function CameraForward ()
+{
+  return NormalizeVector([g_cameraMatrix[2*4+0], g_cameraMatrix[2*4+1], g_cameraMatrix[2*4+2]]);
+}
+
+//=========================================================================================
+function CameraRight ()
+{
+  return NormalizeVector([g_cameraMatrix[0*4+0], g_cameraMatrix[0*4+1], g_cameraMatrix[0*4+2]]);
 }
 
 //=========================================================================================
@@ -215,36 +284,50 @@ function DrawScene (thisFrameTimeStamp)
       g_frameCountTime = 0;
     }
 
-    // TODO: temp!
+    // TODO: temp! Move this to a different function or something.
     // W or up arrow
+    var movement = g_cameraMoveSpeed * deltaTime;
     if (g_keyState[87] || g_keyState[38])
     {
-      g_cameraPosition[2] += 1.0 * deltaTime;
+      var vec = CameraForward();
+      g_cameraPosition[0] += vec[0] * movement;
+      g_cameraPosition[1] += vec[1] * movement;
+      g_cameraPosition[2] += vec[2] * movement;
+      //g_cameraPosition[2] += g_cameraMoveSpeed * deltaTime;
+      UpdateCameraMatrix();
     }
     // S or down arrow
     if (g_keyState[83] || g_keyState[40])
     {
-      g_cameraPosition[2] -= 1.0 * deltaTime;
+      var vec = CameraForward();
+      g_cameraPosition[0] -= vec[0] * movement;
+      g_cameraPosition[1] -= vec[1] * movement;
+      g_cameraPosition[2] -= vec[2] * movement;      
+      //g_cameraPosition[2] -= g_cameraMoveSpeed * deltaTime;
+      UpdateCameraMatrix();
     }
     // A or left arrow
     if (g_keyState[65] || g_keyState[37])
     {
-      g_cameraPosition[0] += 1.0 * deltaTime;
+      var vec = CameraRight();
+      g_cameraPosition[0] += vec[0] * movement;
+      g_cameraPosition[1] += vec[1] * movement;
+      g_cameraPosition[2] += vec[2] * movement;          
+      //g_cameraPosition[0] += g_cameraMoveSpeed * deltaTime;
+      UpdateCameraMatrix();
     }    
     // D or right arrow
     if (g_keyState[68] || g_keyState[39])
     {
-      g_cameraPosition[0] -= 1.0 * deltaTime;
+      var vec = CameraRight();
+      g_cameraPosition[0] -= vec[0] * movement;
+      g_cameraPosition[1] -= vec[1] * movement;
+      g_cameraPosition[2] -= vec[2] * movement;          
+      //g_cameraPosition[0] -= g_cameraMoveSpeed * deltaTime;
+      UpdateCameraMatrix();
     }       
 
-    g_cameraMatrix = [
-      1, 0, 0, 0,
-      0, 1, 0, 0,
-      0, 0, 1, 0,
-      g_cameraPosition[0], g_cameraPosition[1], g_cameraPosition[2], 1
-    ]    
-
-
+    // Draw
     Resize(gl.canvas);
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 
@@ -256,11 +339,8 @@ function DrawScene (thisFrameTimeStamp)
     gl.useProgram(g_shader.program);    
 
     // fill out the uniforms
-    // TODO: how to make this more automatic?
     for (var key in g_shader.uniforms)
-    {
         FillUniformValue(key, g_shader.uniforms[key]);
-    }
 
     // Bind the attribute/buffer set we want.
     gl.bindVertexArray(g_vao);    
@@ -306,10 +386,59 @@ function OnKeyUp(event)
 }
 
 //=========================================================================================
+function OnRenderWindowClick()
+{
+  if (!g_pointerLocked)
+  {
+    g_canvas.requestPointerLock();
+  }
+}
+
+//=========================================================================================
+function PointerLockChangeCallback()
+{
+  if (document.pointerLockElement === g_canvas ||
+    document.mozPointerLockElement === g_canvas ||
+    document.webkitPointerLockElement === g_canvas) {
+    // Pointer was just locked
+    // Enable the mousemove listener
+    document.addEventListener("mousemove", MouseMoveCallback, false);
+    g_pointerLocked = true;
+  } else {
+    // Pointer was just unlocked
+    // Disable the mousemove listener
+    document.removeEventListener("mousemove", MouseMoveCallback, false);
+    g_pointerLocked = false;
+  }
+}
+
+//=========================================================================================
+function MouseMoveCallback(e)
+{
+  var movementX = e.movementX ||
+      e.mozMovementX          ||
+      e.webkitMovementX       ||
+      0;
+  var movementY = e.movementY ||
+      e.mozMovementY      ||
+      e.webkitMovementY   ||
+      0;
+
+  g_cameraYawPitch[0] -= g_cameraRotateSpeed * movementX;
+  g_cameraYawPitch[1] -= g_cameraRotateSpeed * movementY;
+
+  UpdateCameraMatrix();
+}
+
+//=========================================================================================
 function Initialize ()
 {
     //debug panel starts closed
     ToggleDebugPanel();
+
+    var havePointerLock = 'pointerLockElement' in document ||
+        'mozPointerLockElement' in document ||
+        'webkitPointerLockElement' in document;    
 
     // initialize webgl2
     g_canvas = document.getElementById("RenderWindow");
@@ -320,6 +449,23 @@ function Initialize ()
         return;
     }
 
+
+    // setup pointer lock to activate later
+    if (!havePointerLock)
+    {
+      alert("your browser does not support pointer lock");
+      return;
+    }
+    g_canvas.requestPointerLock = g_canvas.requestPointerLock ||
+               g_canvas.mozRequestPointerLock ||
+               g_canvas.webkitRequestPointerLock;     
+    document.exitPointerLock = document.exitPointerLock ||
+         document.mozExitPointerLock ||
+         document.webkitExitPointerLock;
+    document.addEventListener('pointerlockchange', PointerLockChangeCallback, false);
+    document.addEventListener('mozpointerlockchange', PointerLockChangeCallback, false);
+    document.addEventListener('webkitpointerlockchange', PointerLockChangeCallback, false);
+
     // make the uniform definitions for the shaders
     g_uniformsShaderSource = "// uniform constants\n";
     for (var key in g_uniforms)
@@ -327,8 +473,6 @@ function Initialize ()
 
     // make the shader
     g_shader = MakeShader(vertexShaderSource, fragmentShaderSource);
-
-
 
 
     var positionAttributeLocation = gl.getAttribLocation(g_shader.program, "a_position");
@@ -362,6 +506,11 @@ function Initialize ()
     gl.vertexAttribPointer(
         positionAttributeLocation, size, type, normalize, stride, offset);
 
+
+    // calculate initial camera matrix
+    UpdateCameraMatrix();
+
+    // Start rendering
     DrawScene();
 }
 
@@ -369,7 +518,7 @@ function Initialize ()
 </head>
 <body onLoad="Initialize();" onkeydown="return OnKeyDown(event);" onkeyup="return OnKeyUp(event);">
 <div id="WholeWindow">
-    <canvas id="RenderWindow"></canvas>
+    <canvas id="RenderWindow" onclick="OnRenderWindowClick()"></canvas>
     <span id="FPSDisplay">FPS: ---</span>    
     <span id="DebugPanel">
         <a href="#" id="DebugPanelCollapseIcon" onClick="ToggleDebugPanel(); return false;">[-] Debug Panel</a>
