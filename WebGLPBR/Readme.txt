@@ -1,36 +1,19 @@
-* FPS camera:
- http://in2gpu.com/2016/02/26/opengl-fps-camera/
-
 * Make a PBR renderer in WebGL:
  * https://learnopengl.com/#!PBR/Theory
 
-* simple camera controls for now: WASD / arrows
- * handle losing focus to make keys go up?
- * see key codes here: http://keycode.info/
-
-* Camera:
- * first person
- * overhead too
-
 * put something meaningful in the debug panel that actually works, whenever it makes sense to.
- * maybe switching between camera styles?
-
-* Blog posts with code and images along the way?
 
 * make shader compiler do non blocking thing with webgl2 render fences
 * Debug displays to see all the buffers
-
-* resize window only when it changes
- * have it update the projection matrix when it does that too, and only then
 
 * be able to load or define models somehow
 
 * be able to load and use textures
 
-* have a camera matrix
 * have object matrices?
 
-* a decent automatic way of hooking up shader constants (uniforms)
+* a decent automatic way of making vertex formats and vertex output to pixel input.
+ * aka in and out for both vertex and pixel shaders
 
 ===== LATER =====
 
@@ -57,6 +40,10 @@
 --6/1/17
 * morning: frame delta time, FPS display, right align debug panel text so it doesn't move when you open and close it.
  * key presses control scaling.
+* lunch: more automatic uniform passing, basic camera
+
+--6/2/17
+* morning: mouse capture and free camera
 
 ==================== LANDFILL ====================
 
