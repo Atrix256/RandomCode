@@ -53,6 +53,7 @@ var g_vaoVertCount = 0;
 var g_uniforms = {
   "u_projectionMatrix" : "mat4",
   "u_cameraMatrix" : "mat4",
+  "u_objectMatrix" : "mat4",
   "u_screenResolution" : "vec2",
 };
 
@@ -71,8 +72,8 @@ out vec3 v_worldPos;
 
 void main()
 {
-  v_worldPos = a_position.xyz;
-  gl_Position = u_projectionMatrix * u_cameraMatrix * a_position;
+  v_worldPos = (u_objectMatrix * a_position).xyz;
+  gl_Position = u_projectionMatrix * u_cameraMatrix * u_objectMatrix * a_position;
 }
 `;
  
@@ -260,7 +261,16 @@ function CameraRight ()
 }
 
 //=========================================================================================
-function FillUniformValue (key, location)
+function GetObjectValue (objectValues, key)
+{
+  if (objectValues[key] == null)
+    throw new Error("Missing object value asked for in GetObjectValue() : " + key);
+
+  return objectValues[key];
+}
+
+//=========================================================================================
+function FillUniformValue (key, location, objectValues)
 {
   // if the shader doesn't use this uniform, nothing to fill in
   if (location == null)
@@ -271,9 +281,39 @@ function FillUniformValue (key, location)
   {
     case "u_projectionMatrix": gl.uniformMatrix4fv(location, false, g_projectionMatrix); break;
     case "u_cameraMatrix": gl.uniformMatrix4fv(location, false, g_cameraMatrix); break;
+    case "u_objectMatrix": gl.uniformMatrix4fv(location, false, objectValues.u_objectMatrix); break;
     case "u_screenResolution": gl.uniform2fv(location, [gl.canvas.width, gl.canvas.height]); break;
     default: throw new Error("Unknown uniform asked for in FillUniformValue()");
   }
+}
+
+//=========================================================================================
+function DrawSphere (offsetX, offsetY, offsetZ, scaleX, scaleY, scaleZ)
+{
+    // Tell it to use our program (pair of shaders)
+    gl.useProgram(g_shader.program);    
+
+    // make our object values
+    // u_objectMatrix
+    var objectValues = {};
+    objectValues.u_objectMatrix = [
+      scaleX, 0, 0, 0,
+      0, scaleY, 0, 0,
+      0, 0, scaleZ, 0,
+      offsetX, offsetY, offsetZ, 1
+    ];
+
+    // fill out the uniforms
+    for (var key in g_shader.uniforms)
+        FillUniformValue(key, g_shader.uniforms[key], objectValues);
+
+    // Bind the attribute/buffer set we want.
+    gl.bindVertexArray(g_vao);    
+
+    var primitiveType = document.getElementById("Debug_Wireframe").checked ? gl.LINE_STRIP : gl.TRIANGLES;
+    var offset = 0;
+    var count = g_vaoVertCount / 3;
+    gl.drawArrays(primitiveType, offset, count);      
 }
 
 //=========================================================================================
@@ -350,20 +390,9 @@ function DrawScene (thisFrameTimeStamp)
     gl.clearColor(0, 0, 0, 255);
     gl.clear(gl.COLOR_BUFFER_BIT);    
 
-    // Tell it to use our program (pair of shaders)
-    gl.useProgram(g_shader.program);    
-
-    // fill out the uniforms
-    for (var key in g_shader.uniforms)
-        FillUniformValue(key, g_shader.uniforms[key]);
-
-    // Bind the attribute/buffer set we want.
-    gl.bindVertexArray(g_vao);    
-
-    var primitiveType = document.getElementById("Debug_Wireframe").checked ? gl.LINE_STRIP : gl.TRIANGLES;
-    var offset = 0;
-    var count = g_vaoVertCount / 3;
-    gl.drawArrays(primitiveType, offset, count);    
+    // draw some spheres
+    DrawSphere(0, 0, -5, 0.25, 0.25, 0.25);
+    DrawSphere(0, 0, -10, 1, 1, 1);
 
     // request another frame to be drawn
     requestAnimationFrame(DrawScene);
@@ -446,7 +475,7 @@ function MouseMoveCallback(e)
 }
 
 //=========================================================================================
-function GenerateSphereMesh (slicesX, slicesY, offsetX, offsetY, offsetZ)
+function GenerateSphereMesh (slicesX, slicesY)
 {
   var ret = [];
 
@@ -503,13 +532,6 @@ function GenerateSphereMesh (slicesX, slicesY, offsetX, offsetY, offsetZ)
       ret = ret.concat(point2);
   }
 
-  for(var index = 0; index < ret.length; index+=3)
-  {
-    ret[index+0] += offsetX;
-    ret[index+1] += offsetY;
-    ret[index+2] += offsetZ;
-  }
-
   return ret;
 }
 
@@ -564,17 +586,7 @@ function Initialize ()
 
     gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
 
-    var positions = [
-        -1, -0.5, -2,
-        -1, -0.5, -3,
-         1, -0.75, -2,
-
-         1, -0.5, -2,
-        -1, -0.5, -3,
-         1, -0.5, -3,
-    ];
-
-    positions = GenerateSphereMesh(20, 20, 0, 0, -5);
+    var positions = GenerateSphereMesh(20, 20);
 
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
 
