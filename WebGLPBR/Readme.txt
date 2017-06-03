@@ -1,8 +1,12 @@
 * be able to render multiple spheres at different locations (per object matrices?), then PBR time
+ * put them in the grid like in the demo
 
+* TODO's!
 
 * Make a PBR renderer in WebGL:
  * https://learnopengl.com/#!PBR/Theory
+
+
 
 * put something meaningful in the debug panel that actually works, whenever it makes sense to.
 
@@ -52,6 +56,10 @@
 
 --6/2/17
 * morning: mouse capture and free camera
+* lunch: sphere mesh generation, and drawing multiple spheres.
+
+--6/3/7
+* morning: normals on spheres and non PBR directional + ambient lighting. Object Color.
 
 ==================== LANDFILL ====================
 

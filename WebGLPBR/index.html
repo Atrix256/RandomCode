@@ -33,7 +33,6 @@ var g_cameraYawPitch = [0, 0];
 var g_cameraMoveSpeed = 2.0;    // meters per second
 var g_cameraRotateSpeed = 0.01; // radians per second
 
-
 var g_lastFrameTimeStamp = 0;
 var g_frameCount = 0;
 var g_frameCountTime = 0;
@@ -41,6 +40,9 @@ var g_frameCountTime = 0;
 var g_keyState = new Array();
 
 var g_pointerLocked = false;
+
+var g_reverseLightDirection = NormalizeVector([1,1,0]);
+var g_ambientLight = [0.01, 0.01, 0.01];
 
 
 var g_shader = null;
@@ -50,11 +52,16 @@ var g_vaoVertCount = 0;
 
 // You can use these uniforms in your vertex or pixel shaders without defining them, they are automatically piped through if used.
 // If editing these, also need to edit FillUniformValue()
+// TODO: could put lambdas here about how to fill it in!
 var g_uniforms = {
   "u_projectionMatrix" : "mat4",
   "u_cameraMatrix" : "mat4",
-  "u_objectMatrix" : "mat4",
   "u_screenResolution" : "vec2",
+  "u_reverseLightDirection" : "vec3",
+  "u_ambientLight" : "vec3",
+
+  "u_objectMatrix" : "mat4",  
+  "u_objectColor" : "vec3",
 };
 
 var g_uniformsShaderSource = "";
@@ -66,13 +73,17 @@ var precisionSource = "precision mediump float;\n\n";
 var vertexShaderSource = ` 
 // vertex input
 in vec4 a_position;
+in vec3 a_normal;
 
 // vertex output
 out vec3 v_worldPos;
+out vec3 v_normal;
 
 void main()
 {
   v_worldPos = (u_objectMatrix * a_position).xyz;
+  // TODO: transform normal
+  v_normal = a_normal;
   gl_Position = u_projectionMatrix * u_cameraMatrix * u_objectMatrix * a_position;
 }
 `;
@@ -81,6 +92,7 @@ void main()
 var fragmentShaderSource = ` 
 // pixel input
 in vec3 v_worldPos;
+in vec3 v_normal;
 
 // pixel output
 out vec4 outColor;
@@ -89,9 +101,14 @@ void main()
 {
   // position in screen space as a percentage
   //vec2 pos = gl_FragCoord.xy / u_screenResolution;
+  //  outColor = vec4(abs(v_worldPos.xyz), 1);
+
+  vec3 normal = normalize(v_normal);
 
   // set the output color
-  outColor = vec4(abs(v_worldPos.xyz), 1);
+  outColor.rgb = u_objectColor * u_ambientLight + u_objectColor * clamp(dot(normal, u_reverseLightDirection), 0.0, 1.0);
+  outColor.rgb = pow(outColor.rgb, vec3(1.0/2.2)); 
+  outColor.w = 1.0;
 }
 `;
 
@@ -281,14 +298,19 @@ function FillUniformValue (key, location, objectValues)
   {
     case "u_projectionMatrix": gl.uniformMatrix4fv(location, false, g_projectionMatrix); break;
     case "u_cameraMatrix": gl.uniformMatrix4fv(location, false, g_cameraMatrix); break;
-    case "u_objectMatrix": gl.uniformMatrix4fv(location, false, objectValues.u_objectMatrix); break;
     case "u_screenResolution": gl.uniform2fv(location, [gl.canvas.width, gl.canvas.height]); break;
-    default: throw new Error("Unknown uniform asked for in FillUniformValue()");
+    case "u_reverseLightDirection": gl.uniform3fv(location, g_reverseLightDirection); break;
+    case "u_ambientLight": gl.uniform3fv(location, g_ambientLight); break;
+
+    case "u_objectMatrix": gl.uniformMatrix4fv(location, false, objectValues.u_objectMatrix); break;  // todo: use GetObjectValue()
+    case "u_objectColor": gl.uniform3fv(location, objectValues.u_objectColor); break;  // todo: use GetObjectValue()
+
+    default: throw new Error("Unknown uniform asked for in FillUniformValue() : " + key);
   }
 }
 
 //=========================================================================================
-function DrawSphere (offsetX, offsetY, offsetZ, scaleX, scaleY, scaleZ)
+function DrawSphere (offsetX, offsetY, offsetZ, scaleX, scaleY, scaleZ, colorR, colorG, colorB)
 {
     // Tell it to use our program (pair of shaders)
     gl.useProgram(g_shader.program);    
@@ -302,6 +324,7 @@ function DrawSphere (offsetX, offsetY, offsetZ, scaleX, scaleY, scaleZ)
       0, 0, scaleZ, 0,
       offsetX, offsetY, offsetZ, 1
     ];
+    objectValues.u_objectColor = [colorR, colorG, colorB];
 
     // fill out the uniforms
     for (var key in g_shader.uniforms)
@@ -340,43 +363,46 @@ function DrawScene (thisFrameTimeStamp)
     }
 
     // TODO: temp! Move this to a different function or something.
-    // W or up arrowd
-    var movement = g_cameraMoveSpeed * deltaTime;
-    if (g_keyState[87] || g_keyState[38])
+    if (g_pointerLocked)
     {
-      var vec = CameraForward();
-      g_cameraPosition[0] += vec[0] * movement;
-      g_cameraPosition[1] += vec[1] * movement;
-      g_cameraPosition[2] += vec[2] * movement;
-      UpdateCameraMatrix();
+      // W or up arrowd
+      var movement = g_cameraMoveSpeed * deltaTime;
+      if (g_keyState[87] || g_keyState[38])
+      {
+        var vec = CameraForward();
+        g_cameraPosition[0] += vec[0] * movement;
+        g_cameraPosition[1] += vec[1] * movement;
+        g_cameraPosition[2] += vec[2] * movement;
+        UpdateCameraMatrix();
+      }
+      // S or down arrow
+      if (g_keyState[83] || g_keyState[40])
+      {
+        var vec = CameraForward();
+        g_cameraPosition[0] -= vec[0] * movement;
+        g_cameraPosition[1] -= vec[1] * movement;
+        g_cameraPosition[2] -= vec[2] * movement;      
+        UpdateCameraMatrix();
+      }
+      // A or left arrow
+      if (g_keyState[65] || g_keyState[37])
+      {
+        var vec = CameraRight();
+        g_cameraPosition[0] += vec[0] * movement;
+        g_cameraPosition[1] += vec[1] * movement;
+        g_cameraPosition[2] += vec[2] * movement;          
+        UpdateCameraMatrix();
+      }    
+      // D or right arrow
+      if (g_keyState[68] || g_keyState[39])
+      {
+        var vec = CameraRight();
+        g_cameraPosition[0] -= vec[0] * movement;
+        g_cameraPosition[1] -= vec[1] * movement;
+        g_cameraPosition[2] -= vec[2] * movement;          
+        UpdateCameraMatrix();
+      }       
     }
-    // S or down arrow
-    if (g_keyState[83] || g_keyState[40])
-    {
-      var vec = CameraForward();
-      g_cameraPosition[0] -= vec[0] * movement;
-      g_cameraPosition[1] -= vec[1] * movement;
-      g_cameraPosition[2] -= vec[2] * movement;      
-      UpdateCameraMatrix();
-    }
-    // A or left arrow
-    if (g_keyState[65] || g_keyState[37])
-    {
-      var vec = CameraRight();
-      g_cameraPosition[0] += vec[0] * movement;
-      g_cameraPosition[1] += vec[1] * movement;
-      g_cameraPosition[2] += vec[2] * movement;          
-      UpdateCameraMatrix();
-    }    
-    // D or right arrow
-    if (g_keyState[68] || g_keyState[39])
-    {
-      var vec = CameraRight();
-      g_cameraPosition[0] -= vec[0] * movement;
-      g_cameraPosition[1] -= vec[1] * movement;
-      g_cameraPosition[2] -= vec[2] * movement;          
-      UpdateCameraMatrix();
-    }       
 
     // Draw
     Resize(gl.canvas);
@@ -388,11 +414,19 @@ function DrawScene (thisFrameTimeStamp)
 
     // Clear the canvas
     gl.clearColor(0, 0, 0, 255);
-    gl.clear(gl.COLOR_BUFFER_BIT);    
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);    
 
     // draw some spheres
-    DrawSphere(0, 0, -5, 0.25, 0.25, 0.25);
-    DrawSphere(0, 0, -10, 1, 1, 1);
+    DrawSphere(0, 0, -5, 0.25, 0.25, 0.25, 1, 0, 0);
+    DrawSphere(0, 0, -10, 1, 1, 1, 0, 1, 0);
+
+    for (var iy = 0; iy < 8; ++iy)
+    {
+      for (var ix = 0; ix < 8; ++ix)
+      {
+        DrawSphere((ix - 3.5), (iy - 3.5), -15, 0.4, 0.4, 0.4, ix / 7, iy / 7, 0.1);
+      }
+    }
 
     // request another frame to be drawn
     requestAnimationFrame(DrawScene);
@@ -477,7 +511,9 @@ function MouseMoveCallback(e)
 //=========================================================================================
 function GenerateSphereMesh (slicesX, slicesY)
 {
-  var ret = [];
+  var ret = {};
+  var pos = [];
+  var norm = [];
 
   // make the body of the sphere
   for (var indexY = 1; indexY < slicesY - 1; ++indexY)
@@ -494,14 +530,14 @@ function GenerateSphereMesh (slicesX, slicesY)
       var point11 = [Math.cos(percentX2*2*Math.PI) * Math.sin(percentY2*Math.PI), Math.cos(percentY2*Math.PI), Math.sin(percentX2*2*Math.PI) * Math.sin(percentY2*Math.PI)];
 
       // triangle 1 = 00, 01, 10
-      ret = ret.concat(point00);
-      ret = ret.concat(point01);
-      ret = ret.concat(point10);
+      pos = pos.concat(point00);
+      pos = pos.concat(point01);
+      pos = pos.concat(point10);
 
       // triangle 2 = 01, 11, 10
-      ret = ret.concat(point01);
-      ret = ret.concat(point11);
-      ret = ret.concat(point10);
+      pos = pos.concat(point01);
+      pos = pos.concat(point11);
+      pos = pos.concat(point10);
     }
   }
 
@@ -517,9 +553,9 @@ function GenerateSphereMesh (slicesX, slicesY)
       var point1 = [Math.cos(percentX1*2*Math.PI) * Math.sin(percentY*Math.PI), Math.cos(percentY*Math.PI), Math.sin(percentX1*2*Math.PI) * Math.sin(percentY*Math.PI)];
       var point2 = [Math.cos(percentX2*2*Math.PI) * Math.sin(percentY*Math.PI), Math.cos(percentY*Math.PI), Math.sin(percentX2*2*Math.PI) * Math.sin(percentY*Math.PI)];
 
-      ret = ret.concat(point0);
-      ret = ret.concat(point1);
-      ret = ret.concat(point2);
+      pos = pos.concat(point0);
+      pos = pos.concat(point1);
+      pos = pos.concat(point2);
 
       percentY = 1.0 - percentY;
 
@@ -527,10 +563,17 @@ function GenerateSphereMesh (slicesX, slicesY)
       point1 = [Math.cos(percentX1*2*Math.PI) * Math.sin(percentY*Math.PI), Math.cos(percentY*Math.PI), Math.sin(percentX1*2*Math.PI) * Math.sin(percentY*Math.PI)];
       point2 = [Math.cos(percentX2*2*Math.PI) * Math.sin(percentY*Math.PI), Math.cos(percentY*Math.PI), Math.sin(percentX2*2*Math.PI) * Math.sin(percentY*Math.PI)];
 
-      ret = ret.concat(point0);
-      ret = ret.concat(point1);
-      ret = ret.concat(point2);
+      pos = pos.concat(point0);
+      pos = pos.concat(point1);
+      pos = pos.concat(point2);
   }
+
+  // make the normals
+  for (var index = 0; index < pos.length; ++index)
+    norm[index] = pos[index];
+
+  ret.pos = pos;
+  ret.norm = norm;
 
   return ret;
 }
@@ -579,30 +622,28 @@ function Initialize ()
     // make the shader
     g_shader = MakeShader(vertexShaderSource, fragmentShaderSource);
 
+    // make the sphere mesh
+    var sphereMesh = GenerateSphereMesh(20, 20);
 
-    var positionAttributeLocation = gl.getAttribLocation(g_shader.program, "a_position");
-
-    var positionBuffer = gl.createBuffer();
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-
-    var positions = GenerateSphereMesh(20, 20);
-
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
-
-    g_vaoVertCount = positions.length;
+    g_vaoVertCount = sphereMesh.pos.length;
     g_vao = gl.createVertexArray();
-    gl.bindVertexArray(g_vao);
+    gl.bindVertexArray(g_vao);    
 
-    gl.enableVertexAttribArray(positionAttributeLocation);
+    // normals
+    var normalAttributeLocation = gl.getAttribLocation(g_shader.program, "a_normal");
+    var normalBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+    gl.enableVertexAttribArray(normalAttributeLocation);
+    gl.vertexAttribPointer(normalAttributeLocation, 3, gl.FLOAT, false, 0, 0);   
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(sphereMesh.norm), gl.STATIC_DRAW);     
 
-    var size = 3;          // 3 components per iteration
-    var type = gl.FLOAT;   // the data is 32bit floats
-    var normalize = false; // don't normalize the data
-    var stride = 0;        // 0 = move forward size * sizeof(type) each iteration to get the next position
-    var offset = 0;        // start at the beginning of the buffer
-    gl.vertexAttribPointer(
-        positionAttributeLocation, size, type, normalize, stride, offset);
+    // positions
+    var positionAttributeLocation = gl.getAttribLocation(g_shader.program, "a_position");
+    var positionBuffer = gl.createBuffer(); 
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    gl.enableVertexAttribArray(positionAttributeLocation);      
+    gl.vertexAttribPointer(positionAttributeLocation, 3, gl.FLOAT, false, 0, 0);        
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(sphereMesh.pos), gl.STATIC_DRAW);
 
 
     // calculate initial camera matrix
