@@ -51,17 +51,15 @@ var g_vao = null;
 var g_vaoVertCount = 0;
 
 // You can use these uniforms in your vertex or pixel shaders without defining them, they are automatically piped through if used.
-// If editing these, also need to edit FillUniformValue()
-// TODO: could put lambdas here about how to fill it in!
 var g_uniforms = {
-  "u_projectionMatrix" : "mat4",
-  "u_cameraMatrix" : "mat4",
-  "u_screenResolution" : "vec2",
-  "u_reverseLightDirection" : "vec3",
-  "u_ambientLight" : "vec3",
+  "u_projectionMatrix"      : ["mat4", (key, location, objectValues) => {gl.uniformMatrix4fv(location, false, g_projectionMatrix);}],
+  "u_cameraMatrix"          : ["mat4", (key, location, objectValues) => {gl.uniformMatrix4fv(location, false, g_cameraMatrix);}],
+  "u_screenResolution"      : ["vec2", (key, location, objectValues) => {gl.uniform2fv(location, [gl.canvas.width, gl.canvas.height]);}],
+  "u_reverseLightDirection" : ["vec3", (key, location, objectValues) => {gl.uniform3fv(location, g_reverseLightDirection);}],
+  "u_ambientLight"          : ["vec3", (key, location, objectValues) => {gl.uniform3fv(location, g_ambientLight);}],
 
-  "u_objectMatrix" : "mat4",  
-  "u_objectColor" : "vec3",
+  "u_objectMatrix"          : ["mat4", (key, location, objectValues) => {gl.uniformMatrix4fv(location, false, GetObjectValue(objectValues, key));}],  
+  "u_objectColor"           : ["vec3", (key, location, objectValues) => {gl.uniform3fv(location, GetObjectValue(objectValues, key));}],
 };
 
 var g_uniformsShaderSource = "";
@@ -293,20 +291,8 @@ function FillUniformValue (key, location, objectValues)
   if (location == null)
     return;
 
-  // fill in whatever uniform was asked for
-  switch(key)
-  {
-    case "u_projectionMatrix": gl.uniformMatrix4fv(location, false, g_projectionMatrix); break;
-    case "u_cameraMatrix": gl.uniformMatrix4fv(location, false, g_cameraMatrix); break;
-    case "u_screenResolution": gl.uniform2fv(location, [gl.canvas.width, gl.canvas.height]); break;
-    case "u_reverseLightDirection": gl.uniform3fv(location, g_reverseLightDirection); break;
-    case "u_ambientLight": gl.uniform3fv(location, g_ambientLight); break;
-
-    case "u_objectMatrix": gl.uniformMatrix4fv(location, false, objectValues.u_objectMatrix); break;  // todo: use GetObjectValue()
-    case "u_objectColor": gl.uniform3fv(location, objectValues.u_objectColor); break;  // todo: use GetObjectValue()
-
-    default: throw new Error("Unknown uniform asked for in FillUniformValue() : " + key);
-  }
+  // else fill it in with the lambda
+  g_uniforms[key][1](key, location, objectValues);
 }
 
 //=========================================================================================
@@ -417,14 +403,11 @@ function DrawScene (thisFrameTimeStamp)
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);    
 
     // draw some spheres
-    DrawSphere(0, 0, -5, 0.25, 0.25, 0.25, 1, 0, 0);
-    DrawSphere(0, 0, -10, 1, 1, 1, 0, 1, 0);
-
     for (var iy = 0; iy < 8; ++iy)
     {
       for (var ix = 0; ix < 8; ++ix)
       {
-        DrawSphere((ix - 3.5), (iy - 3.5), -15, 0.4, 0.4, 0.4, ix / 7, iy / 7, 0.1);
+        DrawSphere((ix - 3.5), (iy - 3.5), -15, 0.4, 0.4, 0.4, ix / 7, iy / 7, 0.0);
       }
     }
 
@@ -617,7 +600,7 @@ function Initialize ()
     // make the uniform definitions for the shaders
     g_uniformsShaderSource = "// uniform constants\n";
     for (var key in g_uniforms)
-      g_uniformsShaderSource += "uniform " + g_uniforms[key] + " " + key + ";\n";    
+      g_uniformsShaderSource += "uniform " + g_uniforms[key][0] + " " + key + ";\n";    
 
     // make the shader
     g_shader = MakeShader(vertexShaderSource, fragmentShaderSource);
