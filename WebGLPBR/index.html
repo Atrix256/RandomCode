@@ -41,8 +41,7 @@ var g_keyState = new Array();
 
 var g_pointerLocked = false;
 
-var g_reverseLightDirection = NormalizeVector([1,1,0]);
-var g_ambientLight = [0.01, 0.01, 0.01];
+var g_ambientLight = [0.001, 0.001, 0.001];
 
 // a dictionary of file names to textures
 var g_images = {};
@@ -62,14 +61,35 @@ var g_uniforms = {
   "u_projectionMatrix"      : ["mat4",      (key, location, objectValues) => {gl.uniformMatrix4fv(location, false, g_projectionMatrix);}],
   "u_cameraMatrix"          : ["mat4",      (key, location, objectValues) => {gl.uniformMatrix4fv(location, false, g_cameraMatrix);}],
   "u_screenResolution"      : ["vec2",      (key, location, objectValues) => {gl.uniform2fv(location, [gl.canvas.width, gl.canvas.height]);}],
-  "u_reverseLightDirection" : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, g_reverseLightDirection);}],
+
+  "u_cameraPosition"        : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, g_cameraPosition);}],
+
   "u_ambientLight"          : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, g_ambientLight);}],
+
+  "u_light0Pos"             : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, [-10, 10, 0]);}],
+  "u_light0Color"           : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, [ 300.0, 300.0, 300.0]);}],
+
+  "u_light1Pos"             : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, [ 10, 10, 0]);}],
+  "u_light1Color"           : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, [ 300.0, 300.0, 300.0]);}],  
+
+  "u_light2Pos"             : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, [ -10, -10, 0]);}],
+  "u_light2Color"           : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, [ 300.0, 300.0, 300.0]);}],  
+
+  "u_light3Pos"             : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, [ 10, -10, 0]);}],
+  "u_light3Color"           : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, [ 300.0, 300.0, 300.0]);}],  
 
   "u_objectMatrix"          : ["mat4",      (key, location, objectValues) => {gl.uniformMatrix4fv(location, false, GetObjectValue(objectValues, key));}],  
   "u_objectAlbedo"          : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, GetObjectValue(objectValues, key));}],
+  "u_objectMetallic"        : ["float",     (key, location, objectValues) => {gl.uniform1f(location, GetObjectValue(objectValues, key));}],
+  "u_objectRoughness"       : ["float",     (key, location, objectValues) => {gl.uniform1f(location, GetObjectValue(objectValues, key));}],
+  "u_objectAO"              : ["float",     (key, location, objectValues) => {gl.uniform1f(location, GetObjectValue(objectValues, key));}],
+
   "u_texture0"              : ["sampler2D", (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 0);}],
   "u_texture1"              : ["sampler2D", (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 1);}],
+
 };
+
+// TODO: isn't specular supposed to be affected by the camera?
 
 var g_uniformsShaderSource = "";
 
@@ -107,6 +127,90 @@ in vec2 v_uv;
 
 // pixel output
 out vec4 outColor;
+
+// TODO: roughness of 0 (bottom row of spheres) is seeming to have some problem where it looks like full roughness. divide by 0?
+
+// TODO: clean up all this code
+
+/*
+vec3 PositionalLightRadiance (vec3 worldPos, vec3 normal, vec3 lightPos, vec3 lightColor)
+{
+  vec3 wi = normalize(lightPos - worldPos);
+  float cosTheta = max(dot(normal, wi), 0.0);
+  float attenutation = 1.0 / length(lightPos - worldPos) * length(lightPos - worldPos);
+  return lightColor * attenutation * cosTheta;
+}
+*/
+
+const float PI = 3.14159265359;
+
+float DistributionGGX(vec3 N, vec3 H, float roughness)
+{
+    float a      = roughness*roughness;
+    float a2     = a*a;
+    float NdotH  = max(dot(N, H), 0.0);
+    float NdotH2 = NdotH*NdotH;
+  
+    float nom   = a2;
+    float denom = (NdotH2 * (a2 - 1.0) + 1.0);
+    denom = PI * denom * denom;
+  
+    return nom / denom;
+}
+
+float GeometrySchlickGGX(float NdotV, float roughness)
+{
+    float r = (roughness + 1.0);
+    float k = (r*r) / 8.0;
+
+    float nom   = NdotV;
+    float denom = NdotV * (1.0 - k) + k;
+  
+    return nom / denom;
+}
+float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
+{
+    float NdotV = max(dot(N, V), 0.0);
+    float NdotL = max(dot(N, L), 0.0);
+    float ggx2  = GeometrySchlickGGX(NdotV, roughness);
+    float ggx1  = GeometrySchlickGGX(NdotL, roughness);
+  
+    return ggx1 * ggx2;
+}
+
+vec3 fresnelSchlick(float cosTheta, vec3 F0)
+{
+    return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
+}  
+
+vec3 PositionalLight (vec3 worldPos, vec3 N, vec3 V, vec3 lightPos, vec3 lightColor, vec3 albedo, float metallic, float roughness)
+{
+    vec3 L = normalize(lightPos - worldPos);
+    vec3 H = normalize(V + L);
+
+    float distance    = length(lightPos - worldPos);
+    float attenuation = 1.0 / (distance * distance);
+    vec3 radiance     = lightColor * attenuation;     
+
+    vec3 F0 = vec3(0.04); 
+    F0      = mix(F0, albedo, metallic);
+    vec3 F  = fresnelSchlick(max(dot(H, V), 0.0), F0);    
+
+    float NDF = DistributionGGX(N, H, roughness);       
+    float G   = GeometrySmith(N, V, L, roughness);     
+
+    vec3 nominator    = NDF * G * F;
+    float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.001; 
+    vec3 specular     = nominator / denominator;       
+
+    vec3 kS = F;
+    vec3 kD = vec3(1.0) - kS;
+      
+    kD *= 1.0 - metallic;     
+  
+    float NdotL = max(dot(N, L), 0.0);        
+    return (kD * albedo / PI + specular) * radiance * NdotL;    
+}
  
 void main()
 {
@@ -118,20 +222,28 @@ void main()
   //outColor.rg = v_uv;
   //outColor.b = 0.0;  
 
-  vec3 normal = normalize(v_normal);
-
-  vec3 objectAlbedo = u_objectAlbedo;
-
-  // TODO: temp texture test!
   //objectAlbedo *= (texture(u_texture0, v_uv).rgb + texture(u_texture1, v_uv).rgb);
 
-  // set the output color
-  outColor.rgb = objectAlbedo * u_ambientLight + objectAlbedo * clamp(dot(normal, u_reverseLightDirection), 0.0, 1.0);
-  outColor.rgb = pow(outColor.rgb, vec3(1.0/2.2)); 
+  vec3 N = normalize(v_normal); 
+  vec3 V = normalize(u_cameraPosition - v_worldPos);  
 
-  outColor.w = 1.0;
+  vec3 col = vec3(0.0, 0.0, 0.0);
+
+  col += PositionalLight(v_worldPos, N, V, u_light0Pos, u_light0Color, u_objectAlbedo, u_objectMetallic, u_objectRoughness);
+  col += PositionalLight(v_worldPos, N, V, u_light1Pos, u_light1Color, u_objectAlbedo, u_objectMetallic, u_objectRoughness);
+  col += PositionalLight(v_worldPos, N, V, u_light2Pos, u_light2Color, u_objectAlbedo, u_objectMetallic, u_objectRoughness);
+  col += PositionalLight(v_worldPos, N, V, u_light3Pos, u_light3Color, u_objectAlbedo, u_objectMetallic, u_objectRoughness);
+
+  col += u_ambientLight * u_objectAlbedo * u_objectAO;
+
+  col = col / (col + vec3(1.0));
+  outColor.rgb = pow(col, vec3(1.0/2.2));
+  outColor.a = 1.0; 
 }
 `;
+
+// TODO: remove the directional light data and code!
+// TODO: make spheres vary their metalness etc
 
 //=========================================================================================
 function CreateShader (gl, type, source) {
@@ -319,7 +431,7 @@ function FillUniformValue (key, location, objectValues)
 }
 
 //=========================================================================================
-function DrawSphere (offsetX, offsetY, offsetZ, scaleX, scaleY, scaleZ, colorR, colorG, colorB)
+function DrawSphere (offsetX, offsetY, offsetZ, scaleX, scaleY, scaleZ, colorR, colorG, colorB, metallic, roughness)
 {
     // Tell it to use our program (pair of shaders)
     gl.useProgram(g_shader.program);    
@@ -334,6 +446,9 @@ function DrawSphere (offsetX, offsetY, offsetZ, scaleX, scaleY, scaleZ, colorR, 
       offsetX, offsetY, offsetZ, 1
     ];
     objectValues.u_objectAlbedo = [colorR, colorG, colorB];
+    objectValues.u_objectMetallic = metallic;
+    objectValues.u_objectRoughness = roughness;
+    objectValues.u_objectAO = 1.0;
     objectValues.u_texture0 = g_images["owl.jpg"];
     objectValues.u_texture1 = g_images["2dpoisson.png"];
 
@@ -424,7 +539,7 @@ function DrawScene (thisFrameTimeStamp)
     gl.depthFunc(gl.LESS);
 
     // Clear the canvas
-    gl.clearColor(0, 0, 0, 255);
+    gl.clearColor(0.1, 0.1, 0.1, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);    
 
     // draw some spheres
@@ -432,7 +547,12 @@ function DrawScene (thisFrameTimeStamp)
     {
       for (var ix = 0; ix < 8; ++ix)
       {
-        DrawSphere((ix - 3.5), (iy - 3.5), -15, 0.4, 0.4, 0.4, ix / 7, iy / 7, 0.0);
+        DrawSphere(
+          (ix - 3.5), (iy - 3.5), -15,
+          0.4, 0.4, 0.4,
+          1.0, 0.0, 0.0,
+          iy / 7,
+          (ix / 7) * 0.95 + 0.05);
       }
     }
 
