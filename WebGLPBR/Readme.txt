@@ -1,3 +1,4 @@
+? isn't specular supposed to follow the camera somehow? it doesn't seem to be.
 
 * Make a PBR renderer in WebGL:
  * https://learnopengl.com/#!PBR/Theory
@@ -23,8 +24,15 @@
 
 * a starting image that says "click to begin. mouse look, WASD controls"
 
+* ambient occlusion
+
+? what #version should i be using? im using 300 es, but the tutorial uses 330 core. if i try to use 330 core i get an error?
+
+? do we want to allow difference base reflectivity for different materials instead of just 0.04?
+
 ===== LATER =====
 
+* blog post with links to resources, basic shell webgl pbr program, any programs you made or used.
 * SSR
 * shadow maps (temporal soft shadow maps from gpu pro 2?)
 * Deferred rendering w/ gbuffer and forward rendering pass
@@ -36,6 +44,13 @@
 * subsurface scattering
 * reflection / refraction / absorption / etc
 * and so on!
+
+===== LINKS =====
+
+* Free PBR Materials:
+ http://freepbr.com/materials/rusted-iron-pbr-metal-material-alt/
+
+https://webgl2fundamentals.org/
 
 ===== DONE =====
 
@@ -64,7 +79,9 @@
  * image loading seemingly done (actually no, can't use 2 images in 1 shader?)
 
 --6/4/17
-* morning: fixed images.
+* morning: fixed image loading.
+ * got basic pbr spheres working woo!
+ * i think specular may be wrong though, not following camera
 
 ==================== LANDFILL ====================
 
