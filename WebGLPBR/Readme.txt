@@ -1,5 +1,11 @@
 ? isn't specular supposed to follow the camera somehow? it doesn't seem to be.
 
+* make it so you can toggle on and off texturing? (maybe under debug panel?)
+
+* get normal mapping working for texturing on
+
+* then move to IBL?
+
 * Make a PBR renderer in WebGL:
  * https://learnopengl.com/#!PBR/Theory
 
@@ -23,6 +29,7 @@
 * a "reload" button that reloads the page, but puts you in the same location with the same debug options?
 
 * a starting image that says "click to begin. mouse look, WASD controls"
+* a starting image that says "loading..." for image loading (and later, shader compilations)
 
 * ambient occlusion
 
@@ -82,6 +89,7 @@ https://webgl2fundamentals.org/
 * morning: fixed image loading.
  * got basic pbr spheres working woo!
  * i think specular may be wrong though, not following camera
+ * added pbr material textures
 
 ==================== LANDFILL ====================
 

@@ -47,8 +47,10 @@ var g_ambientLight = [0.001, 0.001, 0.001];
 var g_images = {};
 
 g_imagesToLoad = [
-  "2dpoisson.png",
-  "owl.jpg",
+  "rustediron2_basecolor.png",
+  "rustediron2_metallic.png",
+  "rustediron2_roughness.png",
+  "rustediron2_normal.png",
 ];
 
 var g_shader = null;
@@ -86,10 +88,9 @@ var g_uniforms = {
 
   "u_texture0"              : ["sampler2D", (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 0);}],
   "u_texture1"              : ["sampler2D", (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 1);}],
-
+  "u_texture2"              : ["sampler2D", (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 2);}],
+  "u_texture3"              : ["sampler2D", (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 3);}],  
 };
-
-// TODO: isn't specular supposed to be affected by the camera?
 
 var g_uniformsShaderSource = "";
 
@@ -128,19 +129,7 @@ in vec2 v_uv;
 // pixel output
 out vec4 outColor;
 
-// TODO: roughness of 0 (bottom row of spheres) is seeming to have some problem where it looks like full roughness. divide by 0?
-
 // TODO: clean up all this code
-
-/*
-vec3 PositionalLightRadiance (vec3 worldPos, vec3 normal, vec3 lightPos, vec3 lightColor)
-{
-  vec3 wi = normalize(lightPos - worldPos);
-  float cosTheta = max(dot(normal, wi), 0.0);
-  float attenutation = 1.0 / length(lightPos - worldPos) * length(lightPos - worldPos);
-  return lightColor * attenutation * cosTheta;
-}
-*/
 
 const float PI = 3.14159265359;
 
@@ -241,9 +230,6 @@ void main()
   outColor.a = 1.0; 
 }
 `;
-
-// TODO: remove the directional light data and code!
-// TODO: make spheres vary their metalness etc
 
 //=========================================================================================
 function CreateShader (gl, type, source) {
@@ -449,8 +435,10 @@ function DrawSphere (offsetX, offsetY, offsetZ, scaleX, scaleY, scaleZ, colorR, 
     objectValues.u_objectMetallic = metallic;
     objectValues.u_objectRoughness = roughness;
     objectValues.u_objectAO = 1.0;
-    objectValues.u_texture0 = g_images["owl.jpg"];
-    objectValues.u_texture1 = g_images["2dpoisson.png"];
+    objectValues.u_texture0 = g_images["rustediron2_basecolor.png"];
+    objectValues.u_texture1 = g_images["rustediron2_metallic.png"];
+    objectValues.u_texture2 = g_images["rustediron2_roughness.png"];
+    objectValues.u_texture3 = g_images["rustediron2_normal.png"];
 
     // fill out the uniforms
     for (var key in g_shader.uniforms)
