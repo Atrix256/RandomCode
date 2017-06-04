@@ -1,12 +1,11 @@
-* be able to render multiple spheres at different locations (per object matrices?), then PBR time
- * put them in the grid like in the demo
+* be able to load textures
 
 * TODO's!
 
 * Make a PBR renderer in WebGL:
  * https://learnopengl.com/#!PBR/Theory
 
-
+* rename u_objectColor to albedo
 
 * put something meaningful in the debug panel that actually works, whenever it makes sense to.
 
@@ -17,8 +16,6 @@
 
 * be able to load and use textures
 
-* have object matrices?
-
 * make wireframe mode better.
 * turn on back face culling
 
@@ -26,6 +23,8 @@
  * aka in and out for both vertex and pixel shaders
 
 * a "reload" button that reloads the page, but puts you in the same location with the same debug options?
+
+* a starting image that says "click to begin. mouse look, WASD controls"
 
 ===== LATER =====
 
@@ -37,6 +36,8 @@
 * spherical harmonics
 * HDR tonemapping and bloom
 * different depth formats (reversed, non linear, etc)
+* subsurface scattering
+* reflection / refraction / absorption / etc
 * and so on!
 
 ===== DONE =====
@@ -60,6 +61,9 @@
 
 --6/3/7
 * morning: normals on spheres and non PBR directional + ambient lighting. Object Color.
+ * spheres on a grid
+ * streamline uniform passing a bit
+* night: basic image loading, uv passing, chrome link to load local images
 
 ==================== LANDFILL ====================
 

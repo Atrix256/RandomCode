@@ -44,6 +44,10 @@ var g_pointerLocked = false;
 var g_reverseLightDirection = NormalizeVector([1,1,0]);
 var g_ambientLight = [0.01, 0.01, 0.01];
 
+// TODO: turn this in to a dictionary where key is file name, and value is the image / texture.
+// TODO: then have u_texture0 get the value from GetObjectValue.
+var g_images = [];
+
 
 var g_shader = null;
 
@@ -52,14 +56,15 @@ var g_vaoVertCount = 0;
 
 // You can use these uniforms in your vertex or pixel shaders without defining them, they are automatically piped through if used.
 var g_uniforms = {
-  "u_projectionMatrix"      : ["mat4", (key, location, objectValues) => {gl.uniformMatrix4fv(location, false, g_projectionMatrix);}],
-  "u_cameraMatrix"          : ["mat4", (key, location, objectValues) => {gl.uniformMatrix4fv(location, false, g_cameraMatrix);}],
-  "u_screenResolution"      : ["vec2", (key, location, objectValues) => {gl.uniform2fv(location, [gl.canvas.width, gl.canvas.height]);}],
-  "u_reverseLightDirection" : ["vec3", (key, location, objectValues) => {gl.uniform3fv(location, g_reverseLightDirection);}],
-  "u_ambientLight"          : ["vec3", (key, location, objectValues) => {gl.uniform3fv(location, g_ambientLight);}],
+  "u_projectionMatrix"      : ["mat4",      (key, location, objectValues) => {gl.uniformMatrix4fv(location, false, g_projectionMatrix);}],
+  "u_cameraMatrix"          : ["mat4",      (key, location, objectValues) => {gl.uniformMatrix4fv(location, false, g_cameraMatrix);}],
+  "u_screenResolution"      : ["vec2",      (key, location, objectValues) => {gl.uniform2fv(location, [gl.canvas.width, gl.canvas.height]);}],
+  "u_reverseLightDirection" : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, g_reverseLightDirection);}],
+  "u_ambientLight"          : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, g_ambientLight);}],
 
-  "u_objectMatrix"          : ["mat4", (key, location, objectValues) => {gl.uniformMatrix4fv(location, false, GetObjectValue(objectValues, key));}],  
-  "u_objectColor"           : ["vec3", (key, location, objectValues) => {gl.uniform3fv(location, GetObjectValue(objectValues, key));}],
+  "u_objectMatrix"          : ["mat4",      (key, location, objectValues) => {gl.uniformMatrix4fv(location, false, GetObjectValue(objectValues, key));}],  
+  "u_objectColor"           : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, GetObjectValue(objectValues, key));}],
+  "u_texture0"              : ["sampler2D", (key, location, objectValues) => {gl.uniform1i(location, 0);}]
 };
 
 var g_uniformsShaderSource = "";
@@ -72,16 +77,19 @@ var vertexShaderSource = `
 // vertex input
 in vec4 a_position;
 in vec3 a_normal;
+in vec2 a_uv;
 
 // vertex output
 out vec3 v_worldPos;
 out vec3 v_normal;
+out vec2 v_uv;
 
 void main()
 {
   v_worldPos = (u_objectMatrix * a_position).xyz;
   // TODO: transform normal
   v_normal = a_normal;
+  v_uv = a_uv;
   gl_Position = u_projectionMatrix * u_cameraMatrix * u_objectMatrix * a_position;
 }
 `;
@@ -91,6 +99,7 @@ var fragmentShaderSource = `
 // pixel input
 in vec3 v_worldPos;
 in vec3 v_normal;
+in vec2 v_uv;
 
 // pixel output
 out vec4 outColor;
@@ -101,11 +110,19 @@ void main()
   //vec2 pos = gl_FragCoord.xy / u_screenResolution;
   //  outColor = vec4(abs(v_worldPos.xyz), 1);
 
+  // color is based on uv
+  //outColor.rg = v_uv;
+  //outColor.b = 0.0;  
+
   vec3 normal = normalize(v_normal);
 
   // set the output color
   outColor.rgb = u_objectColor * u_ambientLight + u_objectColor * clamp(dot(normal, u_reverseLightDirection), 0.0, 1.0);
   outColor.rgb = pow(outColor.rgb, vec3(1.0/2.2)); 
+
+  // TODO: temp texture test!
+  outColor.rgb = texture(u_texture0, v_uv).rgb;
+
   outColor.w = 1.0;
 }
 `;
@@ -495,8 +512,10 @@ function MouseMoveCallback(e)
 function GenerateSphereMesh (slicesX, slicesY)
 {
   var ret = {};
+
   var pos = [];
   var norm = [];
+  var uv = [];
 
   // make the body of the sphere
   for (var indexY = 1; indexY < slicesY - 1; ++indexY)
@@ -512,15 +531,28 @@ function GenerateSphereMesh (slicesX, slicesY)
       var point01 = [Math.cos(percentX1*2*Math.PI) * Math.sin(percentY2*Math.PI), Math.cos(percentY2*Math.PI), Math.sin(percentX1*2*Math.PI) * Math.sin(percentY2*Math.PI)];
       var point11 = [Math.cos(percentX2*2*Math.PI) * Math.sin(percentY2*Math.PI), Math.cos(percentY2*Math.PI), Math.sin(percentX2*2*Math.PI) * Math.sin(percentY2*Math.PI)];
 
+      var uv00 = [percentX1, percentY1];
+      var uv10 = [percentX2, percentY1];
+      var uv01 = [percentX1, percentY2];
+      var uv11 = [percentX2, percentY2];
+
       // triangle 1 = 00, 01, 10
       pos = pos.concat(point00);
       pos = pos.concat(point01);
       pos = pos.concat(point10);
 
+      uv = uv.concat(uv00);
+      uv = uv.concat(uv01);
+      uv = uv.concat(uv10);
+
       // triangle 2 = 01, 11, 10
       pos = pos.concat(point01);
       pos = pos.concat(point11);
       pos = pos.concat(point10);
+
+      uv = uv.concat(uv01);
+      uv = uv.concat(uv11);
+      uv = uv.concat(uv10);      
     }
   }
 
@@ -536,9 +568,17 @@ function GenerateSphereMesh (slicesX, slicesY)
       var point1 = [Math.cos(percentX1*2*Math.PI) * Math.sin(percentY*Math.PI), Math.cos(percentY*Math.PI), Math.sin(percentX1*2*Math.PI) * Math.sin(percentY*Math.PI)];
       var point2 = [Math.cos(percentX2*2*Math.PI) * Math.sin(percentY*Math.PI), Math.cos(percentY*Math.PI), Math.sin(percentX2*2*Math.PI) * Math.sin(percentY*Math.PI)];
 
+      var uv0 = [0, 0];
+      var uv1 = [percentX1, percentY];
+      var uv2 = [percentX2, percentY];
+
       pos = pos.concat(point0);
       pos = pos.concat(point1);
       pos = pos.concat(point2);
+
+      uv = uv.concat(uv0);
+      uv = uv.concat(uv1);
+      uv = uv.concat(uv2);      
 
       percentY = 1.0 - percentY;
 
@@ -546,9 +586,17 @@ function GenerateSphereMesh (slicesX, slicesY)
       point1 = [Math.cos(percentX1*2*Math.PI) * Math.sin(percentY*Math.PI), Math.cos(percentY*Math.PI), Math.sin(percentX1*2*Math.PI) * Math.sin(percentY*Math.PI)];
       point2 = [Math.cos(percentX2*2*Math.PI) * Math.sin(percentY*Math.PI), Math.cos(percentY*Math.PI), Math.sin(percentX2*2*Math.PI) * Math.sin(percentY*Math.PI)];
 
+      var uv0 = [0, 1];
+      var uv1 = [percentX1, percentY];
+      var uv2 = [percentX2, percentY];      
+
       pos = pos.concat(point0);
       pos = pos.concat(point1);
       pos = pos.concat(point2);
+
+      uv = uv.concat(uv0);
+      uv = uv.concat(uv1);
+      uv = uv.concat(uv2);      
   }
 
   // make the normals
@@ -557,8 +605,61 @@ function GenerateSphereMesh (slicesX, slicesY)
 
   ret.pos = pos;
   ret.norm = norm;
+  ret.uv = uv;
 
   return ret;
+}
+
+//=========================================================================================
+function loadImage(url, callback) {
+  var image = new Image();
+  image.src = url;
+  image.onload = callback;
+  return image;
+}
+
+//=========================================================================================
+function LoadImagesAndRender ()
+{
+  var urls = [
+  "2dpoisson.png",
+  ];
+
+  var imagesToLoad = urls.length;
+
+  // Called each time an image finished loading.
+  var onImageLoad = function() {
+    --imagesToLoad;
+    // If all the images are loaded call the callback.
+    if (imagesToLoad == 0) {
+      for (var i = 0; i < g_images.length; ++i)
+      {
+        var texture = gl.createTexture();
+        gl.activeTexture(gl.TEXTURE0 + i);
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+
+        // TODO: repeat, mips, bilinear filtering
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);   
+
+        gl.texImage2D(gl.TEXTURE_2D,
+                      0,
+                      gl.RGBA,
+                      gl.RGBA,
+                      gl.UNSIGNED_BYTE,
+                      g_images[i]);             
+      }
+
+      DrawScene();
+    }
+  };
+ 
+  for (var i = 0; i < imagesToLoad; ++i) {
+    var image = loadImage(urls[i], onImageLoad);
+    g_images.push(image);
+  }  
 }
 
 //=========================================================================================
@@ -628,12 +729,19 @@ function Initialize ()
     gl.vertexAttribPointer(positionAttributeLocation, 3, gl.FLOAT, false, 0, 0);        
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(sphereMesh.pos), gl.STATIC_DRAW);
 
+    // uv
+    var uvAttributeLocation = gl.getAttribLocation(g_shader.program, "a_uv");
+    var uvBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, uvBuffer);
+    gl.enableVertexAttribArray(uvAttributeLocation);
+    gl.vertexAttribPointer(uvAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(sphereMesh.uv), gl.STATIC_DRAW);
 
     // calculate initial camera matrix
     UpdateCameraMatrix();
 
-    // Start rendering
-    DrawScene();
+    // load the images and then start rendering
+    LoadImagesAndRender();
 }
 
 </script>
