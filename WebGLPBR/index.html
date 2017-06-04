@@ -44,17 +44,20 @@ var g_pointerLocked = false;
 var g_reverseLightDirection = NormalizeVector([1,1,0]);
 var g_ambientLight = [0.01, 0.01, 0.01];
 
-// TODO: turn this in to a dictionary where key is file name, and value is the image / texture.
-// TODO: then have u_texture0 get the value from GetObjectValue.
-var g_images = [];
+// a dictionary of file names to textures
+var g_images = {};
 
+g_imagesToLoad = [
+  "2dpoisson.png",
+  "owl.jpg",
+];
 
 var g_shader = null;
 
 var g_vao = null;
 var g_vaoVertCount = 0;
 
-// You can use these uniforms in your vertex or pixel shaders without defining them, they are automatically piped through if used.
+// You can use these uniforms in your vertex or pixel shaders without defining them, they are automatically defined and piped through if actually used.
 var g_uniforms = {
   "u_projectionMatrix"      : ["mat4",      (key, location, objectValues) => {gl.uniformMatrix4fv(location, false, g_projectionMatrix);}],
   "u_cameraMatrix"          : ["mat4",      (key, location, objectValues) => {gl.uniformMatrix4fv(location, false, g_cameraMatrix);}],
@@ -63,8 +66,9 @@ var g_uniforms = {
   "u_ambientLight"          : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, g_ambientLight);}],
 
   "u_objectMatrix"          : ["mat4",      (key, location, objectValues) => {gl.uniformMatrix4fv(location, false, GetObjectValue(objectValues, key));}],  
-  "u_objectColor"           : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, GetObjectValue(objectValues, key));}],
-  "u_texture0"              : ["sampler2D", (key, location, objectValues) => {gl.uniform1i(location, 0);}]
+  "u_objectAlbedo"          : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, GetObjectValue(objectValues, key));}],
+  "u_texture0"              : ["sampler2D", (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 0);}],
+  "u_texture1"              : ["sampler2D", (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 1);}],
 };
 
 var g_uniformsShaderSource = "";
@@ -116,12 +120,14 @@ void main()
 
   vec3 normal = normalize(v_normal);
 
-  // set the output color
-  outColor.rgb = u_objectColor * u_ambientLight + u_objectColor * clamp(dot(normal, u_reverseLightDirection), 0.0, 1.0);
-  outColor.rgb = pow(outColor.rgb, vec3(1.0/2.2)); 
+  vec3 objectAlbedo = u_objectAlbedo;
 
   // TODO: temp texture test!
-  outColor.rgb = texture(u_texture0, v_uv).rgb;
+  //objectAlbedo *= (texture(u_texture0, v_uv).rgb + texture(u_texture1, v_uv).rgb);
+
+  // set the output color
+  outColor.rgb = objectAlbedo * u_ambientLight + objectAlbedo * clamp(dot(normal, u_reverseLightDirection), 0.0, 1.0);
+  outColor.rgb = pow(outColor.rgb, vec3(1.0/2.2)); 
 
   outColor.w = 1.0;
 }
@@ -327,7 +333,9 @@ function DrawSphere (offsetX, offsetY, offsetZ, scaleX, scaleY, scaleZ, colorR, 
       0, 0, scaleZ, 0,
       offsetX, offsetY, offsetZ, 1
     ];
-    objectValues.u_objectColor = [colorR, colorG, colorB];
+    objectValues.u_objectAlbedo = [colorR, colorG, colorB];
+    objectValues.u_texture0 = g_images["owl.jpg"];
+    objectValues.u_texture1 = g_images["2dpoisson.png"];
 
     // fill out the uniforms
     for (var key in g_shader.uniforms)
@@ -621,44 +629,44 @@ function loadImage(url, callback) {
 //=========================================================================================
 function LoadImagesAndRender ()
 {
-  var urls = [
-  "2dpoisson.png",
-  ];
-
-  var imagesToLoad = urls.length;
+  var imagesToLoad = g_imagesToLoad.length;
+  var images = [];
 
   // Called each time an image finished loading.
   var onImageLoad = function() {
     --imagesToLoad;
     // If all the images are loaded call the callback.
     if (imagesToLoad == 0) {
-      for (var i = 0; i < g_images.length; ++i)
+      for (var i = 0; i < images.length; ++i)
       {
         var texture = gl.createTexture();
-        gl.activeTexture(gl.TEXTURE0 + i);
         gl.bindTexture(gl.TEXTURE_2D, texture);
-
-        // TODO: repeat, mips, bilinear filtering
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);   
 
         gl.texImage2D(gl.TEXTURE_2D,
                       0,
                       gl.RGBA,
                       gl.RGBA,
                       gl.UNSIGNED_BYTE,
-                      g_images[i]);             
+                      images[i]);           
+
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);                           
+
+        gl.generateMipmap(gl.TEXTURE_2D);
+        g_images[g_imagesToLoad[i]] = texture;
       }
+
+      gl.bindTexture(gl.TEXTURE_2D, null);
 
       DrawScene();
     }
   };
  
-  for (var i = 0; i < imagesToLoad; ++i) {
-    var image = loadImage(urls[i], onImageLoad);
-    g_images.push(image);
+  for (var i = 0; i < g_imagesToLoad.length; ++i) {
+    var image = loadImage(g_imagesToLoad[i], onImageLoad);
+    images.push(image);
   }  
 }
 

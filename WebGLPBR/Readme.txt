@@ -1,11 +1,8 @@
-* be able to load textures
-
-* TODO's!
 
 * Make a PBR renderer in WebGL:
  * https://learnopengl.com/#!PBR/Theory
 
-* rename u_objectColor to albedo
+* TODO's!
 
 * put something meaningful in the debug panel that actually works, whenever it makes sense to.
 
@@ -63,7 +60,11 @@
 * morning: normals on spheres and non PBR directional + ambient lighting. Object Color.
  * spheres on a grid
  * streamline uniform passing a bit
-* night: basic image loading, uv passing, chrome link to load local images
+* night: basic image loading, uv passing, chrome link to load local images.
+ * image loading seemingly done (actually no, can't use 2 images in 1 shader?)
+
+--6/4/17
+* morning: fixed images.
 
 ==================== LANDFILL ====================
 
