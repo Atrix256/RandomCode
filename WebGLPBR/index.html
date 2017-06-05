@@ -238,16 +238,6 @@ vec3 PositionalLight (vec3 worldPos, vec3 N, vec3 V, vec3 lightPos, vec3 lightCo
  
 void main()
 {
-  // position in screen space as a percentage
-  //vec2 pos = gl_FragCoord.xy / u_screenResolution;
-  //  outColor = vec4(abs(v_worldPos.xyz), 1);
-
-  // color is based on uv
-  //outColor.rg = v_uv;
-  //outColor.b = 0.0;  
-
-  //objectAlbedo *= (texture(u_texture0, v_uv).rgb + texture(u_texture1, v_uv).rgb);
-
   #if DEBUG_WIREFRAME
     float barycentricMin = min(v_barycentric.x, min(v_barycentric.y, v_barycentric.z));
     if (barycentricMin > 0.025)
@@ -564,6 +554,59 @@ function DrawSphere (offsetX, offsetY, offsetZ, scaleX, scaleY, scaleZ, colorR, 
 }
 
 //=========================================================================================
+function HandleInput (deltaTime)
+{
+  if (!g_pointerLocked)
+    return;
+
+  // W or up arrowd
+  var movement = g_cameraMoveSpeed * deltaTime;
+  if (g_keyState[87] || g_keyState[38])
+  {
+    var vec = CameraForward();
+    g_cameraPosition[0] -= vec[0] * movement;
+    g_cameraPosition[1] -= vec[1] * movement;
+    g_cameraPosition[2] -= vec[2] * movement;
+    UpdateCameraMatrix();
+
+    document.getElementById("CameraPosDisplay").innerText = "Camera: (" + g_cameraPosition[0].toFixed(2) + ", " + g_cameraPosition[1].toFixed(2) + ", " + g_cameraPosition[2].toFixed(2) + ")";
+  }
+  // S or down arrow
+  if (g_keyState[83] || g_keyState[40])
+  {
+    var vec = CameraForward();
+    g_cameraPosition[0] += vec[0] * movement;
+    g_cameraPosition[1] += vec[1] * movement;
+    g_cameraPosition[2] += vec[2] * movement;      
+    UpdateCameraMatrix();
+
+    document.getElementById("CameraPosDisplay").innerText = "Camera: (" + g_cameraPosition[0].toFixed(2) + ", " + g_cameraPosition[1].toFixed(2) + ", " + g_cameraPosition[2].toFixed(2) + ")";
+  }
+  // A or left arrow
+  if (g_keyState[65] || g_keyState[37])
+  {
+    var vec = CameraRight();
+    g_cameraPosition[0] -= vec[0] * movement;
+    g_cameraPosition[1] -= vec[1] * movement;
+    g_cameraPosition[2] -= vec[2] * movement;          
+    UpdateCameraMatrix();
+
+    document.getElementById("CameraPosDisplay").innerText = "Camera: (" + g_cameraPosition[0].toFixed(2) + ", " + g_cameraPosition[1].toFixed(2) + ", " + g_cameraPosition[2].toFixed(2) + ")";
+  }    
+  // D or right arrow
+  if (g_keyState[68] || g_keyState[39])
+  {
+    var vec = CameraRight();
+    g_cameraPosition[0] += vec[0] * movement;
+    g_cameraPosition[1] += vec[1] * movement;
+    g_cameraPosition[2] += vec[2] * movement;          
+    UpdateCameraMatrix();
+
+    document.getElementById("CameraPosDisplay").innerText = "Camera: (" + g_cameraPosition[0].toFixed(2) + ", " + g_cameraPosition[1].toFixed(2) + ", " + g_cameraPosition[2].toFixed(2) + ")";
+  }         
+}
+
+//=========================================================================================
 function DrawScene (thisFrameTimeStamp)
 {
     // calculate a delta time for our frame
@@ -586,55 +629,8 @@ function DrawScene (thisFrameTimeStamp)
       g_frameCountTime = 0;
     }
 
-    // TODO: temp! Move this to a different function or something.
-    if (g_pointerLocked)
-    {
-      // W or up arrowd
-      var movement = g_cameraMoveSpeed * deltaTime;
-      if (g_keyState[87] || g_keyState[38])
-      {
-        var vec = CameraForward();
-        g_cameraPosition[0] -= vec[0] * movement;
-        g_cameraPosition[1] -= vec[1] * movement;
-        g_cameraPosition[2] -= vec[2] * movement;
-        UpdateCameraMatrix();
-
-        document.getElementById("CameraPosDisplay").innerText = "Camera: (" + g_cameraPosition[0].toFixed(2) + ", " + g_cameraPosition[1].toFixed(2) + ", " + g_cameraPosition[2].toFixed(2) + ")";
-      }
-      // S or down arrow
-      if (g_keyState[83] || g_keyState[40])
-      {
-        var vec = CameraForward();
-        g_cameraPosition[0] += vec[0] * movement;
-        g_cameraPosition[1] += vec[1] * movement;
-        g_cameraPosition[2] += vec[2] * movement;      
-        UpdateCameraMatrix();
-
-        document.getElementById("CameraPosDisplay").innerText = "Camera: (" + g_cameraPosition[0].toFixed(2) + ", " + g_cameraPosition[1].toFixed(2) + ", " + g_cameraPosition[2].toFixed(2) + ")";
-      }
-      // A or left arrow
-      if (g_keyState[65] || g_keyState[37])
-      {
-        var vec = CameraRight();
-        g_cameraPosition[0] -= vec[0] * movement;
-        g_cameraPosition[1] -= vec[1] * movement;
-        g_cameraPosition[2] -= vec[2] * movement;          
-        UpdateCameraMatrix();
-
-        document.getElementById("CameraPosDisplay").innerText = "Camera: (" + g_cameraPosition[0].toFixed(2) + ", " + g_cameraPosition[1].toFixed(2) + ", " + g_cameraPosition[2].toFixed(2) + ")";
-      }    
-      // D or right arrow
-      if (g_keyState[68] || g_keyState[39])
-      {
-        var vec = CameraRight();
-        g_cameraPosition[0] += vec[0] * movement;
-        g_cameraPosition[1] += vec[1] * movement;
-        g_cameraPosition[2] += vec[2] * movement;          
-        UpdateCameraMatrix();
-
-        document.getElementById("CameraPosDisplay").innerText = "Camera: (" + g_cameraPosition[0].toFixed(2) + ", " + g_cameraPosition[1].toFixed(2) + ", " + g_cameraPosition[2].toFixed(2) + ")";
-      }       
-    }
+    // user input
+    HandleInput(deltaTime)
 
     // Draw
     Resize(gl.canvas);

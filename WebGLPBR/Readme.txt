@@ -1,13 +1,13 @@
 * get normal mapping working for texturing on
 
-* option to animate light positions?
-
-? should the various functions take arrays instead of x,y,z and r,g,b? i think so, would be easier
-
 * then move to IBL!
 
 * Make a PBR renderer in WebGL:
  * https://learnopengl.com/#!PBR/Theory
+
+* option to animate light positions?
+
+? should the various functions take arrays instead of x,y,z and r,g,b? i think so, would be easier
 
 * TODO's!
 
@@ -24,6 +24,13 @@
 * ambient occlusion of meshes, if using more complex meshes
 
 ! phong lighting may need to go. not sure if it's right.
+
+* A drop down for diff scenes.
+ * Sphere grid
+ * Debug sphere? w/ sliders for properties and color?
+ * Box (es)?
+ * Tetrahedrons?
+ * Bezier rectangle?
 
 ===== LATER =====
 
