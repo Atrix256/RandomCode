@@ -21,16 +21,16 @@
 
 * be able to load and use textures
 
-* make wireframe mode better.
-* turn on back face culling
+* turn on back face culling when not in wireframe mode
 
 * a decent automatic way of making vertex formats and vertex output to pixel input.
- * aka in and out for both vertex and pixel shaders
+ * aka in and out for both vertex and pixel shaders.
+ * maybe not important.
 
 * a starting image that says "click to begin. mouse look, WASD controls"
 * a starting image that says "loading..." for image loading (and later, shader compilations)
 
-* ambient occlusion
+* ambient occlusion of meshes
 
 ? do we want to allow difference base reflectivity for different materials instead of just 0.04?
 
