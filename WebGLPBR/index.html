@@ -64,10 +64,15 @@ var g_light1Pos = [-5, 5, 5];
 var g_light2Pos = [ 5,-5, 5];
 var g_light3Pos = [ 5, 5, 5];
 
-var g_light0Color = [300.0, 300.0, 300.0];
-var g_light1Color = [300.0, 300.0, 300.0];
-var g_light2Color = [300.0, 300.0, 300.0];
-var g_light3Color = [300.0, 300.0, 300.0];
+var g_light0ColorA = [300.0, 300.0, 300.0];
+var g_light1ColorA = [300.0, 300.0, 300.0];
+var g_light2ColorA = [300.0, 300.0, 300.0];
+var g_light3ColorA = [300.0, 300.0, 300.0];
+
+var g_light0ColorB = [300.0,   0.0,   0.0];
+var g_light1ColorB = [  0.0, 300.0,   0.0];
+var g_light2ColorB = [  0.0,   0.0, 300.0];
+var g_light3ColorB = [300.0, 300.0,   0.0];
 
 // You can use these uniforms in your vertex or pixel shaders without defining them, they are automatically defined and piped through if actually used.
 var g_uniforms = {
@@ -80,16 +85,16 @@ var g_uniforms = {
   "u_ambientLight"          : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, g_ambientLight);}],
 
   "u_light0Pos"             : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, g_light0Pos);}],
-  "u_light0Color"           : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, g_light0Color);}],
+  "u_light0Color"           : ["vec3",      (key, location, objectValues) => {var color = GetLightColor(0); gl.uniform3fv(location, color);}],
 
   "u_light1Pos"             : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, g_light1Pos);}],
-  "u_light1Color"           : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, g_light1Color);}],  
+  "u_light1Color"           : ["vec3",      (key, location, objectValues) => {var color = GetLightColor(1); gl.uniform3fv(location, color);}],
 
   "u_light2Pos"             : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, g_light2Pos);}],
-  "u_light2Color"           : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, g_light2Color);}],  
+  "u_light2Color"           : ["vec3",      (key, location, objectValues) => {var color = GetLightColor(2); gl.uniform3fv(location, color);}],
 
   "u_light3Pos"             : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, g_light3Pos);}],
-  "u_light3Color"           : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, g_light3Color);}],  
+  "u_light3Color"           : ["vec3",      (key, location, objectValues) => {var color = GetLightColor(3); gl.uniform3fv(location, color);}],
 
   "u_objectMatrix"          : ["mat4",      (key, location, objectValues) => {gl.uniformMatrix4fv(location, false, GetObjectValue(objectValues, key));}],  
   "u_objectAlbedo"          : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, GetObjectValue(objectValues, key));}],
@@ -98,10 +103,10 @@ var g_uniforms = {
   "u_objectRoughness"       : ["float",     (key, location, objectValues) => {gl.uniform1f(location, GetObjectValue(objectValues, key));}],
   "u_objectAO"              : ["float",     (key, location, objectValues) => {gl.uniform1f(location, GetObjectValue(objectValues, key));}],
 
-  "u_texture0"              : ["sampler2D", (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 0);}],
-  "u_texture1"              : ["sampler2D", (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 1);}],
-  "u_texture2"              : ["sampler2D", (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 2);}],
-  "u_texture3"              : ["sampler2D", (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 3);}],  
+  "u_textureAlbedo"         : ["sampler2D", (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 0);}],
+  "u_textureMetalic"        : ["sampler2D", (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 1);}],
+  "u_textureRoughness"      : ["sampler2D", (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 2);}],
+  "u_textureNormal"         : ["sampler2D", (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 3);}],  
 };
 
 var g_uniformsShaderSource = "";
@@ -254,26 +259,64 @@ void main()
 
   vec3 col = u_objectEmissive;
 
-  col += PositionalLight(v_worldPos, N, V, u_light0Pos, u_light0Color, u_objectAlbedo, u_objectMetallic, u_objectRoughness);
-  col += PositionalLight(v_worldPos, N, V, u_light1Pos, u_light1Color, u_objectAlbedo, u_objectMetallic, u_objectRoughness);
-  col += PositionalLight(v_worldPos, N, V, u_light2Pos, u_light2Color, u_objectAlbedo, u_objectMetallic, u_objectRoughness);
-  col += PositionalLight(v_worldPos, N, V, u_light3Pos, u_light3Color, u_objectAlbedo, u_objectMetallic, u_objectRoughness);
+  vec3 objectAlbedo = u_objectAlbedo;
+  float objectMetalic = u_objectMetallic;
+  float objectRoughness = u_objectRoughness;
 
-  col += u_ambientLight * u_objectAlbedo * u_objectAO;
+  #if USE_TEXTURES
+    objectAlbedo = pow(texture(u_textureAlbedo, v_uv).rgb, vec3(2.2));
+    objectMetalic = texture(u_textureMetalic, v_uv).r;
+    objectRoughness = texture(u_textureRoughness, v_uv).r;
+  #endif
+
+  col += PositionalLight(v_worldPos, N, V, u_light0Pos, u_light0Color, objectAlbedo, objectMetalic, objectRoughness);
+  col += PositionalLight(v_worldPos, N, V, u_light1Pos, u_light1Color, objectAlbedo, objectMetalic, objectRoughness);
+  col += PositionalLight(v_worldPos, N, V, u_light2Pos, u_light2Color, objectAlbedo, objectMetalic, objectRoughness);
+  col += PositionalLight(v_worldPos, N, V, u_light3Pos, u_light3Color, objectAlbedo, objectMetalic, objectRoughness);
+
+  col += u_ambientLight * objectAlbedo * u_objectAO;
 
   col = col / (col + vec3(1.0));
   outColor.rgb = pow(col, vec3(1.0/2.2));
   outColor.a = 1.0; 
 }
 `;
+
 //=========================================================================================
-function GetShaderPermutationIndex (wireFrame, phong)
+function GetLightColor (lightIndex)
+{
+  if (document.getElementById("UseColoredLights").checked)
+  {
+    switch(lightIndex)
+    {
+      case 0: return g_light0ColorB;
+      case 1: return g_light1ColorB;
+      case 2: return g_light2ColorB;
+      case 3: return g_light3ColorB;                  
+    }
+  }
+  else
+  {
+    switch(lightIndex)
+    {
+      case 0: return g_light0ColorA;
+      case 1: return g_light1ColorA;
+      case 2: return g_light2ColorA;
+      case 3: return g_light3ColorA;                  
+    }
+  }
+}
+
+//=========================================================================================
+function GetShaderPermutationIndex (wireFrame, phong, useTextures)
 {
   var ret = 0;
   if (wireFrame)
     ret += 1;
   if (phong)
     ret += 2;
+  if (useTextures)
+    ret += 4;
   return ret;
 }
 
@@ -281,7 +324,8 @@ function GetShaderPermutationIndex (wireFrame, phong)
 function GetShaderPermutationSourceString (index)
 {
   return "#define DEBUG_WIREFRAME " + (index % 2) + "\n" +
-         "#define DEBUG_PHONG " + (Math.floor(index/2) % 2) + "\n\n";
+         "#define DEBUG_PHONG " + (Math.floor(index/2) % 2) + "\n" + 
+         "#define USE_TEXTURES " + (Math.floor(index/4) % 2) + "\n\n";
 }
 
 //=========================================================================================
@@ -472,7 +516,11 @@ function FillUniformValue (key, location, objectValues)
 //=========================================================================================
 function DrawSphere (offsetX, offsetY, offsetZ, scaleX, scaleY, scaleZ, colorR, colorG, colorB, emissiveR, emissiveG, emissiveB, metallic, roughness)
 {
-    var shader = g_shaders[GetShaderPermutationIndex(document.getElementById("Debug_Wireframe").checked, document.getElementById("Debug_Phong").checked)];
+    var shader = g_shaders[GetShaderPermutationIndex(
+      document.getElementById("Debug_Wireframe").checked,
+      document.getElementById("Debug_Phong").checked,
+      document.getElementById("UseTextures").checked
+    )];
 
     if (document.getElementById("Debug_Wireframe").checked)
       gl.disable(gl.CULL_FACE);
@@ -497,10 +545,10 @@ function DrawSphere (offsetX, offsetY, offsetZ, scaleX, scaleY, scaleZ, colorR, 
     objectValues.u_objectMetallic = metallic;
     objectValues.u_objectRoughness = roughness;
     objectValues.u_objectAO = 1.0;
-    objectValues.u_texture0 = g_images["rustediron2_basecolor.png"];
-    objectValues.u_texture1 = g_images["rustediron2_metallic.png"];
-    objectValues.u_texture2 = g_images["rustediron2_roughness.png"];
-    objectValues.u_texture3 = g_images["rustediron2_normal.png"];
+    objectValues.u_textureAlbedo = g_images["rustediron2_basecolor.png"];
+    objectValues.u_textureMetalic = g_images["rustediron2_metallic.png"];
+    objectValues.u_textureRoughness = g_images["rustediron2_roughness.png"];
+    objectValues.u_textureNormal = g_images["rustediron2_normal.png"];
 
     // fill out the uniforms
     for (var key in shader.uniforms)
@@ -608,7 +656,7 @@ function DrawScene (thisFrameTimeStamp)
         DrawSphere(
           (ix - 3.5), (iy - 3.5), 0,
           0.4, 0.4, 0.4,
-          1.0, 0.0, 0.0,
+          1, 0, 0,
           0, 0, 0,
           iy / 7,
           (ix / 7) * 0.95 + 0.05);
@@ -618,32 +666,37 @@ function DrawScene (thisFrameTimeStamp)
     // draw the light sources if we should
     if (document.getElementById("Debug_DrawPointLights").checked)
     {
+
+      var color = GetLightColor(0);
       DrawSphere(
         g_light0Pos[0], g_light0Pos[1], g_light0Pos[2], 
         0.1, 0.1, 0.1,
         0, 0, 0,
-        g_light0Color[0], g_light0Color[1], g_light0Color[2],
+        color[0], color[1], color[2],
         0.0, 0.05
       );
+      color = GetLightColor(1);
       DrawSphere(
         g_light1Pos[0], g_light1Pos[1], g_light1Pos[2], 
         0.1, 0.1, 0.1,
         0, 0, 0,
-        g_light1Color[0], g_light1Color[1], g_light1Color[2],
+        color[0], color[1], color[2],
         0.0, 0.05
       );
+      color = GetLightColor(2);
       DrawSphere(
         g_light2Pos[0], g_light2Pos[1], g_light2Pos[2], 
         0.1, 0.1, 0.1,
         0, 0, 0,
-        g_light2Color[0], g_light2Color[1], g_light2Color[2],
+        color[0], color[1], color[2],
         0.0, 0.05
       );
+      color = GetLightColor(3);
       DrawSphere(
         g_light3Pos[0], g_light3Pos[1], g_light3Pos[2], 
         0.1, 0.1, 0.1,
         0, 0, 0,
-        g_light3Color[0], g_light3Color[1], g_light3Color[2],
+        color[0], color[1], color[2],
         0.0, 0.05
       );  
     }
@@ -919,7 +972,6 @@ function Initialize ()
         return;
     }
 
-
     // setup pointer lock to activate later
     if (!havePointerLock)
     {
@@ -945,7 +997,7 @@ function Initialize ()
       g_uniformsShaderSource += "uniform " + g_uniforms[key][0] + " " + key + ";\n";    
 
     // make each shader permutation
-    for (var i = 0; i < 4; ++i)
+    for (var i = 0; i < 8; ++i)
     {
       // make permutation specific defines
       var permutationSource = GetShaderPermutationSourceString(i);
@@ -1012,7 +1064,9 @@ function Initialize ()
             <hr>
             <input type="checkbox" id="Debug_Wireframe"/>Wireframe<br/>
             <input type="checkbox" id="Debug_Phong"/>Phong<br/>
+            <input type="checkbox" id="UseTextures" checked="true"/>Textures<br/>
             <input type="checkbox" id="Debug_DrawPointLights"/>Draw Point Lights<br/>
+            <input type="checkbox" id="UseColoredLights"/>Colored Lights<br/>
         </span>
     </span>
 </div>

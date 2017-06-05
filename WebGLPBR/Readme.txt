@@ -1,7 +1,8 @@
-* make it so you can toggle on and off texturing? (maybe under debug panel?)
- * once textures are hooked up!
-
 * get normal mapping working for texturing on
+
+* option to animate light positions?
+
+? should the various functions take arrays instead of x,y,z and r,g,b? i think so, would be easier
 
 * then move to IBL!
 
@@ -10,25 +11,17 @@
 
 * TODO's!
 
-* could animate lights and/or objects over time
+* could animate lights and/or objects over time?
 
 * make shader compiler do non blocking thing with webgl2 render fences
 * Debug displays to see all the various buffers
 
-* be able to load or define models somehow
-
-* be able to load and use textures
-
-* a decent automatic way of making vertex formats and vertex output to pixel input.
- * aka in and out for both vertex and pixel shaders.
- * maybe not important.
+* be able to load or define models somehow (or switch from spheres to boxes or tetrahedrons?)
 
 * a starting image that says "click to begin. mouse look, WASD controls"
 * a starting image that says "loading..." for image loading (and later, shader compilations)
 
-* ambient occlusion of meshes
-
-? do we want to allow difference base reflectivity for different materials instead of just 0.04?
+* ambient occlusion of meshes, if using more complex meshes
 
 ! phong lighting may need to go. not sure if it's right.
 
