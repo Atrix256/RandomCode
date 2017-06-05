@@ -27,7 +27,7 @@ var g_debugPanelOpen = true;
 var g_projectionMatrix;
 var g_cameraMatrix;
 
-var g_cameraPosition = [0,0,-15];
+var g_cameraPosition = [0,0,15];
 
 var g_cameraYawPitch = [0, 0];
 
@@ -240,7 +240,7 @@ void main()
   //objectAlbedo *= (texture(u_texture0, v_uv).rgb + texture(u_texture1, v_uv).rgb);
 
   vec3 N = normalize(v_normal); 
-  vec3 V = normalize(u_cameraPosition *-1.0 - v_worldPos);  
+  vec3 V = normalize(u_cameraPosition - v_worldPos);  
 
   vec3 col = u_objectEmissive;
 
@@ -331,7 +331,7 @@ function MakeShader (vertexSource, fragmentSource, permutationSource)
 //=========================================================================================
 function UpdateCameraMatrix ()
 {
-    g_cameraMatrix = CameraMatrix(g_cameraYawPitch[0], g_cameraYawPitch[1], 0, g_cameraPosition[0], g_cameraPosition[1], g_cameraPosition[2]);
+    g_cameraMatrix = CameraMatrix(g_cameraYawPitch[0], g_cameraYawPitch[1], 0, -g_cameraPosition[0], -g_cameraPosition[1], -g_cameraPosition[2]);
 }
 
 //=========================================================================================
@@ -530,9 +530,9 @@ function DrawScene (thisFrameTimeStamp)
       if (g_keyState[87] || g_keyState[38])
       {
         var vec = CameraForward();
-        g_cameraPosition[0] += vec[0] * movement;
-        g_cameraPosition[1] += vec[1] * movement;
-        g_cameraPosition[2] += vec[2] * movement;
+        g_cameraPosition[0] -= vec[0] * movement;
+        g_cameraPosition[1] -= vec[1] * movement;
+        g_cameraPosition[2] -= vec[2] * movement;
         UpdateCameraMatrix();
 
         document.getElementById("CameraPosDisplay").innerText = "Camera: (" + g_cameraPosition[0].toFixed(2) + ", " + g_cameraPosition[1].toFixed(2) + ", " + g_cameraPosition[2].toFixed(2) + ")";
@@ -541,9 +541,9 @@ function DrawScene (thisFrameTimeStamp)
       if (g_keyState[83] || g_keyState[40])
       {
         var vec = CameraForward();
-        g_cameraPosition[0] -= vec[0] * movement;
-        g_cameraPosition[1] -= vec[1] * movement;
-        g_cameraPosition[2] -= vec[2] * movement;      
+        g_cameraPosition[0] += vec[0] * movement;
+        g_cameraPosition[1] += vec[1] * movement;
+        g_cameraPosition[2] += vec[2] * movement;      
         UpdateCameraMatrix();
 
         document.getElementById("CameraPosDisplay").innerText = "Camera: (" + g_cameraPosition[0].toFixed(2) + ", " + g_cameraPosition[1].toFixed(2) + ", " + g_cameraPosition[2].toFixed(2) + ")";
@@ -552,9 +552,9 @@ function DrawScene (thisFrameTimeStamp)
       if (g_keyState[65] || g_keyState[37])
       {
         var vec = CameraRight();
-        g_cameraPosition[0] += vec[0] * movement;
-        g_cameraPosition[1] += vec[1] * movement;
-        g_cameraPosition[2] += vec[2] * movement;          
+        g_cameraPosition[0] -= vec[0] * movement;
+        g_cameraPosition[1] -= vec[1] * movement;
+        g_cameraPosition[2] -= vec[2] * movement;          
         UpdateCameraMatrix();
 
         document.getElementById("CameraPosDisplay").innerText = "Camera: (" + g_cameraPosition[0].toFixed(2) + ", " + g_cameraPosition[1].toFixed(2) + ", " + g_cameraPosition[2].toFixed(2) + ")";
@@ -563,9 +563,9 @@ function DrawScene (thisFrameTimeStamp)
       if (g_keyState[68] || g_keyState[39])
       {
         var vec = CameraRight();
-        g_cameraPosition[0] -= vec[0] * movement;
-        g_cameraPosition[1] -= vec[1] * movement;
-        g_cameraPosition[2] -= vec[2] * movement;          
+        g_cameraPosition[0] += vec[0] * movement;
+        g_cameraPosition[1] += vec[1] * movement;
+        g_cameraPosition[2] += vec[2] * movement;          
         UpdateCameraMatrix();
 
         document.getElementById("CameraPosDisplay").innerText = "Camera: (" + g_cameraPosition[0].toFixed(2) + ", " + g_cameraPosition[1].toFixed(2) + ", " + g_cameraPosition[2].toFixed(2) + ")";

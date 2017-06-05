@@ -1,15 +1,9 @@
-* visualize point light locations
- * need emissive to make them really shine :P
-
-! going far away from the spheres (pressing S for a long while) screws the lighting, i think something is wrong here.
-
 * make it so you can toggle on and off texturing? (maybe under debug panel?)
+ * once textures are hooked up!
 
 * get normal mapping working for texturing on
 
-! phong is not working correctly. Might be due to mapping from roughness.  Also there's stuff on the backside? and the spec highlights aren't moving w/ camera view.
-
-* then move to IBL?
+* then move to IBL!
 
 * Make a PBR renderer in WebGL:
  * https://learnopengl.com/#!PBR/Theory
