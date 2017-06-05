@@ -12,16 +12,12 @@
 
 * could animate lights and/or objects over time
 
-* put something meaningful in the debug panel that actually works, whenever it makes sense to.
-
 * make shader compiler do non blocking thing with webgl2 render fences
-* Debug displays to see all the buffers
+* Debug displays to see all the various buffers
 
 * be able to load or define models somehow
 
 * be able to load and use textures
-
-* turn on back face culling when not in wireframe mode
 
 * a decent automatic way of making vertex formats and vertex output to pixel input.
  * aka in and out for both vertex and pixel shaders.
@@ -33,6 +29,8 @@
 * ambient occlusion of meshes
 
 ? do we want to allow difference base reflectivity for different materials instead of just 0.04?
+
+! phong lighting may need to go. not sure if it's right.
 
 ===== LATER =====
 

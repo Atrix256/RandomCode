@@ -474,6 +474,12 @@ function DrawSphere (offsetX, offsetY, offsetZ, scaleX, scaleY, scaleZ, colorR, 
 {
     var shader = g_shaders[GetShaderPermutationIndex(document.getElementById("Debug_Wireframe").checked, document.getElementById("Debug_Phong").checked)];
 
+    if (document.getElementById("Debug_Wireframe").checked)
+      gl.disable(gl.CULL_FACE);
+    else
+      gl.enable(gl.CULL_FACE);
+    gl.frontFace(gl.CW);
+
     // Tell it to use our program (pair of shaders)
     gl.useProgram(shader.program);    
 
@@ -809,13 +815,13 @@ function GenerateSphereMesh (slicesX, slicesY)
 
       percentY = 1.0 - percentY;
 
-      point0 = [0, -1, 0];
+      point2 = [0, -1, 0];
       point1 = [Math.cos(percentX1*2*Math.PI) * Math.sin(percentY*Math.PI), Math.cos(percentY*Math.PI), Math.sin(percentX1*2*Math.PI) * Math.sin(percentY*Math.PI)];
-      point2 = [Math.cos(percentX2*2*Math.PI) * Math.sin(percentY*Math.PI), Math.cos(percentY*Math.PI), Math.sin(percentX2*2*Math.PI) * Math.sin(percentY*Math.PI)];
+      point0 = [Math.cos(percentX2*2*Math.PI) * Math.sin(percentY*Math.PI), Math.cos(percentY*Math.PI), Math.sin(percentX2*2*Math.PI) * Math.sin(percentY*Math.PI)];
 
-      var uv0 = [0, 1];
+      var uv2 = [0, 1];
       var uv1 = [percentX1, percentY];
-      var uv2 = [percentX2, percentY];      
+      var uv0 = [percentX2, percentY];      
 
       pos = pos.concat(point0);
       pos = pos.concat(point1);
