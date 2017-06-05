@@ -6,6 +6,7 @@ body { border-collapse: collapse; margin:0; padding:0;}
 canvas#RenderWindow {position: absolute; left: 0; top: 0; z-index: 0; width:100%; height:100%;}
 span#DebugPanel {position: absolute; right: 0; top: 0; z-index: 1; color: #00FF00; background-color: rgba(255,255,255,0.3); padding: 10px;}
 span#FPSDisplay {position: absolute; left: 0; bottom: 0; z-index: 1; color: #00FF00; background-color: rgba(255,255,255,0.0); padding: 10px;}
+span#CameraPosDisplay {position: absolute; right: 0; bottom: 0; z-index: 1; color: #00FF00; background-color: rgba(255,255,255,0.0); padding: 10px;}
 div#WholeWindow {position:relative; width:100%; height:100%;}
 a#DebugPanelCollapseIcon {color:#00FF00;text-decoration: none; font-weight: bold; text-align: right; display: block;}
 }
@@ -26,7 +27,7 @@ var g_debugPanelOpen = true;
 var g_projectionMatrix;
 var g_cameraMatrix;
 
-var g_cameraPosition = [0,0,0];
+var g_cameraPosition = [0,0,-15];
 
 var g_cameraYawPitch = [0, 0];
 
@@ -53,10 +54,20 @@ g_imagesToLoad = [
   "rustediron2_normal.png",
 ];
 
-var g_shader = null;
+var g_shaders = [];
 
 var g_vao = null;
 var g_vaoVertCount = 0;
+
+var g_light0Pos = [-5,-5, 5];
+var g_light1Pos = [-5, 5, 5];
+var g_light2Pos = [ 5,-5, 5];
+var g_light3Pos = [ 5, 5, 5];
+
+var g_light0Color = [300.0, 300.0, 300.0];
+var g_light1Color = [300.0, 300.0, 300.0];
+var g_light2Color = [300.0, 300.0, 300.0];
+var g_light3Color = [300.0, 300.0, 300.0];
 
 // You can use these uniforms in your vertex or pixel shaders without defining them, they are automatically defined and piped through if actually used.
 var g_uniforms = {
@@ -68,20 +79,21 @@ var g_uniforms = {
 
   "u_ambientLight"          : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, g_ambientLight);}],
 
-  "u_light0Pos"             : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, [-10, 10, 0]);}],
-  "u_light0Color"           : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, [ 300.0, 300.0, 300.0]);}],
+  "u_light0Pos"             : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, g_light0Pos);}],
+  "u_light0Color"           : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, g_light0Color);}],
 
-  "u_light1Pos"             : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, [ 10, 10, 0]);}],
-  "u_light1Color"           : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, [ 300.0, 300.0, 300.0]);}],  
+  "u_light1Pos"             : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, g_light1Pos);}],
+  "u_light1Color"           : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, g_light1Color);}],  
 
-  "u_light2Pos"             : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, [ -10, -10, 0]);}],
-  "u_light2Color"           : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, [ 300.0, 300.0, 300.0]);}],  
+  "u_light2Pos"             : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, g_light2Pos);}],
+  "u_light2Color"           : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, g_light2Color);}],  
 
-  "u_light3Pos"             : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, [ 10, -10, 0]);}],
-  "u_light3Color"           : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, [ 300.0, 300.0, 300.0]);}],  
+  "u_light3Pos"             : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, g_light3Pos);}],
+  "u_light3Color"           : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, g_light3Color);}],  
 
   "u_objectMatrix"          : ["mat4",      (key, location, objectValues) => {gl.uniformMatrix4fv(location, false, GetObjectValue(objectValues, key));}],  
   "u_objectAlbedo"          : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, GetObjectValue(objectValues, key));}],
+  "u_objectEmissive"        : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, GetObjectValue(objectValues, key));}],
   "u_objectMetallic"        : ["float",     (key, location, objectValues) => {gl.uniform1f(location, GetObjectValue(objectValues, key));}],
   "u_objectRoughness"       : ["float",     (key, location, objectValues) => {gl.uniform1f(location, GetObjectValue(objectValues, key));}],
   "u_objectAO"              : ["float",     (key, location, objectValues) => {gl.uniform1f(location, GetObjectValue(objectValues, key));}],
@@ -174,11 +186,24 @@ vec3 fresnelSchlick(float cosTheta, vec3 F0)
 
 vec3 PositionalLight (vec3 worldPos, vec3 N, vec3 V, vec3 lightPos, vec3 lightColor, vec3 albedo, float metallic, float roughness)
 {
-    vec3 L = normalize(lightPos - worldPos);
-    vec3 H = normalize(V + L);
+  float distance    = length(lightPos - worldPos);
+  float attenuation = 1.0 / (distance * distance);
+  vec3 L = normalize(lightPos - worldPos);  
 
-    float distance    = length(lightPos - worldPos);
-    float attenuation = 1.0 / (distance * distance);
+  #if DEBUG_PHONG
+
+    // from:  https://computergraphics.stackexchange.com/questions/1515/what-is-the-accepted-method-of-converting-shininess-to-roughness-and-vice-versa
+    float specPower = clamp(2.0 / pow(roughness, 4.0) - 2.0, 2.0, 2048.0);
+    vec3 diffuse = lightColor * albedo * max(dot(N, L), 0.0) * attenuation;
+    vec3 reflectDir = reflect(-L, N);
+    float specAngle = max(dot(reflectDir, V), 0.0);
+    vec3 specular = lightColor * pow(specAngle, specPower) * attenuation;    
+    return diffuse + specular;
+
+  #else
+
+    vec3 H = normalize(V + L);  
+
     vec3 radiance     = lightColor * attenuation;     
 
     vec3 F0 = vec3(0.04); 
@@ -199,6 +224,7 @@ vec3 PositionalLight (vec3 worldPos, vec3 N, vec3 V, vec3 lightPos, vec3 lightCo
   
     float NdotL = max(dot(N, L), 0.0);        
     return (kD * albedo / PI + specular) * radiance * NdotL;    
+  #endif
 }
  
 void main()
@@ -214,9 +240,9 @@ void main()
   //objectAlbedo *= (texture(u_texture0, v_uv).rgb + texture(u_texture1, v_uv).rgb);
 
   vec3 N = normalize(v_normal); 
-  vec3 V = normalize(u_cameraPosition - v_worldPos);  
+  vec3 V = normalize(u_cameraPosition *-1.0 - v_worldPos);  
 
-  vec3 col = vec3(0.0, 0.0, 0.0);
+  vec3 col = u_objectEmissive;
 
   col += PositionalLight(v_worldPos, N, V, u_light0Pos, u_light0Color, u_objectAlbedo, u_objectMetallic, u_objectRoughness);
   col += PositionalLight(v_worldPos, N, V, u_light1Pos, u_light1Color, u_objectAlbedo, u_objectMetallic, u_objectRoughness);
@@ -230,10 +256,27 @@ void main()
   outColor.a = 1.0; 
 }
 `;
+//=========================================================================================
+function GetShaderPermutationIndex (wireFrame, phong)
+{
+  var ret = 0;
+  if (wireFrame)
+    ret += 1;
+  if (phong)
+    ret += 2;
+  return ret;
+}
 
 //=========================================================================================
-function CreateShader (gl, type, source) {
-  var fullSource = "#version 300 es\n\n" + precisionSource + g_uniformsShaderSource + source;
+function GetShaderPermutationSourceString (index)
+{
+  return "#define DEBUG_WIREFRAME " + (index % 2) + "\n" +
+         "#define DEBUG_PHONG " + (Math.floor(index/2) % 2) + "\n\n";
+}
+
+//=========================================================================================
+function CreateShader (gl, type, source, permutationSource) {
+  var fullSource = "#version 300 es\n\n" + precisionSource + permutationSource + g_uniformsShaderSource + source;
 
   var shader = gl.createShader(type);
   gl.shaderSource(shader, fullSource);
@@ -267,11 +310,11 @@ function CreateProgram (gl, vertexShader, fragmentShader) {
 }
 
 //=========================================================================================
-function MakeShader (vertexSource, fragmentSource)
+function MakeShader (vertexSource, fragmentSource, permutationSource)
 {
     // compile shader
-    var vertexShader = CreateShader(gl, gl.VERTEX_SHADER, vertexSource);
-    var fragmentShader = CreateShader(gl, gl.FRAGMENT_SHADER, fragmentSource);    
+    var vertexShader = CreateShader(gl, gl.VERTEX_SHADER, vertexSource, permutationSource);
+    var fragmentShader = CreateShader(gl, gl.FRAGMENT_SHADER, fragmentSource, permutationSource);    
     var program = CreateProgram(gl, vertexShader, fragmentShader);
 
     // get the uniform locations, for any uniforms it may use
@@ -417,10 +460,12 @@ function FillUniformValue (key, location, objectValues)
 }
 
 //=========================================================================================
-function DrawSphere (offsetX, offsetY, offsetZ, scaleX, scaleY, scaleZ, colorR, colorG, colorB, metallic, roughness)
+function DrawSphere (offsetX, offsetY, offsetZ, scaleX, scaleY, scaleZ, colorR, colorG, colorB, emissiveR, emissiveG, emissiveB, metallic, roughness)
 {
+    var shader = g_shaders[GetShaderPermutationIndex(document.getElementById("Debug_Wireframe").checked, document.getElementById("Debug_Phong").checked)];
+
     // Tell it to use our program (pair of shaders)
-    gl.useProgram(g_shader.program);    
+    gl.useProgram(shader.program);    
 
     // make our object values
     // u_objectMatrix
@@ -432,6 +477,7 @@ function DrawSphere (offsetX, offsetY, offsetZ, scaleX, scaleY, scaleZ, colorR, 
       offsetX, offsetY, offsetZ, 1
     ];
     objectValues.u_objectAlbedo = [colorR, colorG, colorB];
+    objectValues.u_objectEmissive = [emissiveR, emissiveG, emissiveB];    
     objectValues.u_objectMetallic = metallic;
     objectValues.u_objectRoughness = roughness;
     objectValues.u_objectAO = 1.0;
@@ -441,8 +487,8 @@ function DrawSphere (offsetX, offsetY, offsetZ, scaleX, scaleY, scaleZ, colorR, 
     objectValues.u_texture3 = g_images["rustediron2_normal.png"];
 
     // fill out the uniforms
-    for (var key in g_shader.uniforms)
-        FillUniformValue(key, g_shader.uniforms[key], objectValues);
+    for (var key in shader.uniforms)
+        FillUniformValue(key, shader.uniforms[key], objectValues);
 
     // Bind the attribute/buffer set we want.
     gl.bindVertexArray(g_vao);    
@@ -488,6 +534,8 @@ function DrawScene (thisFrameTimeStamp)
         g_cameraPosition[1] += vec[1] * movement;
         g_cameraPosition[2] += vec[2] * movement;
         UpdateCameraMatrix();
+
+        document.getElementById("CameraPosDisplay").innerText = "Camera: (" + g_cameraPosition[0].toFixed(2) + ", " + g_cameraPosition[1].toFixed(2) + ", " + g_cameraPosition[2].toFixed(2) + ")";
       }
       // S or down arrow
       if (g_keyState[83] || g_keyState[40])
@@ -497,6 +545,8 @@ function DrawScene (thisFrameTimeStamp)
         g_cameraPosition[1] -= vec[1] * movement;
         g_cameraPosition[2] -= vec[2] * movement;      
         UpdateCameraMatrix();
+
+        document.getElementById("CameraPosDisplay").innerText = "Camera: (" + g_cameraPosition[0].toFixed(2) + ", " + g_cameraPosition[1].toFixed(2) + ", " + g_cameraPosition[2].toFixed(2) + ")";
       }
       // A or left arrow
       if (g_keyState[65] || g_keyState[37])
@@ -506,6 +556,8 @@ function DrawScene (thisFrameTimeStamp)
         g_cameraPosition[1] += vec[1] * movement;
         g_cameraPosition[2] += vec[2] * movement;          
         UpdateCameraMatrix();
+
+        document.getElementById("CameraPosDisplay").innerText = "Camera: (" + g_cameraPosition[0].toFixed(2) + ", " + g_cameraPosition[1].toFixed(2) + ", " + g_cameraPosition[2].toFixed(2) + ")";
       }    
       // D or right arrow
       if (g_keyState[68] || g_keyState[39])
@@ -515,6 +567,8 @@ function DrawScene (thisFrameTimeStamp)
         g_cameraPosition[1] -= vec[1] * movement;
         g_cameraPosition[2] -= vec[2] * movement;          
         UpdateCameraMatrix();
+
+        document.getElementById("CameraPosDisplay").innerText = "Camera: (" + g_cameraPosition[0].toFixed(2) + ", " + g_cameraPosition[1].toFixed(2) + ", " + g_cameraPosition[2].toFixed(2) + ")";
       }       
     }
 
@@ -536,12 +590,46 @@ function DrawScene (thisFrameTimeStamp)
       for (var ix = 0; ix < 8; ++ix)
       {
         DrawSphere(
-          (ix - 3.5), (iy - 3.5), -15,
+          (ix - 3.5), (iy - 3.5), 0,
           0.4, 0.4, 0.4,
           1.0, 0.0, 0.0,
+          0, 0, 0,
           iy / 7,
           (ix / 7) * 0.95 + 0.05);
       }
+    }
+
+    // draw the light sources if we should
+    if (document.getElementById("Debug_DrawPointLights").checked)
+    {
+      DrawSphere(
+        g_light0Pos[0], g_light0Pos[1], g_light0Pos[2], 
+        0.1, 0.1, 0.1,
+        0, 0, 0,
+        g_light0Color[0], g_light0Color[1], g_light0Color[2],
+        0.0, 0.05
+      );
+      DrawSphere(
+        g_light1Pos[0], g_light1Pos[1], g_light1Pos[2], 
+        0.1, 0.1, 0.1,
+        0, 0, 0,
+        g_light1Color[0], g_light1Color[1], g_light1Color[2],
+        0.0, 0.05
+      );
+      DrawSphere(
+        g_light2Pos[0], g_light2Pos[1], g_light2Pos[2], 
+        0.1, 0.1, 0.1,
+        0, 0, 0,
+        g_light2Color[0], g_light2Color[1], g_light2Color[2],
+        0.0, 0.05
+      );
+      DrawSphere(
+        g_light3Pos[0], g_light3Pos[1], g_light3Pos[2], 
+        0.1, 0.1, 0.1,
+        0, 0, 0,
+        g_light3Color[0], g_light3Color[1], g_light3Color[2],
+        0.0, 0.05
+      );  
     }
 
     // request another frame to be drawn
@@ -814,44 +902,53 @@ function Initialize ()
     document.addEventListener('mozpointerlockchange', PointerLockChangeCallback, false);
     document.addEventListener('webkitpointerlockchange', PointerLockChangeCallback, false);
 
+      // make the sphere mesh
+      var sphereMesh = GenerateSphereMesh(20, 20);    
+
     // make the uniform definitions for the shaders
     g_uniformsShaderSource = "// uniform constants\n";
     for (var key in g_uniforms)
       g_uniformsShaderSource += "uniform " + g_uniforms[key][0] + " " + key + ";\n";    
 
-    // make the shader
-    g_shader = MakeShader(vertexShaderSource, fragmentShaderSource);
+    // make each shader permutation
+    for (var i = 0; i < 4; ++i)
+    {
+      // make permutation specific defines
+      var permutationSource = GetShaderPermutationSourceString(i);
 
-    // make the sphere mesh
-    var sphereMesh = GenerateSphereMesh(20, 20);
+      // make the shader
+      var shader = MakeShader(vertexShaderSource, fragmentShaderSource, permutationSource);
 
-    g_vaoVertCount = sphereMesh.pos.length;
-    g_vao = gl.createVertexArray();
-    gl.bindVertexArray(g_vao);    
+      g_vaoVertCount = sphereMesh.pos.length;
+      g_vao = gl.createVertexArray();
+      gl.bindVertexArray(g_vao);    
 
-    // normals
-    var normalAttributeLocation = gl.getAttribLocation(g_shader.program, "a_normal");
-    var normalBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
-    gl.enableVertexAttribArray(normalAttributeLocation);
-    gl.vertexAttribPointer(normalAttributeLocation, 3, gl.FLOAT, false, 0, 0);   
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(sphereMesh.norm), gl.STATIC_DRAW);     
+      // normals
+      var normalAttributeLocation = gl.getAttribLocation(shader.program, "a_normal");
+      var normalBuffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+      gl.enableVertexAttribArray(normalAttributeLocation);
+      gl.vertexAttribPointer(normalAttributeLocation, 3, gl.FLOAT, false, 0, 0);   
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(sphereMesh.norm), gl.STATIC_DRAW);     
 
-    // positions
-    var positionAttributeLocation = gl.getAttribLocation(g_shader.program, "a_position");
-    var positionBuffer = gl.createBuffer(); 
-    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-    gl.enableVertexAttribArray(positionAttributeLocation);      
-    gl.vertexAttribPointer(positionAttributeLocation, 3, gl.FLOAT, false, 0, 0);        
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(sphereMesh.pos), gl.STATIC_DRAW);
+      // positions
+      var positionAttributeLocation = gl.getAttribLocation(shader.program, "a_position");
+      var positionBuffer = gl.createBuffer(); 
+      gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+      gl.enableVertexAttribArray(positionAttributeLocation);      
+      gl.vertexAttribPointer(positionAttributeLocation, 3, gl.FLOAT, false, 0, 0);        
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(sphereMesh.pos), gl.STATIC_DRAW);
 
-    // uv
-    var uvAttributeLocation = gl.getAttribLocation(g_shader.program, "a_uv");
-    var uvBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, uvBuffer);
-    gl.enableVertexAttribArray(uvAttributeLocation);
-    gl.vertexAttribPointer(uvAttributeLocation, 2, gl.FLOAT, false, 0, 0);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(sphereMesh.uv), gl.STATIC_DRAW);
+      // uv
+      var uvAttributeLocation = gl.getAttribLocation(shader.program, "a_uv");
+      var uvBuffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, uvBuffer);
+      gl.enableVertexAttribArray(uvAttributeLocation);
+      gl.vertexAttribPointer(uvAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(sphereMesh.uv), gl.STATIC_DRAW);
+
+      g_shaders[i] = shader;
+    }
 
     // calculate initial camera matrix
     UpdateCameraMatrix();
@@ -866,11 +963,14 @@ function Initialize ()
 <div id="WholeWindow">
     <canvas id="RenderWindow" onclick="OnRenderWindowClick()"></canvas>
     <span id="FPSDisplay">FPS: ---</span>    
+    <span id="CameraPosDisplay">Camera: (0.00,0.00,0.00)</span>    
     <span id="DebugPanel">
         <a href="#" id="DebugPanelCollapseIcon" onClick="ToggleDebugPanel(); return false;">[-] Debug Panel</a>
         <span id="DebugPanelControls">
             <hr>
-            <input type="checkbox" id="Debug_Wireframe"/>Wireframe<br>
+            <input type="checkbox" id="Debug_Wireframe"/>Wireframe<br/>
+            <input type="checkbox" id="Debug_Phong"/>Phong<br/>
+            <input type="checkbox" id="Debug_DrawPointLights"/>Draw Point Lights<br/>
         </span>
     </span>
 </div>

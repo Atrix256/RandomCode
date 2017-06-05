@@ -1,8 +1,13 @@
-? isn't specular supposed to follow the camera somehow? it doesn't seem to be.
+* visualize point light locations
+ * need emissive to make them really shine :P
+
+! going far away from the spheres (pressing S for a long while) screws the lighting, i think something is wrong here.
 
 * make it so you can toggle on and off texturing? (maybe under debug panel?)
 
 * get normal mapping working for texturing on
+
+! phong is not working correctly. Might be due to mapping from roughness.  Also there's stuff on the backside? and the spec highlights aren't moving w/ camera view.
 
 * then move to IBL?
 
@@ -10,6 +15,8 @@
  * https://learnopengl.com/#!PBR/Theory
 
 * TODO's!
+
+* could animate lights and/or objects over time
 
 * put something meaningful in the debug panel that actually works, whenever it makes sense to.
 
@@ -26,14 +33,10 @@
 * a decent automatic way of making vertex formats and vertex output to pixel input.
  * aka in and out for both vertex and pixel shaders
 
-* a "reload" button that reloads the page, but puts you in the same location with the same debug options?
-
 * a starting image that says "click to begin. mouse look, WASD controls"
 * a starting image that says "loading..." for image loading (and later, shader compilations)
 
 * ambient occlusion
-
-? what #version should i be using? im using 300 es, but the tutorial uses 330 core. if i try to use 330 core i get an error?
 
 ? do we want to allow difference base reflectivity for different materials instead of just 0.04?
 
@@ -50,6 +53,7 @@
 * different depth formats (reversed, non linear, etc)
 * subsurface scattering
 * reflection / refraction / absorption / etc
+* second specular lobe like in disney brdf
 * and so on!
 
 ===== LINKS =====
@@ -58,38 +62,6 @@
  http://freepbr.com/materials/rusted-iron-pbr-metal-material-alt/
 
 https://webgl2fundamentals.org/
-
-===== DONE =====
-
---5/31/17
-* started on this in the morning at home
-* lunch
- * got a triangle rendering
- * got a basic collapsible debug panel working that has semi transparent background
-* night
- * projection matrix
-
---6/1/17
-* morning: frame delta time, FPS display, right align debug panel text so it doesn't move when you open and close it.
- * key presses control scaling.
-* lunch: more automatic uniform passing, basic camera
-
---6/2/17
-* morning: mouse capture and free camera
-* lunch: sphere mesh generation, and drawing multiple spheres.
-
---6/3/7
-* morning: normals on spheres and non PBR directional + ambient lighting. Object Color.
- * spheres on a grid
- * streamline uniform passing a bit
-* night: basic image loading, uv passing, chrome link to load local images.
- * image loading seemingly done (actually no, can't use 2 images in 1 shader?)
-
---6/4/17
-* morning: fixed image loading.
- * got basic pbr spheres working woo!
- * i think specular may be wrong though, not following camera
- * added pbr material textures
 
 ==================== LANDFILL ====================
 
