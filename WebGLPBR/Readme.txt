@@ -1,4 +1,11 @@
 * get normal mapping working for texturing on
+ * https://learnopengl.com/#!Advanced-Lighting/Normal-Mapping
+ * including the Gram-Schmidt process
+
+? should blend the tangent / bitangent vectors for a vertex to be the normalized average of the faces?
+ * I'm not sure that we can because each triangle is it's own thing.
+ * we aren't using index buffers
+ ? maybe we should use index buffers for meshes?
 
 * then move to IBL!
 
