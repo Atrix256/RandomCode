@@ -1,6 +1,22 @@
+* make debug panel to control what is shown:
+ * Grid of / Single
+ * Sphere, Box, Tetrahedron, Model (later?)
+ * Textured, Non textured
+
+* make functions take arrays for eg color, instead of individual component params
+
+* yes make vertex format automating a little better.
+
+* get normals working and transforming in scenes before doing normal mapping'
+ (get box, tetrahedron, model?)
+
+* later, blend normals between faces to make smoother normals?
+
 * get normal mapping working for texturing on
  * https://learnopengl.com/#!Advanced-Lighting/Normal-Mapping
  * including the Gram-Schmidt process
+
+! make the point lights not use the textured shader!
 
 ? should blend the tangent / bitangent vectors for a vertex to be the normalized average of the faces?
  * I'm not sure that we can because each triangle is it's own thing.

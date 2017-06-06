@@ -109,6 +109,17 @@ var g_uniforms = {
   "u_textureNormal"         : ["sampler2D", (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 3);}],  
 };
 
+EOutputMode = {
+    shaded : 0,
+    albedo : 1,
+    normal : 2,
+    metallic : 3,
+    roughness : 4,
+    emissive : 5,    
+    ao : 6,
+    COUNT : 7,
+};
+
 var g_uniformsShaderSource = "";
 
 //=========================================================================================
@@ -159,6 +170,7 @@ void main()
  
  //=========================================================================================
 var fragmentShaderSource = ` 
+
 // pixel input
 in vec3 v_worldPos;
 in vec3 v_normal;
@@ -288,8 +300,37 @@ void main()
   col += u_ambientLight * objectAlbedo * u_objectAO;
 
   col = col / (col + vec3(1.0));
-  outColor.rgb = pow(col, vec3(1.0/2.2));
-  outColor.a = 1.0; 
+
+
+  #if OUTPUT_MODE == OUTPUT_MODE_SHADED
+    outColor.rgb = pow(col, vec3(1.0/2.2));
+  #endif
+
+  #if OUTPUT_MODE == OUTPUT_MODE_ALBEDO
+    outColor.rgb = objectAlbedo;
+  #endif
+
+  #if OUTPUT_MODE == OUTPUT_MODE_NORMAL
+    outColor.rgb = N * 0.5 + 0.5;
+  #endif  
+
+  #if OUTPUT_MODE == OUTPUT_MODE_METALLIC
+    outColor.rgb = vec3(objectMetalic);
+  #endif    
+
+  #if OUTPUT_MODE == OUTPUT_MODE_ROUGHNESS
+    outColor.rgb = vec3(objectRoughness);
+  #endif     
+
+  #if OUTPUT_MODE == OUTPUT_MODE_EMISSIVE
+    outColor.rgb = u_objectEmissive;
+  #endif 
+
+  #if OUTPUT_MODE == OUTPUT_MODE_AO
+    outColor.rgb = vec3(u_objectAO);
+  #endif     
+
+  outColor.a = 1.0;   
 }
 `;
 
@@ -319,7 +360,13 @@ function GetLightColor (lightIndex)
 }
 
 //=========================================================================================
-function GetShaderPermutationIndex (wireFrame, phong, useTextures)
+function GetNumShaderPermutations ()
+{
+  return EOutputMode.COUNT * 8;
+}
+
+//=========================================================================================
+function GetShaderPermutationIndex (wireFrame, phong, useTextures, outputMode)
 {
   var ret = 0;
   if (wireFrame)
@@ -328,6 +375,7 @@ function GetShaderPermutationIndex (wireFrame, phong, useTextures)
     ret += 2;
   if (useTextures)
     ret += 4;
+  ret += outputMode * 8;
   return ret;
 }
 
@@ -336,7 +384,16 @@ function GetShaderPermutationSourceString (index)
 {
   return "#define DEBUG_WIREFRAME " + (index % 2) + "\n" +
          "#define DEBUG_PHONG " + (Math.floor(index/2) % 2) + "\n" + 
-         "#define USE_TEXTURES " + (Math.floor(index/4) % 2) + "\n\n";
+         "#define USE_TEXTURES " + (Math.floor(index/4) % 2) + "\n" + 
+         "#define OUTPUT_MODE " + Math.floor(index/8) + "\n" +
+         "#define OUTPUT_MODE_SHADED    0\n" +
+         "#define OUTPUT_MODE_ALBEDO    1\n" +
+         "#define OUTPUT_MODE_NORMAL    2\n" +
+         "#define OUTPUT_MODE_METALLIC  3\n" +
+         "#define OUTPUT_MODE_ROUGHNESS 4\n" +
+         "#define OUTPUT_MODE_EMISSIVE  5\n" +
+         "#define OUTPUT_MODE_AO        6\n" +
+         "\n";
 }
 
 //=========================================================================================
@@ -527,10 +584,12 @@ function FillUniformValue (key, location, objectValues)
 //=========================================================================================
 function DrawSphere (offsetX, offsetY, offsetZ, scaleX, scaleY, scaleZ, colorR, colorG, colorB, emissiveR, emissiveG, emissiveB, metallic, roughness)
 {
+    var e = document.getElementById("Debug_OutputMode");
     var shader = g_shaders[GetShaderPermutationIndex(
       document.getElementById("Debug_Wireframe").checked,
       document.getElementById("Debug_Phong").checked,
-      document.getElementById("UseTextures").checked
+      document.getElementById("UseTextures").checked,
+      e.options[e.selectedIndex].value
     )];
 
     if (document.getElementById("Debug_Wireframe").checked)
@@ -802,7 +861,7 @@ function MouseMoveCallback(e)
 function CalculateTriangleTangent (uv, uvStart, pos, posStart)
 {
   // https://learnopengl.com/#!Advanced-Lighting/Normal-Mapping
-  
+
   // uv[uvStart] and pos[posStart] are where three sets of data for each start.
   // each set of data:
   //  uv = 2 floats
@@ -1040,7 +1099,7 @@ function Initialize ()
       g_uniformsShaderSource += "uniform " + g_uniforms[key][0] + " " + key + ";\n";    
 
     // make each shader permutation
-    for (var i = 0; i < 8; ++i)
+    for (var i = 0; i < GetNumShaderPermutations(); ++i)
     {
       // make permutation specific defines
       var permutationSource = GetShaderPermutationSourceString(i);
@@ -1118,6 +1177,15 @@ function Initialize ()
             <input type="checkbox" id="UseTextures" checked="true"/>Textures<br/>
             <input type="checkbox" id="Debug_DrawPointLights"/>Draw Point Lights<br/>
             <input type="checkbox" id="UseColoredLights"/>Colored Lights<br/>
+            Output: <select id="Debug_OutputMode">
+              <option value="0">Shaded</option>
+              <option value="1">Albedo</option>
+              <option value="2">Normal</option>
+              <option value="3">Metallic</option>
+              <option value="4">Roughness</option>
+              <option value="5">Emissive</option>
+              <option value="6">AO</option>
+            </select>
         </span>
     </span>
 </div>
