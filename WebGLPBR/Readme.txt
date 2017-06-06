@@ -1,4 +1,3 @@
-* add some more materials to the draw material list
 * add cube, tetrahedron, model to draw object list
 
 * yes make vertex format automating a little better.
@@ -37,6 +36,8 @@
 * after IBL, get rid of ambient light?
 
 * bezier rectangle later? (ray marched)
+
+? orbit camera mode?
 
 ===== LATER =====
 

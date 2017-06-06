@@ -48,10 +48,34 @@ var g_ambientLight = [0.001, 0.001, 0.001];
 var g_images = {};
 
 g_imagesToLoad = [
+  "white.png",
+
   "rustediron2_basecolor.png",
   "rustediron2_metallic.png",
   "rustediron2_roughness.png",
   "rustediron2_normal.png",
+
+  "roughrockface2_Base_Color.png",
+  "roughrockface2_Metallic.png",
+  "roughrockface2_Roughness.png",
+  "roughrockface2_Normal.png",
+  "roughrockface2_Ambient_Occlusion.png",
+
+  "greasy-pan-2-albedo.png",
+  "greasy-pan-2-metal.png",
+  "greasy-pan-2-normal.png",
+  "greasy-pan-2-roughness.png",
+
+  "Iron-Scuffed_basecolor.png",
+  "Iron-Scuffed_metallic.png",
+  "Iron-Scuffed_normal.png",
+  "Iron-Scuffed_roughness.png",
+
+  "sculptedfloorboards2b_AO.png",
+  "sculptedfloorboards2b_basecolor.png",
+  "sculptedfloorboards2b_metalness.png",
+  "sculptedfloorboards2b_normal.png",
+  "sculptedfloorboards2b_roughness.png",
 ];
 
 var g_shaders = [];
@@ -107,6 +131,7 @@ var g_uniforms = {
   "u_textureMetalic"        : ["sampler2D", (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 1);}],
   "u_textureRoughness"      : ["sampler2D", (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 2);}],
   "u_textureNormal"         : ["sampler2D", (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 3);}],  
+  "u_textureAO"             : ["sampler2D", (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 4);}],  
 };
 
 EOutputMode = {
@@ -272,22 +297,24 @@ void main()
   vec3 objectAlbedo = u_objectAlbedo;
   float objectMetalic = u_objectMetallic;
   float objectRoughness = u_objectRoughness;
+  float objectAO = u_objectAO;
 
   #if USE_TEXTURES
     objectAlbedo *= pow(texture(u_textureAlbedo, v_uv).rgb, vec3(2.2));
     objectMetalic *= texture(u_textureMetalic, v_uv).r;
     objectRoughness *= texture(u_textureRoughness, v_uv).r;
+    objectAO *= texture(u_textureAO, v_uv).r;
   #endif
 
-  col += PositionalLight(v_worldPos, N, V, u_light0Pos, u_light0Color, objectAlbedo, objectMetalic, objectRoughness);
-  col += PositionalLight(v_worldPos, N, V, u_light1Pos, u_light1Color, objectAlbedo, objectMetalic, objectRoughness);
-  col += PositionalLight(v_worldPos, N, V, u_light2Pos, u_light2Color, objectAlbedo, objectMetalic, objectRoughness);
-  col += PositionalLight(v_worldPos, N, V, u_light3Pos, u_light3Color, objectAlbedo, objectMetalic, objectRoughness);
+  col += PositionalLight(v_worldPos, N, V, u_light0Pos, u_light0Color, objectAlbedo, objectMetalic, objectRoughness) * objectAO;
+  col += PositionalLight(v_worldPos, N, V, u_light1Pos, u_light1Color, objectAlbedo, objectMetalic, objectRoughness) * objectAO;
+  col += PositionalLight(v_worldPos, N, V, u_light2Pos, u_light2Color, objectAlbedo, objectMetalic, objectRoughness) * objectAO;
+  col += PositionalLight(v_worldPos, N, V, u_light3Pos, u_light3Color, objectAlbedo, objectMetalic, objectRoughness) * objectAO;
 
-  col += u_ambientLight * objectAlbedo * u_objectAO;
+  col += u_ambientLight * objectAlbedo * objectAO;
 
+  // HDR -> LDR
   col = col / (col + vec3(1.0));
-
 
   #if OUTPUT_MODE == OUTPUT_MODE_SHADED
     outColor.rgb = pow(col, vec3(1.0/2.2));
@@ -314,7 +341,7 @@ void main()
   #endif 
 
   #if OUTPUT_MODE == OUTPUT_MODE_AO
-    outColor.rgb = vec3(u_objectAO);
+    outColor.rgb = vec3(objectAO);
   #endif     
 
   outColor.a = 1.0;   
@@ -634,6 +661,7 @@ function DrawSphere (translation, scale, albedo, emissive, metallic, roughness, 
       objectValues.u_textureMetalic = textures[1];
       objectValues.u_textureRoughness = textures[2];
       objectValues.u_textureNormal = textures[3];
+      objectValues.u_textureAO = textures[4];
     }
 
     // fill out the uniforms
@@ -757,10 +785,59 @@ function DrawScene (thisFrameTimeStamp)
           g_images["rustediron2_basecolor.png"],
           g_images["rustediron2_metallic.png"],
           g_images["rustediron2_roughness.png"],
-          g_images["rustediron2_normal.png"]
+          g_images["rustediron2_normal.png"],
+          g_images["white.png"],
         ];
         break;
       }
+
+      case 2:
+      {
+        objectTextures = [
+          g_images["roughrockface2_Base_Color.png"],
+          g_images["roughrockface2_Metallic.png"],
+          g_images["roughrockface2_Roughness.png"],
+          g_images["roughrockface2_Normal.png"],
+          g_images["roughrockface2_Ambient_Occlusion.png"],
+        ];
+        break;
+      }
+
+      case 3:
+      {
+        objectTextures = [
+          g_images["greasy-pan-2-albedo.png"],
+          g_images["greasy-pan-2-metal.png"],
+          g_images["greasy-pan-2-roughness.png"],
+          g_images["greasy-pan-2-normal.png"],
+          g_images["white.png"],
+        ];
+        break;
+      }      
+
+      case 4:
+      {
+        objectTextures = [
+          g_images["Iron-Scuffed_basecolor.png"],
+          g_images["Iron-Scuffed_metallic.png"],
+          g_images["Iron-Scuffed_roughness.png"],
+          g_images["Iron-Scuffed_normal.png"],
+          g_images["white.png"],
+        ];
+        break;
+      }     
+
+      case 5:
+      {
+        objectTextures = [
+          g_images["sculptedfloorboards2b_basecolor.png"],
+          g_images["sculptedfloorboards2b_metalness.png"],
+          g_images["sculptedfloorboards2b_roughness.png"],
+          g_images["sculptedfloorboards2b_normal.png"],
+          g_images["sculptedfloorboards2b_AO.png"],
+        ];
+        break;
+      }          
     }
 
     // draw a grid of things if we are supposed to
@@ -1241,7 +1318,11 @@ function Initialize ()
             </select>
             <select id="Debug_SceneMaterial">
               <option value="0">Untextured</option>
-              <option value="1" selected="true">Rusty</option>
+              <option value="1" selected="true">Rusty Iron</option>
+              <option value="2">Rough Rock</option>
+              <option value="3">Greasy Pan</option>
+              <option value="4">Scuffed Iron</option>
+              <option value="5">Sculpted Floorboards</option>
             </select>           
             <select id="Debug_SceneObject">
               <option value="0">Sphere</option>
