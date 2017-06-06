@@ -232,41 +232,28 @@ vec3 PositionalLight (vec3 worldPos, vec3 N, vec3 V, vec3 lightPos, vec3 lightCo
   float attenuation = 1.0 / (distance * distance);
   vec3 L = normalize(lightPos - worldPos);  
 
-  #if DEBUG_PHONG
+  vec3 H = normalize(V + L);  
 
-    // from:  https://computergraphics.stackexchange.com/questions/1515/what-is-the-accepted-method-of-converting-shininess-to-roughness-and-vice-versa
-    float specPower = clamp(2.0 / pow(roughness, 4.0) - 2.0, 2.0, 2048.0);
-    vec3 diffuse = lightColor * albedo * max(dot(N, L), 0.0) * attenuation;
-    vec3 reflectDir = reflect(-L, N);
-    float specAngle = max(dot(reflectDir, V), 0.0);
-    vec3 specular = lightColor * pow(specAngle, specPower) * attenuation;    
-    return diffuse + specular;
+  vec3 radiance     = lightColor * attenuation;     
 
-  #else
+  vec3 F0 = vec3(0.04); 
+  F0      = mix(F0, albedo, metallic);
+  vec3 F  = fresnelSchlick(max(dot(H, V), 0.0), F0);    
 
-    vec3 H = normalize(V + L);  
+  float NDF = DistributionGGX(N, H, roughness);       
+  float G   = GeometrySmith(N, V, L, roughness);     
 
-    vec3 radiance     = lightColor * attenuation;     
+  vec3 nominator    = NDF * G * F;
+  float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.001; 
+  vec3 specular     = nominator / denominator;       
 
-    vec3 F0 = vec3(0.04); 
-    F0      = mix(F0, albedo, metallic);
-    vec3 F  = fresnelSchlick(max(dot(H, V), 0.0), F0);    
+  vec3 kS = F;
+  vec3 kD = vec3(1.0) - kS;
+    
+  kD *= 1.0 - metallic;     
 
-    float NDF = DistributionGGX(N, H, roughness);       
-    float G   = GeometrySmith(N, V, L, roughness);     
-
-    vec3 nominator    = NDF * G * F;
-    float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.001; 
-    vec3 specular     = nominator / denominator;       
-
-    vec3 kS = F;
-    vec3 kD = vec3(1.0) - kS;
-      
-    kD *= 1.0 - metallic;     
-  
-    float NdotL = max(dot(N, L), 0.0);        
-    return (kD * albedo / PI + specular) * radiance * NdotL;    
-  #endif
+  float NdotL = max(dot(N, L), 0.0);        
+  return (kD * albedo / PI + specular) * radiance * NdotL;  
 }
  
 void main()
@@ -287,9 +274,9 @@ void main()
   float objectRoughness = u_objectRoughness;
 
   #if USE_TEXTURES
-    objectAlbedo = pow(texture(u_textureAlbedo, v_uv).rgb, vec3(2.2));
-    objectMetalic = texture(u_textureMetalic, v_uv).r;
-    objectRoughness = texture(u_textureRoughness, v_uv).r;
+    objectAlbedo *= pow(texture(u_textureAlbedo, v_uv).rgb, vec3(2.2));
+    objectMetalic *= texture(u_textureMetalic, v_uv).r;
+    objectRoughness *= texture(u_textureRoughness, v_uv).r;
   #endif
 
   col += PositionalLight(v_worldPos, N, V, u_light0Pos, u_light0Color, objectAlbedo, objectMetalic, objectRoughness);
@@ -362,20 +349,18 @@ function GetLightColor (lightIndex)
 //=========================================================================================
 function GetNumShaderPermutations ()
 {
-  return EOutputMode.COUNT * 8;
+  return EOutputMode.COUNT * 4;
 }
 
 //=========================================================================================
-function GetShaderPermutationIndex (wireFrame, phong, useTextures, outputMode)
+function GetShaderPermutationIndex (wireFrame, useTextures, outputMode)
 {
   var ret = 0;
   if (wireFrame)
     ret += 1;
-  if (phong)
-    ret += 2;
   if (useTextures)
-    ret += 4;
-  ret += outputMode * 8;
+    ret += 2;
+  ret += outputMode * 4;
   return ret;
 }
 
@@ -383,9 +368,8 @@ function GetShaderPermutationIndex (wireFrame, phong, useTextures, outputMode)
 function GetShaderPermutationSourceString (index)
 {
   return "#define DEBUG_WIREFRAME " + (index % 2) + "\n" +
-         "#define DEBUG_PHONG " + (Math.floor(index/2) % 2) + "\n" + 
-         "#define USE_TEXTURES " + (Math.floor(index/4) % 2) + "\n" + 
-         "#define OUTPUT_MODE " + Math.floor(index/8) + "\n" +
+         "#define USE_TEXTURES " + (Math.floor(index/2) % 2) + "\n" + 
+         "#define OUTPUT_MODE " + Math.floor(index/4) + "\n" +
          "#define OUTPUT_MODE_SHADED    0\n" +
          "#define OUTPUT_MODE_ALBEDO    1\n" +
          "#define OUTPUT_MODE_NORMAL    2\n" +
@@ -582,14 +566,12 @@ function FillUniformValue (key, location, objectValues)
 }
 
 //=========================================================================================
-function DrawSphere (translation, scale, albedo, emissive, metallic, roughness)
+function DrawSphere (translation, scale, albedo, emissive, metallic, roughness, textures)
 {
-    var e = document.getElementById("Debug_OutputMode");
     var shader = g_shaders[GetShaderPermutationIndex(
       document.getElementById("Debug_Wireframe").checked,
-      document.getElementById("Debug_Phong").checked,
-      document.getElementById("UseTextures").checked,
-      e.options[e.selectedIndex].value
+      textures != null,
+      document.getElementById("Debug_OutputMode").selectedIndex
     )];
 
     if (document.getElementById("Debug_Wireframe").checked)
@@ -615,10 +597,13 @@ function DrawSphere (translation, scale, albedo, emissive, metallic, roughness)
     objectValues.u_objectMetallic = metallic;
     objectValues.u_objectRoughness = roughness;
     objectValues.u_objectAO = 1.0;
-    objectValues.u_textureAlbedo = g_images["rustediron2_basecolor.png"];
-    objectValues.u_textureMetalic = g_images["rustediron2_metallic.png"];
-    objectValues.u_textureRoughness = g_images["rustediron2_roughness.png"];
-    objectValues.u_textureNormal = g_images["rustediron2_normal.png"];
+    if (textures != null)
+    {
+      objectValues.u_textureAlbedo = textures[0];
+      objectValues.u_textureMetalic = textures[1];
+      objectValues.u_textureRoughness = textures[2];
+      objectValues.u_textureNormal = textures[3];
+    }
 
     // fill out the uniforms
     for (var key in shader.uniforms)
@@ -724,19 +709,57 @@ function DrawScene (thisFrameTimeStamp)
     gl.clearColor(0.1, 0.1, 0.1, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);    
 
-    // draw some spheres
-    for (var iy = 0; iy < 8; ++iy)
+    // get the material parameters
+    var objectTextures = null;
+    var objectAlebdo = [document.getElementById("Debug_AlbedoR").value, document.getElementById("Debug_AlbedoG").value, document.getElementById("Debug_AlbedoB").value];
+    var objectMetallic = document.getElementById("Debug_Metallic").value;
+    var objectRoughness = document.getElementById("Debug_Roughness").value;
+    switch (document.getElementById("Debug_SceneMaterial").selectedIndex)
     {
-      for (var ix = 0; ix < 8; ++ix)
+      case 0:
       {
-        DrawSphere(
-          [(ix - 3.5), (iy - 3.5), 0],
-          [0.4, 0.4, 0.4],
-          [1, 0, 0],
-          [0, 0, 0],
-          iy / 7,
-          (ix / 7) * 0.95 + 0.05);
+        break;
       }
+      case 1:
+      {
+        objectTextures = [
+          g_images["rustediron2_basecolor.png"],
+          g_images["rustediron2_metallic.png"],
+          g_images["rustediron2_roughness.png"],
+          g_images["rustediron2_normal.png"]
+        ];
+        break;
+      }
+    }
+
+    // draw a grid of things if we are supposed to
+    if (document.getElementById("Debug_SceneSingle").selectedIndex == 0)
+    {
+      for (var iy = 0; iy < 8; ++iy)
+      {
+        for (var ix = 0; ix < 8; ++ix)
+        {
+          DrawSphere(
+            [(ix - 3.5), (iy - 3.5), 0],
+            [0.4, 0.4, 0.4],
+            objectAlebdo,
+            [0, 0, 0],
+            iy / 7,
+            (ix / 7) * 0.95 + 0.05,
+            objectTextures);
+        }
+      }
+    }
+    // else draw a single one
+    else
+    {
+      DrawSphere(
+        [0, 0, 0],
+        [1, 1, 1],
+        objectAlebdo,
+        [0, 0, 0],
+        objectMetallic, objectRoughness,
+        objectTextures);
     }
 
     // draw the light sources if we should
@@ -749,7 +772,8 @@ function DrawScene (thisFrameTimeStamp)
         [0.1, 0.1, 0.1],
         [0, 0, 0],
         color,
-        0.0, 0.05
+        0,0,
+        null
       );
       color = GetLightColor(1);
       DrawSphere(
@@ -757,7 +781,8 @@ function DrawScene (thisFrameTimeStamp)
         [0.1, 0.1, 0.1],
         [0, 0, 0],
         color,
-        0.0, 0.05
+        0,0,
+        null
       );
       color = GetLightColor(2);
       DrawSphere(
@@ -765,7 +790,8 @@ function DrawScene (thisFrameTimeStamp)
         [0.1, 0.1, 0.1],
         [0, 0, 0],
         color,
-        0.0, 0.05
+        0,0,
+        null
       );
       color = GetLightColor(3);
       DrawSphere(
@@ -773,7 +799,8 @@ function DrawScene (thisFrameTimeStamp)
         [0.1, 0.1, 0.1],
         [0, 0, 0],
         color,
-        0.0, 0.05
+        0,0,
+        null
       );  
     }
 
@@ -1173,11 +1200,31 @@ function Initialize ()
         <span id="DebugPanelControls">
             <hr>
             <input type="checkbox" id="Debug_Wireframe"/>Wireframe<br/>
-            <input type="checkbox" id="Debug_Phong"/>Phong<br/>
-            <input type="checkbox" id="UseTextures" checked="true"/>Textures<br/>
             <input type="checkbox" id="Debug_DrawPointLights"/>Draw Point Lights<br/>
             <input type="checkbox" id="UseColoredLights"/>Colored Lights<br/>
-            Output: <select id="Debug_OutputMode">
+            Draw:
+            <select id="Debug_SceneSingle">
+              <option value="0">Grid of</option>
+              <option value="1" selected="true">Single</option>
+            </select>
+            <select id="Debug_SceneMaterial">
+              <option value="0">Untextured</option>
+              <option value="1" selected="true">Rusty</option>
+            </select>           
+            <select id="Debug_SceneObject">
+              <option value="0">Sphere</option>
+              <option value="1">Box</option>
+              <option value="2">Tetrahedron</option>
+            </select>                 
+            <br>
+            Metallic <input id="Debug_Metallic" type="range" min="0" max="1" value="1.0" step="0.01"/><br>
+            Roughness <input id="Debug_Roughness" type="range" min="0" max="1" value="1.0" step="0.01"/><br>
+            Albedo R <input id="Debug_AlbedoR" type="range" min="0" max="1" value="1.0" step="0.01"/><br>
+            Albedo G <input id="Debug_AlbedoG" type="range" min="0" max="1" value="1.0" step="0.01"/><br>
+            Albedo B <input id="Debug_AlbedoB" type="range" min="0" max="1" value="1.0" step="0.01"/><br>
+            <br>
+            Output:
+            <select id="Debug_OutputMode">
               <option value="0">Shaded</option>
               <option value="1">Albedo</option>
               <option value="2">Normal</option>

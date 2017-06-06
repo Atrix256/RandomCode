@@ -1,7 +1,5 @@
-* make debug panel to control what is shown:
- * Grid of / Single
- * Sphere, Box, Tetrahedron, Model (later?)
- * Textured (maybe a couple different PBR materials from that site?), Non textured (for grid, pbr gradient)
+* add some more materials to the draw material list
+* add cube, tetrahedron, model to draw object list
 
 * yes make vertex format automating a little better.
 
@@ -14,8 +12,6 @@
  * https://learnopengl.com/#!Advanced-Lighting/Normal-Mapping
  * including the Gram-Schmidt process
 
-! make the point lights not use the textured shader!
-
 ? should blend the tangent / bitangent vectors for a vertex to be the normalized average of the faces?
  * I'm not sure that we can because each triangle is it's own thing.
  * we aren't using index buffers
@@ -26,32 +22,21 @@
 * Make a PBR renderer in WebGL:
  * https://learnopengl.com/#!PBR/Theory
 
-* option to animate light positions?
-
-? should the various functions take arrays instead of x,y,z and r,g,b? i think so, would be easier
-
 * TODO's!
 
-* could animate lights and/or objects over time?
+* could animate lights and/or objects over time? (maybe a debug option to animate the lights)
 
 * make shader compiler do non blocking thing with webgl2 render fences
-* Debug displays to see all the various buffers
 
 * be able to load or define models somehow (or switch from spheres to boxes or tetrahedrons?)
 
 * a starting image that says "click to begin. mouse look, WASD controls"
 * a starting image that says "loading..." for image loading (and later, shader compilations)
 
-* ambient occlusion of meshes, if using more complex meshes
+* ambient occlusion of meshes, if using more complex meshes.
+ * a program that does it, with a blog post about it!
 
-! phong lighting may need to go. not sure if it's right.
-
-* A drop down for diff scenes.
- * Sphere grid
- * Debug sphere? w/ sliders for properties and color?
- * Box (es)?
- * Tetrahedrons?
- * Bezier rectangle?
+* bezier rectangle later? (ray marched)
 
 ===== LATER =====
 
