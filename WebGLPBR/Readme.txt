@@ -24,8 +24,6 @@
 
 * TODO's!
 
-* could animate lights and/or objects over time? (maybe a debug option to animate the lights)
-
 * make shader compiler do non blocking thing with webgl2 render fences
 
 * be able to load or define models somehow (or switch from spheres to boxes or tetrahedrons?)
@@ -35,6 +33,8 @@
 
 * ambient occlusion of meshes, if using more complex meshes.
  * a program that does it, with a blog post about it!
+
+* after IBL, get rid of ambient light?
 
 * bezier rectangle later? (ray marched)
 

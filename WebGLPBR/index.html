@@ -84,16 +84,16 @@ var g_uniforms = {
 
   "u_ambientLight"          : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, g_ambientLight);}],
 
-  "u_light0Pos"             : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, g_light0Pos);}],
+  "u_light0Pos"             : ["vec3",      (key, location, objectValues) => {var pos = GetLightPos(0); gl.uniform3fv(location, pos);}],
   "u_light0Color"           : ["vec3",      (key, location, objectValues) => {var color = GetLightColor(0); gl.uniform3fv(location, color);}],
 
-  "u_light1Pos"             : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, g_light1Pos);}],
+  "u_light1Pos"             : ["vec3",      (key, location, objectValues) => {var pos = GetLightPos(1); gl.uniform3fv(location, pos);}],
   "u_light1Color"           : ["vec3",      (key, location, objectValues) => {var color = GetLightColor(1); gl.uniform3fv(location, color);}],
 
-  "u_light2Pos"             : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, g_light2Pos);}],
+  "u_light2Pos"             : ["vec3",      (key, location, objectValues) => {var pos = GetLightPos(2); gl.uniform3fv(location, pos);}],
   "u_light2Color"           : ["vec3",      (key, location, objectValues) => {var color = GetLightColor(2); gl.uniform3fv(location, color);}],
 
-  "u_light3Pos"             : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, g_light3Pos);}],
+  "u_light3Pos"             : ["vec3",      (key, location, objectValues) => {var pos = GetLightPos(3); gl.uniform3fv(location, pos);}],
   "u_light3Color"           : ["vec3",      (key, location, objectValues) => {var color = GetLightColor(3); gl.uniform3fv(location, color);}],
 
   "u_objectMatrix"          : ["mat4",      (key, location, objectValues) => {gl.uniformMatrix4fv(location, false, GetObjectValue(objectValues, key));}],  
@@ -324,7 +324,7 @@ void main()
 //=========================================================================================
 function GetLightColor (lightIndex)
 {
-  if (document.getElementById("UseColoredLights").checked)
+  if (document.getElementById("Debug_UseColoredLights").checked)
   {
     switch(lightIndex)
     {
@@ -342,6 +342,37 @@ function GetLightColor (lightIndex)
       case 1: return g_light1ColorA;
       case 2: return g_light2ColorA;
       case 3: return g_light3ColorA;                  
+    }
+  }
+}
+
+//=========================================================================================
+function GetLightPos (lightIndex)
+{
+  if (document.getElementById("Debug_AnimateLights").checked)
+  {
+    var seconds = new Date().getTime() / 1000;
+    var offset = [];
+    offset[0] = Math.sin(seconds * (lightIndex + 1)) * 2;
+    offset[1] = Math.cos(seconds * (lightIndex + 1)) * 2;
+    offset[2] = Math.sin(seconds * (lightIndex + 1)) * Math.cos(seconds * (lightIndex + 1)) * 3;
+
+    switch(lightIndex)
+    {
+      case 0: return [g_light0Pos[0] + offset[0], g_light0Pos[1] + offset[1], g_light0Pos[2] + offset[2]];
+      case 1: return [g_light1Pos[0] + offset[0], g_light1Pos[1] + offset[1], g_light1Pos[2] + offset[2]];
+      case 2: return [g_light2Pos[0] + offset[0], g_light2Pos[1] + offset[1], g_light2Pos[2] + offset[2]];
+      case 3: return [g_light3Pos[0] + offset[0], g_light3Pos[1] + offset[1], g_light3Pos[2] + offset[2]];            
+    }
+  }
+  else
+  {
+    switch(lightIndex)
+    {
+      case 0: return g_light0Pos;
+      case 1: return g_light1Pos;
+      case 2: return g_light2Pos;
+      case 3: return g_light3Pos;                  
     }
   }
 }
@@ -768,7 +799,7 @@ function DrawScene (thisFrameTimeStamp)
 
       var color = GetLightColor(0);
       DrawSphere(
-        g_light0Pos, 
+        GetLightPos(0), 
         [0.1, 0.1, 0.1],
         [0, 0, 0],
         color,
@@ -777,7 +808,7 @@ function DrawScene (thisFrameTimeStamp)
       );
       color = GetLightColor(1);
       DrawSphere(
-        g_light1Pos, 
+        GetLightPos(1), 
         [0.1, 0.1, 0.1],
         [0, 0, 0],
         color,
@@ -786,7 +817,7 @@ function DrawScene (thisFrameTimeStamp)
       );
       color = GetLightColor(2);
       DrawSphere(
-        g_light2Pos, 
+        GetLightPos(2), 
         [0.1, 0.1, 0.1],
         [0, 0, 0],
         color,
@@ -795,7 +826,7 @@ function DrawScene (thisFrameTimeStamp)
       );
       color = GetLightColor(3);
       DrawSphere(
-        g_light3Pos,
+        GetLightPos(3),
         [0.1, 0.1, 0.1],
         [0, 0, 0],
         color,
@@ -1201,7 +1232,8 @@ function Initialize ()
             <hr>
             <input type="checkbox" id="Debug_Wireframe"/>Wireframe<br/>
             <input type="checkbox" id="Debug_DrawPointLights"/>Draw Point Lights<br/>
-            <input type="checkbox" id="UseColoredLights"/>Colored Lights<br/>
+            <input type="checkbox" id="Debug_UseColoredLights"/>Colored Lights<br/>
+            <input type="checkbox" id="Debug_AnimateLights"/>Animate Lights<br/>
             Draw:
             <select id="Debug_SceneSingle">
               <option value="0">Grid of</option>
