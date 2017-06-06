@@ -1,9 +1,7 @@
 * make debug panel to control what is shown:
  * Grid of / Single
  * Sphere, Box, Tetrahedron, Model (later?)
- * Textured, Non textured
-
-* make functions take arrays for eg color, instead of individual component params
+ * Textured (maybe a couple different PBR materials from that site?), Non textured (for grid, pbr gradient)
 
 * yes make vertex format automating a little better.
 

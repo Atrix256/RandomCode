@@ -29,7 +29,7 @@ var g_cameraMatrix;
 
 var g_cameraPosition = [0,0,15];
 
-var g_cameraYawPitch = [0, 0];
+var g_cameraYawPitchRoll = [0, 0, 0];
 
 var g_cameraMoveSpeed = 2.0;    // meters per second
 var g_cameraRotateSpeed = 0.01; // radians per second
@@ -453,7 +453,7 @@ function MakeShader (vertexSource, fragmentSource, permutationSource)
 //=========================================================================================
 function UpdateCameraMatrix ()
 {
-    g_cameraMatrix = CameraMatrix(g_cameraYawPitch[0], g_cameraYawPitch[1], 0, -g_cameraPosition[0], -g_cameraPosition[1], -g_cameraPosition[2]);
+    g_cameraMatrix = CameraMatrix(g_cameraYawPitchRoll, g_cameraPosition);
 }
 
 //=========================================================================================
@@ -514,16 +514,16 @@ function MultiplyMatrix4x4 (A, B)
 }
 
 //=========================================================================================
-function CameraMatrix (yaw, pitch, roll, positionX, positionY, positionZ) {
+function CameraMatrix (yawPitchRoll, position) {
 
-  var cosAlpha = Math.cos(roll);
-  var sinAlpha = Math.sin(roll);
+  var cosAlpha = Math.cos(yawPitchRoll[2]);
+  var sinAlpha = Math.sin(yawPitchRoll[2]);
 
-  var cosBeta = Math.cos(yaw);
-  var sinBeta = Math.sin(yaw);
+  var cosBeta = Math.cos(yawPitchRoll[0]);
+  var sinBeta = Math.sin(yawPitchRoll[0]);
 
-  var cosGamma = Math.cos(pitch);
-  var sinGamma = Math.sin(pitch);
+  var cosGamma = Math.cos(yawPitchRoll[1]);
+  var sinGamma = Math.sin(yawPitchRoll[1]);
 
   var rot = [
     cosAlpha * cosBeta, cosAlpha * sinBeta * sinGamma - sinAlpha * cosGamma, cosAlpha * sinBeta * cosGamma + sinAlpha * sinGamma, 0,
@@ -536,7 +536,7 @@ function CameraMatrix (yaw, pitch, roll, positionX, positionY, positionZ) {
     1, 0, 0, 0,
     0, 1, 0, 0,
     0, 0, 1, 0,
-    positionX, positionY, positionZ, 1
+    -position[0], -position[1], -position[2], 1
   ];
 
   return MultiplyMatrix4x4(trans, rot);
@@ -582,7 +582,7 @@ function FillUniformValue (key, location, objectValues)
 }
 
 //=========================================================================================
-function DrawSphere (offsetX, offsetY, offsetZ, scaleX, scaleY, scaleZ, colorR, colorG, colorB, emissiveR, emissiveG, emissiveB, metallic, roughness)
+function DrawSphere (translation, scale, albedo, emissive, metallic, roughness)
 {
     var e = document.getElementById("Debug_OutputMode");
     var shader = g_shaders[GetShaderPermutationIndex(
@@ -605,13 +605,13 @@ function DrawSphere (offsetX, offsetY, offsetZ, scaleX, scaleY, scaleZ, colorR, 
     // u_objectMatrix
     var objectValues = {};
     objectValues.u_objectMatrix = [
-      scaleX, 0, 0, 0,
-      0, scaleY, 0, 0,
-      0, 0, scaleZ, 0,
-      offsetX, offsetY, offsetZ, 1
+      scale[0], 0, 0, 0,
+      0, scale[1], 0, 0,
+      0, 0, scale[2], 0,
+      translation[0], translation[1], translation[2], 1
     ];
-    objectValues.u_objectAlbedo = [colorR, colorG, colorB];
-    objectValues.u_objectEmissive = [emissiveR, emissiveG, emissiveB];    
+    objectValues.u_objectAlbedo = albedo;
+    objectValues.u_objectEmissive = emissive;    
     objectValues.u_objectMetallic = metallic;
     objectValues.u_objectRoughness = roughness;
     objectValues.u_objectAO = 1.0;
@@ -730,10 +730,10 @@ function DrawScene (thisFrameTimeStamp)
       for (var ix = 0; ix < 8; ++ix)
       {
         DrawSphere(
-          (ix - 3.5), (iy - 3.5), 0,
-          0.4, 0.4, 0.4,
-          1, 0, 0,
-          0, 0, 0,
+          [(ix - 3.5), (iy - 3.5), 0],
+          [0.4, 0.4, 0.4],
+          [1, 0, 0],
+          [0, 0, 0],
           iy / 7,
           (ix / 7) * 0.95 + 0.05);
       }
@@ -745,34 +745,34 @@ function DrawScene (thisFrameTimeStamp)
 
       var color = GetLightColor(0);
       DrawSphere(
-        g_light0Pos[0], g_light0Pos[1], g_light0Pos[2], 
-        0.1, 0.1, 0.1,
-        0, 0, 0,
-        color[0], color[1], color[2],
+        g_light0Pos, 
+        [0.1, 0.1, 0.1],
+        [0, 0, 0],
+        color,
         0.0, 0.05
       );
       color = GetLightColor(1);
       DrawSphere(
-        g_light1Pos[0], g_light1Pos[1], g_light1Pos[2], 
-        0.1, 0.1, 0.1,
-        0, 0, 0,
-        color[0], color[1], color[2],
+        g_light1Pos, 
+        [0.1, 0.1, 0.1],
+        [0, 0, 0],
+        color,
         0.0, 0.05
       );
       color = GetLightColor(2);
       DrawSphere(
-        g_light2Pos[0], g_light2Pos[1], g_light2Pos[2], 
-        0.1, 0.1, 0.1,
-        0, 0, 0,
-        color[0], color[1], color[2],
+        g_light2Pos, 
+        [0.1, 0.1, 0.1],
+        [0, 0, 0],
+        color,
         0.0, 0.05
       );
       color = GetLightColor(3);
       DrawSphere(
-        g_light3Pos[0], g_light3Pos[1], g_light3Pos[2], 
-        0.1, 0.1, 0.1,
-        0, 0, 0,
-        color[0], color[1], color[2],
+        g_light3Pos,
+        [0.1, 0.1, 0.1],
+        [0, 0, 0],
+        color,
         0.0, 0.05
       );  
     }
@@ -851,8 +851,8 @@ function MouseMoveCallback(e)
       e.webkitMovementY   ||
       0;
 
-  g_cameraYawPitch[0] -= g_cameraRotateSpeed * movementX;
-  g_cameraYawPitch[1] -= g_cameraRotateSpeed * movementY;
+  g_cameraYawPitchRoll[0] -= g_cameraRotateSpeed * movementX;
+  g_cameraYawPitchRoll[1] -= g_cameraRotateSpeed * movementY;
 
   UpdateCameraMatrix();
 }
