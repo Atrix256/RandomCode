@@ -80,9 +80,6 @@ g_imagesToLoad = [
 
 var g_shaders = [];
 
-var g_vao = null;
-var g_vaoVertCount = 0;
-
 var g_light0Pos = [-5,-5, 5];
 var g_light1Pos = [-5, 5, 5];
 var g_light2Pos = [ 5,-5, 5];
@@ -624,57 +621,94 @@ function FillUniformValue (key, location, objectValues)
 }
 
 //=========================================================================================
+function PrepareToDrawMesh (translation, scale, albedo, emissive, metallic, roughness, textures)
+{
+  // get the right shader to use
+  var shader = g_shaders[GetShaderPermutationIndex(
+    document.getElementById("Debug_Wireframe").checked,
+    textures != null,
+    document.getElementById("Debug_OutputMode").selectedIndex
+  )];
+
+  if (document.getElementById("Debug_Wireframe").checked)
+    gl.disable(gl.CULL_FACE);
+  else
+    gl.enable(gl.CULL_FACE);
+  gl.frontFace(gl.CW);
+
+  // Tell it to use our program (pair of shaders)
+  gl.useProgram(shader.program);    
+
+  // make our object values
+  // u_objectMatrix
+  var objectValues = {};
+  objectValues.u_objectMatrix = [
+    scale[0], 0, 0, 0,
+    0, scale[1], 0, 0,
+    0, 0, scale[2], 0,
+    translation[0], translation[1], translation[2], 1
+  ];
+  objectValues.u_objectAlbedo = albedo;
+  objectValues.u_objectEmissive = emissive;    
+  objectValues.u_objectMetallic = metallic;
+  objectValues.u_objectRoughness = roughness;
+  objectValues.u_objectAO = 1.0;
+  if (textures != null)
+  {
+    objectValues.u_textureAlbedo = textures[0];
+    objectValues.u_textureMetalic = textures[1];
+    objectValues.u_textureRoughness = textures[2];
+    objectValues.u_textureNormal = textures[3];
+    objectValues.u_textureAO = textures[4];
+  }
+
+  // fill out the uniforms
+  for (var key in shader.uniforms)
+      FillUniformValue(key, shader.uniforms[key], objectValues);
+
+  return shader;
+}
+
+//=========================================================================================
+function DrawTetrahedron (translation, scale, albedo, emissive, metallic, roughness, textures)
+{
+  var shader = PrepareToDrawMesh(translation, scale, albedo, emissive, metallic, roughness, textures);
+
+  // Bind the attribute/buffer set we want.
+  gl.bindVertexArray(shader.tetrahedronMesh);    
+
+  var primitiveType = gl.TRIANGLES;
+  var offset = 0;
+  var count = shader.tetrahedronMeshVertCount / 3;
+  gl.drawArrays(primitiveType, offset, count);    
+}
+
+//=========================================================================================
+function DrawCube (translation, scale, albedo, emissive, metallic, roughness, textures)
+{
+  var shader = PrepareToDrawMesh(translation, scale, albedo, emissive, metallic, roughness, textures);
+
+  // Bind the attribute/buffer set we want.
+  gl.bindVertexArray(shader.cubeMesh);    
+
+  var primitiveType = gl.TRIANGLES;
+  var offset = 0;
+  var count = shader.cubeMeshVertCount / 3;
+  gl.drawArrays(primitiveType, offset, count);    
+}
+
+//=========================================================================================
 function DrawSphere (translation, scale, albedo, emissive, metallic, roughness, textures)
 {
-    var shader = g_shaders[GetShaderPermutationIndex(
-      document.getElementById("Debug_Wireframe").checked,
-      textures != null,
-      document.getElementById("Debug_OutputMode").selectedIndex
-    )];
+  var shader = PrepareToDrawMesh(translation, scale, albedo, emissive, metallic, roughness, textures);
 
-    if (document.getElementById("Debug_Wireframe").checked)
-      gl.disable(gl.CULL_FACE);
-    else
-      gl.enable(gl.CULL_FACE);
-    gl.frontFace(gl.CW);
+  // Bind the attribute/buffer set we want.
+  gl.bindVertexArray(shader.sphereMesh);    
 
-    // Tell it to use our program (pair of shaders)
-    gl.useProgram(shader.program);    
-
-    // make our object values
-    // u_objectMatrix
-    var objectValues = {};
-    objectValues.u_objectMatrix = [
-      scale[0], 0, 0, 0,
-      0, scale[1], 0, 0,
-      0, 0, scale[2], 0,
-      translation[0], translation[1], translation[2], 1
-    ];
-    objectValues.u_objectAlbedo = albedo;
-    objectValues.u_objectEmissive = emissive;    
-    objectValues.u_objectMetallic = metallic;
-    objectValues.u_objectRoughness = roughness;
-    objectValues.u_objectAO = 1.0;
-    if (textures != null)
-    {
-      objectValues.u_textureAlbedo = textures[0];
-      objectValues.u_textureMetalic = textures[1];
-      objectValues.u_textureRoughness = textures[2];
-      objectValues.u_textureNormal = textures[3];
-      objectValues.u_textureAO = textures[4];
-    }
-
-    // fill out the uniforms
-    for (var key in shader.uniforms)
-        FillUniformValue(key, shader.uniforms[key], objectValues);
-
-    // Bind the attribute/buffer set we want.
-    gl.bindVertexArray(g_vao);    
-
-    var primitiveType = gl.TRIANGLES;
-    var offset = 0;
-    var count = g_vaoVertCount / 3;
-    gl.drawArrays(primitiveType, offset, count);      
+  var primitiveType = gl.TRIANGLES;
+  var offset = 0;
+  var count = shader.sphereMeshVertCount / 3;
+  gl.drawArrays(primitiveType, offset, count);      
 }
 
 //=========================================================================================
@@ -748,7 +782,7 @@ function DrawScene (thisFrameTimeStamp)
     if (g_frameCountTime > 0.5)
     {
       var fps = g_frameCount / g_frameCountTime;
-      document.getElementById("FPSDisplay").innerText = "FPS: " + fps.toFixed(2);
+      document.getElementById("FPSDisplay").innerText = "FPS: " + fps.toFixed(2) + " (" + (1000/fps).toFixed(2)+ " ms)";
       g_frameCount = 0;
       g_frameCountTime = 0;
     }
@@ -841,33 +875,82 @@ function DrawScene (thisFrameTimeStamp)
     }
 
     // draw a grid of things if we are supposed to
+    var objectType = document.getElementById("Debug_SceneObject").selectedIndex;
     if (document.getElementById("Debug_SceneSingle").selectedIndex == 0)
     {
       for (var iy = 0; iy < 8; ++iy)
       {
         for (var ix = 0; ix < 8; ++ix)
         {
-          DrawSphere(
-            [(ix - 3.5), (iy - 3.5), 0],
-            [0.4, 0.4, 0.4],
-            objectAlebdo,
-            [0, 0, 0],
-            iy / 7,
-            (ix / 7) * 0.95 + 0.05,
-            objectTextures);
+          if (objectType == 0)
+          {
+            DrawSphere(
+              [(ix - 3.5), (iy - 3.5), 0],
+              [0.4, 0.4, 0.4],
+              objectAlebdo,
+              [0, 0, 0],
+              iy / 7,
+              (ix / 7) * 0.95 + 0.05,
+              objectTextures);
+          }
+          else if (objectType == 0)
+          {
+            DrawCube(
+              [(ix - 3.5), (iy - 3.5), 0],
+              [0.4, 0.4, 0.4],
+              objectAlebdo,
+              [0, 0, 0],
+              iy / 7,
+              (ix / 7) * 0.95 + 0.05,
+              objectTextures);
+          }
+          else
+          {
+            DrawTetrahedron(
+              [(ix - 3.5), (iy - 3.5), 0],
+              [0.4, 0.4, 0.4],
+              objectAlebdo,
+              [0, 0, 0],
+              iy / 7,
+              (ix / 7) * 0.95 + 0.05,
+              objectTextures);            
+          }
         }
       }
     }
     // else draw a single one
     else
     {
-      DrawSphere(
-        [0, 0, 0],
-        [1, 1, 1],
-        objectAlebdo,
-        [0, 0, 0],
-        objectMetallic, objectRoughness,
-        objectTextures);
+      if (objectType == 0)
+      {      
+        DrawSphere(
+          [0, 0, 0],
+          [1, 1, 1],
+          objectAlebdo,
+          [0, 0, 0],
+          objectMetallic, objectRoughness,
+          objectTextures);
+      }
+      else if (objectType == 1)
+      {
+        DrawCube(
+          [0, 0, 0],
+          [1, 1, 1],
+          objectAlebdo,
+          [0, 0, 0],
+          objectMetallic, objectRoughness,
+          objectTextures);
+      }
+      else
+      {
+        DrawTetrahedron(
+          [0, 0, 0],
+          [1, 1, 1],
+          objectAlebdo,
+          [0, 0, 0],
+          objectMetallic, objectRoughness,
+          objectTextures);        
+      }
     }
 
     // draw the light sources if we should
@@ -1009,6 +1092,289 @@ function CalculateTriangleTangent (uv, uvStart, pos, posStart)
   var pos1 = [pos[posStart+3], pos[posStart+4], pos[posStart+5]];
   var pos2 = [pos[posStart+6], pos[posStart+7], pos[posStart+8]];
 
+  // TODO: finish this!
+}
+
+//=========================================================================================
+function CalculateTriangleNormal (pos, posStart)
+{
+  // TODO: finish this
+}
+
+//=========================================================================================
+function GenerateTetrahedronMesh ()
+{
+  var ret = {};
+
+  var pos = [];
+  var norm = [];
+  var uv = [];
+  var barycentric = [];
+  var tangent = [];
+
+  // TODO: finish this!
+  // TODO: divide by 2!
+  // TODO: auto-calculate normals? maybe do that for all meshes?
+  // TODO: how to calculate UV's?
+
+  var point0 = [-1, 0, -1 / Math.sqrt(2)];
+  var point1 = [ 1, 0, -1 / Math.sqrt(2)];
+  var point2 = [ 0,-1,  1 / Math.sqrt(2)];
+  var point3 = [ 0, 1,  1 / Math.sqrt(2)];
+
+  pos = pos.concat(point0);
+  pos = pos.concat(point1);
+  pos = pos.concat(point2);
+
+  barycentric = barycentric.concat([1,0,0]);
+  barycentric = barycentric.concat([0,1,0]);
+  barycentric = barycentric.concat([0,0,1]);    
+
+  uv = uv.concat([0, 0]);
+  uv = uv.concat([0.5, 1]);
+  uv = uv.concat([1, 0]);
+
+  norm = norm.concat([0, 0, 1]);
+  norm = norm.concat([0, 0, 1]);
+  norm = norm.concat([0, 0, 1]);
+
+  ret.pos = pos;
+  ret.norm = norm;
+  ret.uv = uv;
+  ret.barycentric = barycentric;
+  ret.tangent = tangent;
+
+  return ret;    
+}
+
+//=========================================================================================
+function GenerateCubeMesh ()
+{
+  var ret = {};
+
+  var pos = [];
+  var norm = [];
+  var uv = [];
+  var barycentric = [];
+  var tangent = [];
+
+  // front face
+  {
+    pos = pos.concat([-1,-1, 1]);
+    pos = pos.concat([-1, 1, 1]);
+    pos = pos.concat([ 1,-1, 1]);
+
+    pos = pos.concat([-1, 1, 1]);
+    pos = pos.concat([ 1, 1, 1]);
+    pos = pos.concat([ 1,-1, 1]);
+
+    uv = uv.concat([0, 0]);
+    uv = uv.concat([0, 1]);
+    uv = uv.concat([1, 0]);
+
+    uv = uv.concat([0, 1]);
+    uv = uv.concat([1, 1]);
+    uv = uv.concat([1, 0]);    
+
+    barycentric = barycentric.concat([1,0,0]);
+    barycentric = barycentric.concat([0,1,0]);
+    barycentric = barycentric.concat([0,0,1]);  
+
+    barycentric = barycentric.concat([1,0,0]);
+    barycentric = barycentric.concat([0,1,0]);
+    barycentric = barycentric.concat([0,0,1]);      
+
+    norm = norm.concat([0, 0, 1]);
+    norm = norm.concat([0, 0, 1]);
+    norm = norm.concat([0, 0, 1]);
+
+    norm = norm.concat([0, 0, 1]);
+    norm = norm.concat([0, 0, 1]);
+    norm = norm.concat([0, 0, 1]);    
+  }
+
+  // back face
+  {
+    pos = pos.concat([ 1,-1, -1]);
+    pos = pos.concat([-1, 1, -1]);
+    pos = pos.concat([-1,-1, -1]);
+
+    pos = pos.concat([ 1,-1, -1]);
+    pos = pos.concat([ 1, 1, -1]);
+    pos = pos.concat([-1, 1, -1]);    
+
+    uv = uv.concat([1, 0]);
+    uv = uv.concat([0, 1]);
+    uv = uv.concat([0, 0]);
+
+    uv = uv.concat([1, 0]);
+    uv = uv.concat([1, 1]);
+    uv = uv.concat([0, 1]);    
+
+    barycentric = barycentric.concat([1,0,0]);
+    barycentric = barycentric.concat([0,1,0]);
+    barycentric = barycentric.concat([0,0,1]);  
+
+    barycentric = barycentric.concat([1,0,0]);
+    barycentric = barycentric.concat([0,1,0]);
+    barycentric = barycentric.concat([0,0,1]);      
+
+    norm = norm.concat([0, 0,-1]);
+    norm = norm.concat([0, 0,-1]);
+    norm = norm.concat([0, 0,-1]);
+
+    norm = norm.concat([0, 0,-1]);
+    norm = norm.concat([0, 0,-1]);
+    norm = norm.concat([0, 0,-1]);    
+  }
+
+  // left face
+  {
+    pos = pos.concat([-1,-1,-1]);
+    pos = pos.concat([-1, 1,-1]);
+    pos = pos.concat([-1,-1, 1]);
+
+    pos = pos.concat([-1, 1,-1]);
+    pos = pos.concat([-1, 1, 1]);
+    pos = pos.concat([-1,-1, 1]);
+
+    uv = uv.concat([0, 0]);
+    uv = uv.concat([0, 1]);
+    uv = uv.concat([1, 0]);
+
+    uv = uv.concat([0, 1]);
+    uv = uv.concat([1, 1]);
+    uv = uv.concat([1, 0]);    
+
+    barycentric = barycentric.concat([1,0,0]);
+    barycentric = barycentric.concat([0,1,0]);
+    barycentric = barycentric.concat([0,0,1]);  
+
+    barycentric = barycentric.concat([1,0,0]);
+    barycentric = barycentric.concat([0,1,0]);
+    barycentric = barycentric.concat([0,0,1]);      
+
+    norm = norm.concat([-1, 0, 0]);
+    norm = norm.concat([-1, 0, 0]);
+    norm = norm.concat([-1, 0, 0]);
+
+    norm = norm.concat([-1, 0, 0]);
+    norm = norm.concat([-1, 0, 0]);
+    norm = norm.concat([-1, 0, 0]);    
+  }
+
+  // right face
+  {
+    pos = pos.concat([ 1,-1, 1]);
+    pos = pos.concat([ 1, 1,-1]);
+    pos = pos.concat([ 1,-1,-1]);
+    
+    pos = pos.concat([ 1,-1, 1]);
+    pos = pos.concat([ 1, 1, 1]);
+    pos = pos.concat([ 1, 1,-1]);
+
+    uv = uv.concat([1, 0]);
+    uv = uv.concat([0, 1]);
+    uv = uv.concat([0, 0]);
+    
+    uv = uv.concat([1, 0]);    
+    uv = uv.concat([1, 1]);
+    uv = uv.concat([0, 1]);
+
+    barycentric = barycentric.concat([1,0,0]);
+    barycentric = barycentric.concat([0,1,0]);
+    barycentric = barycentric.concat([0,0,1]);  
+
+    barycentric = barycentric.concat([1,0,0]);
+    barycentric = barycentric.concat([0,1,0]);
+    barycentric = barycentric.concat([0,0,1]);      
+
+    norm = norm.concat([ 1, 0, 0]);
+    norm = norm.concat([ 1, 0, 0]);
+    norm = norm.concat([ 1, 0, 0]);
+
+    norm = norm.concat([ 1, 0, 0]);
+    norm = norm.concat([ 1, 0, 0]);
+    norm = norm.concat([ 1, 0, 0]);    
+  }  
+
+  // top face
+  {
+    pos = pos.concat([-1,-1,-1]);
+    pos = pos.concat([-1,-1, 1]);
+    pos = pos.concat([ 1,-1,-1]);
+
+    pos = pos.concat([-1,-1, 1]);
+    pos = pos.concat([ 1,-1, 1]);
+    pos = pos.concat([ 1,-1,-1]);
+
+    uv = uv.concat([0, 0]);
+    uv = uv.concat([0, 1]);
+    uv = uv.concat([1, 0]);
+
+    uv = uv.concat([0, 1]);
+    uv = uv.concat([1, 1]);
+    uv = uv.concat([1, 0]);    
+
+    barycentric = barycentric.concat([1,0,0]);
+    barycentric = barycentric.concat([0,1,0]);
+    barycentric = barycentric.concat([0,0,1]);  
+
+    barycentric = barycentric.concat([1,0,0]);
+    barycentric = barycentric.concat([0,1,0]);
+    barycentric = barycentric.concat([0,0,1]);      
+
+    norm = norm.concat([0,-1, 0]);
+    norm = norm.concat([0,-1, 0]);
+    norm = norm.concat([0,-1, 0]);
+
+    norm = norm.concat([0,-1, 0]);
+    norm = norm.concat([0,-1, 0]);
+    norm = norm.concat([0,-1, 0]);    
+  }  
+
+  // bottom face
+  {
+    pos = pos.concat([ 1, 1,-1]);
+    pos = pos.concat([-1, 1, 1]);
+    pos = pos.concat([-1, 1,-1]);
+
+    pos = pos.concat([ 1, 1,-1]);
+    pos = pos.concat([ 1, 1, 1]);
+    pos = pos.concat([-1, 1, 1]);
+
+    uv = uv.concat([1, 0]);
+    uv = uv.concat([0, 1]);
+    uv = uv.concat([0, 0]);
+
+    uv = uv.concat([1, 0]);
+    uv = uv.concat([1, 1]);
+    uv = uv.concat([0, 1]);    
+
+    barycentric = barycentric.concat([1,0,0]);
+    barycentric = barycentric.concat([0,1,0]);
+    barycentric = barycentric.concat([0,0,1]);  
+
+    barycentric = barycentric.concat([1,0,0]);
+    barycentric = barycentric.concat([0,1,0]);
+    barycentric = barycentric.concat([0,0,1]);      
+
+    norm = norm.concat([0, 1, 0]);
+    norm = norm.concat([0, 1, 0]);
+    norm = norm.concat([0, 1, 0]);
+
+    norm = norm.concat([0, 1, 0]);
+    norm = norm.concat([0, 1, 0]);
+    norm = norm.concat([0, 1, 0]);    
+  }    
+
+  ret.pos = pos;
+  ret.norm = norm;
+  ret.uv = uv;
+  ret.barycentric = barycentric;
+  ret.tangent = tangent;
+
+  return ret;  
 }
 
 //=========================================================================================
@@ -1191,6 +1557,50 @@ function LoadImagesAndRender ()
 }
 
 //=========================================================================================
+function MakeMeshBuffers (mesh, program)
+{
+    // normals
+    var normalAttributeLocation = gl.getAttribLocation(program, "a_normal");
+    var normalBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+    gl.enableVertexAttribArray(normalAttributeLocation);
+    gl.vertexAttribPointer(normalAttributeLocation, 3, gl.FLOAT, false, 0, 0);   
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.norm), gl.STATIC_DRAW);     
+
+    // tangents
+    var tangentAttributeLocation = gl.getAttribLocation(program, "a_tangent");
+    var tangentBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, tangentBuffer);
+    gl.enableVertexAttribArray(tangentAttributeLocation);
+    gl.vertexAttribPointer(tangentAttributeLocation, 3, gl.FLOAT, false, 0, 0);   
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.norm), gl.STATIC_DRAW);         
+
+    // positions
+    var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
+    var positionBuffer = gl.createBuffer(); 
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    gl.enableVertexAttribArray(positionAttributeLocation);      
+    gl.vertexAttribPointer(positionAttributeLocation, 3, gl.FLOAT, false, 0, 0);        
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.pos), gl.STATIC_DRAW);
+
+    // uv
+    var uvAttributeLocation = gl.getAttribLocation(program, "a_uv");
+    var uvBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, uvBuffer);
+    gl.enableVertexAttribArray(uvAttributeLocation);
+    gl.vertexAttribPointer(uvAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.uv), gl.STATIC_DRAW);
+
+    // barycentric coordinates
+    var barycentricAttributeLocation = gl.getAttribLocation(program, "a_barycentric");
+    var barycentricBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, barycentricBuffer);
+    gl.enableVertexAttribArray(barycentricAttributeLocation);
+    gl.vertexAttribPointer(barycentricAttributeLocation, 3, gl.FLOAT, false, 0, 0);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.barycentric), gl.STATIC_DRAW);       
+}
+
+//=========================================================================================
 function Initialize ()
 {
     //debug panel starts closed
@@ -1225,8 +1635,10 @@ function Initialize ()
     document.addEventListener('mozpointerlockchange', PointerLockChangeCallback, false);
     document.addEventListener('webkitpointerlockchange', PointerLockChangeCallback, false);
 
-      // make the sphere mesh
-      var sphereMesh = GenerateSphereMesh(20, 20);    
+    // make the meshes
+    var sphereMesh = GenerateSphereMesh(20, 20);    
+    var cubeMesh = GenerateCubeMesh();
+    var tetrahedronMesh = GenerateTetrahedronMesh();
 
     // make the uniform definitions for the shaders
     g_uniformsShaderSource = "// uniform constants\n";
@@ -1242,49 +1654,23 @@ function Initialize ()
       // make the shader
       var shader = MakeShader(vertexShaderSource, fragmentShaderSource, permutationSource);
 
-      g_vaoVertCount = sphereMesh.pos.length;
-      g_vao = gl.createVertexArray();
-      gl.bindVertexArray(g_vao);    
+      // make the sphere mesh buffers
+      shader.sphereMeshVertCount = sphereMesh.pos.length;
+      shader.sphereMesh = gl.createVertexArray();
+      gl.bindVertexArray(shader.sphereMesh);    
+      MakeMeshBuffers(sphereMesh, shader.program);
 
-      // normals
-      var normalAttributeLocation = gl.getAttribLocation(shader.program, "a_normal");
-      var normalBuffer = gl.createBuffer();
-      gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
-      gl.enableVertexAttribArray(normalAttributeLocation);
-      gl.vertexAttribPointer(normalAttributeLocation, 3, gl.FLOAT, false, 0, 0);   
-      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(sphereMesh.norm), gl.STATIC_DRAW);     
+      // make the cube mesh buffers
+      shader.cubeMeshVertCount = cubeMesh.pos.length;
+      shader.cubeMesh = gl.createVertexArray();
+      gl.bindVertexArray(shader.cubeMesh);    
+      MakeMeshBuffers(cubeMesh, shader.program);     
 
-      // tangents
-      var tangentAttributeLocation = gl.getAttribLocation(shader.program, "a_tangent");
-      var tangentBuffer = gl.createBuffer();
-      gl.bindBuffer(gl.ARRAY_BUFFER, tangentBuffer);
-      gl.enableVertexAttribArray(tangentAttributeLocation);
-      gl.vertexAttribPointer(tangentAttributeLocation, 3, gl.FLOAT, false, 0, 0);   
-      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(sphereMesh.norm), gl.STATIC_DRAW);         
-
-      // positions
-      var positionAttributeLocation = gl.getAttribLocation(shader.program, "a_position");
-      var positionBuffer = gl.createBuffer(); 
-      gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-      gl.enableVertexAttribArray(positionAttributeLocation);      
-      gl.vertexAttribPointer(positionAttributeLocation, 3, gl.FLOAT, false, 0, 0);        
-      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(sphereMesh.pos), gl.STATIC_DRAW);
-
-      // uv
-      var uvAttributeLocation = gl.getAttribLocation(shader.program, "a_uv");
-      var uvBuffer = gl.createBuffer();
-      gl.bindBuffer(gl.ARRAY_BUFFER, uvBuffer);
-      gl.enableVertexAttribArray(uvAttributeLocation);
-      gl.vertexAttribPointer(uvAttributeLocation, 2, gl.FLOAT, false, 0, 0);
-      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(sphereMesh.uv), gl.STATIC_DRAW);
-
-      // barycentric coordinates
-      var barycentricAttributeLocation = gl.getAttribLocation(shader.program, "a_barycentric");
-      var barycentricBuffer = gl.createBuffer();
-      gl.bindBuffer(gl.ARRAY_BUFFER, barycentricBuffer);
-      gl.enableVertexAttribArray(barycentricAttributeLocation);
-      gl.vertexAttribPointer(barycentricAttributeLocation, 3, gl.FLOAT, false, 0, 0);
-      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(sphereMesh.barycentric), gl.STATIC_DRAW);      
+      // make the tetrahedron mesh buffers
+      shader.tetrahedronMeshVertCount = tetrahedronMesh.pos.length;
+      shader.tetrahedronMesh = gl.createVertexArray();
+      gl.bindVertexArray(shader.tetrahedronMesh);    
+      MakeMeshBuffers(tetrahedronMesh, shader.program);           
 
       g_shaders[i] = shader;
     }
@@ -1326,7 +1712,7 @@ function Initialize ()
             </select>           
             <select id="Debug_SceneObject">
               <option value="0">Sphere</option>
-              <option value="1">Box</option>
+              <option value="1">Cube</option>
               <option value="2">Tetrahedron</option>
             </select>                 
             <br>

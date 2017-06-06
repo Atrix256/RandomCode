@@ -5,6 +5,10 @@
 * get normals working and transforming in scenes before doing normal mapping'
  (get box, tetrahedron, model?)
 
+* an option to rotate the objects over time (will also help make sure normal transforms work correctly)
+
+* make wireframe take derivative of uv's to see how wide to be?
+
 * later, blend normals between faces to make smoother normals?
 
 * get normal mapping working for texturing on
@@ -20,6 +24,8 @@
 
 * Make a PBR renderer in WebGL:
  * https://learnopengl.com/#!PBR/Theory
+
+* show ms next to fps
 
 * TODO's!
 
@@ -38,6 +44,10 @@
 * bezier rectangle later? (ray marched)
 
 ? orbit camera mode?
+
+? is there a better way to get barycentrics in webgl?
+
+? use the #define's to change the vertex format to be leaner when it can be?
 
 ===== LATER =====
 
