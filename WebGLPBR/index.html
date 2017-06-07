@@ -589,6 +589,26 @@ function NormalizeVector (v)
 }
 
 //=========================================================================================
+function VectorSubtract(a, b)
+{
+  return [
+    a[0] - b[0],
+    a[1] - b[1],
+    a[2] - b[2],
+  ];
+}
+
+//=========================================================================================
+function VectorCrossProduct(a, b)
+{
+  return [
+    a[1] * b[2] - a[2] * b[1],
+    a[2] * b[0] - a[0] * b[2],
+    a[0] * b[1] - a[1] * b[0]
+  ];
+}
+
+//=========================================================================================
 function CameraForward ()
 {
   return [g_cameraMatrix[0*4+2], g_cameraMatrix[1*4+2], g_cameraMatrix[2*4+2]];
@@ -1096,9 +1116,27 @@ function CalculateTriangleTangent (uv, uvStart, pos, posStart)
 }
 
 //=========================================================================================
-function CalculateTriangleNormal (pos, posStart)
+function CalculateNormals (pos)
 {
-  // TODO: finish this
+  var norm = [];
+
+  for (var index = 0; index < pos.length; index += 9)
+  {
+    var point0 = pos.slice(index, index + 3); 
+    var point1 = pos.slice(index+3, index + 6); 
+    var point2 = pos.slice(index+6, index + 9); 
+
+    var edge1 = VectorSubtract(point1, point0);
+    var edge2 = VectorSubtract(point2, point1);
+
+    var normal = VectorCrossProduct(edge2, edge1);
+
+    norm = norm.concat(normal);
+    norm = norm.concat(normal);
+    norm = norm.concat(normal);
+  }
+
+  return norm;
 }
 
 //=========================================================================================
@@ -1107,9 +1145,8 @@ function GenerateTetrahedronMesh ()
   var ret = {};
 
   var pos = [];
-  var norm = [];
   var uv = [];
-  var barycentric = [];
+
   var tangent = [];
 
   // TODO: finish this!
@@ -1126,17 +1163,21 @@ function GenerateTetrahedronMesh ()
   pos = pos.concat(point1);
   pos = pos.concat(point2);
 
-  barycentric = barycentric.concat([1,0,0]);
-  barycentric = barycentric.concat([0,1,0]);
-  barycentric = barycentric.concat([0,0,1]);    
-
   uv = uv.concat([0, 0]);
   uv = uv.concat([0.5, 1]);
   uv = uv.concat([1, 0]);
 
-  norm = norm.concat([0, 0, 1]);
-  norm = norm.concat([0, 0, 1]);
-  norm = norm.concat([0, 0, 1]);
+  // make the normals 
+  var norm = CalculateNormals(pos);  
+
+  // make barycentric coordinates
+  var barycentric = [];
+  for (var i = 0; i < pos.length; i += 9)
+  {
+    barycentric = barycentric.concat([1,0,0]);
+    barycentric = barycentric.concat([0,1,0]);
+    barycentric = barycentric.concat([0,0,1]);   
+  }
 
   ret.pos = pos;
   ret.norm = norm;
@@ -1153,9 +1194,7 @@ function GenerateCubeMesh ()
   var ret = {};
 
   var pos = [];
-  var norm = [];
   var uv = [];
-  var barycentric = [];
   var tangent = [];
 
   // front face
@@ -1174,23 +1213,7 @@ function GenerateCubeMesh ()
 
     uv = uv.concat([0, 1]);
     uv = uv.concat([1, 1]);
-    uv = uv.concat([1, 0]);    
-
-    barycentric = barycentric.concat([1,0,0]);
-    barycentric = barycentric.concat([0,1,0]);
-    barycentric = barycentric.concat([0,0,1]);  
-
-    barycentric = barycentric.concat([1,0,0]);
-    barycentric = barycentric.concat([0,1,0]);
-    barycentric = barycentric.concat([0,0,1]);      
-
-    norm = norm.concat([0, 0, 1]);
-    norm = norm.concat([0, 0, 1]);
-    norm = norm.concat([0, 0, 1]);
-
-    norm = norm.concat([0, 0, 1]);
-    norm = norm.concat([0, 0, 1]);
-    norm = norm.concat([0, 0, 1]);    
+    uv = uv.concat([1, 0]);       
   }
 
   // back face
@@ -1209,23 +1232,7 @@ function GenerateCubeMesh ()
 
     uv = uv.concat([1, 0]);
     uv = uv.concat([1, 1]);
-    uv = uv.concat([0, 1]);    
-
-    barycentric = barycentric.concat([1,0,0]);
-    barycentric = barycentric.concat([0,1,0]);
-    barycentric = barycentric.concat([0,0,1]);  
-
-    barycentric = barycentric.concat([1,0,0]);
-    barycentric = barycentric.concat([0,1,0]);
-    barycentric = barycentric.concat([0,0,1]);      
-
-    norm = norm.concat([0, 0,-1]);
-    norm = norm.concat([0, 0,-1]);
-    norm = norm.concat([0, 0,-1]);
-
-    norm = norm.concat([0, 0,-1]);
-    norm = norm.concat([0, 0,-1]);
-    norm = norm.concat([0, 0,-1]);    
+    uv = uv.concat([0, 1]);      
   }
 
   // left face
@@ -1244,23 +1251,7 @@ function GenerateCubeMesh ()
 
     uv = uv.concat([0, 1]);
     uv = uv.concat([1, 1]);
-    uv = uv.concat([1, 0]);    
-
-    barycentric = barycentric.concat([1,0,0]);
-    barycentric = barycentric.concat([0,1,0]);
-    barycentric = barycentric.concat([0,0,1]);  
-
-    barycentric = barycentric.concat([1,0,0]);
-    barycentric = barycentric.concat([0,1,0]);
-    barycentric = barycentric.concat([0,0,1]);      
-
-    norm = norm.concat([-1, 0, 0]);
-    norm = norm.concat([-1, 0, 0]);
-    norm = norm.concat([-1, 0, 0]);
-
-    norm = norm.concat([-1, 0, 0]);
-    norm = norm.concat([-1, 0, 0]);
-    norm = norm.concat([-1, 0, 0]);    
+    uv = uv.concat([1, 0]);       
   }
 
   // right face
@@ -1279,23 +1270,7 @@ function GenerateCubeMesh ()
     
     uv = uv.concat([1, 0]);    
     uv = uv.concat([1, 1]);
-    uv = uv.concat([0, 1]);
-
-    barycentric = barycentric.concat([1,0,0]);
-    barycentric = barycentric.concat([0,1,0]);
-    barycentric = barycentric.concat([0,0,1]);  
-
-    barycentric = barycentric.concat([1,0,0]);
-    barycentric = barycentric.concat([0,1,0]);
-    barycentric = barycentric.concat([0,0,1]);      
-
-    norm = norm.concat([ 1, 0, 0]);
-    norm = norm.concat([ 1, 0, 0]);
-    norm = norm.concat([ 1, 0, 0]);
-
-    norm = norm.concat([ 1, 0, 0]);
-    norm = norm.concat([ 1, 0, 0]);
-    norm = norm.concat([ 1, 0, 0]);    
+    uv = uv.concat([0, 1]);    
   }  
 
   // top face
@@ -1314,23 +1289,7 @@ function GenerateCubeMesh ()
 
     uv = uv.concat([0, 1]);
     uv = uv.concat([1, 1]);
-    uv = uv.concat([1, 0]);    
-
-    barycentric = barycentric.concat([1,0,0]);
-    barycentric = barycentric.concat([0,1,0]);
-    barycentric = barycentric.concat([0,0,1]);  
-
-    barycentric = barycentric.concat([1,0,0]);
-    barycentric = barycentric.concat([0,1,0]);
-    barycentric = barycentric.concat([0,0,1]);      
-
-    norm = norm.concat([0,-1, 0]);
-    norm = norm.concat([0,-1, 0]);
-    norm = norm.concat([0,-1, 0]);
-
-    norm = norm.concat([0,-1, 0]);
-    norm = norm.concat([0,-1, 0]);
-    norm = norm.concat([0,-1, 0]);    
+    uv = uv.concat([1, 0]);       
   }  
 
   // bottom face
@@ -1350,23 +1309,19 @@ function GenerateCubeMesh ()
     uv = uv.concat([1, 0]);
     uv = uv.concat([1, 1]);
     uv = uv.concat([0, 1]);    
-
-    barycentric = barycentric.concat([1,0,0]);
-    barycentric = barycentric.concat([0,1,0]);
-    barycentric = barycentric.concat([0,0,1]);  
-
-    barycentric = barycentric.concat([1,0,0]);
-    barycentric = barycentric.concat([0,1,0]);
-    barycentric = barycentric.concat([0,0,1]);      
-
-    norm = norm.concat([0, 1, 0]);
-    norm = norm.concat([0, 1, 0]);
-    norm = norm.concat([0, 1, 0]);
-
-    norm = norm.concat([0, 1, 0]);
-    norm = norm.concat([0, 1, 0]);
-    norm = norm.concat([0, 1, 0]);    
   }    
+
+  // make the normals 
+  var norm = CalculateNormals(pos);  
+
+  // make barycentric coordinates
+  var barycentric = [];
+  for (var i = 0; i < pos.length; i += 9)
+  {
+    barycentric = barycentric.concat([1,0,0]);
+    barycentric = barycentric.concat([0,1,0]);
+    barycentric = barycentric.concat([0,0,1]);   
+  }  
 
   ret.pos = pos;
   ret.norm = norm;
@@ -1383,9 +1338,7 @@ function GenerateSphereMesh (slicesX, slicesY)
   var ret = {};
 
   var pos = [];
-  var norm = [];
   var uv = [];
-  var barycentric = [];
   var tangent = [];
 
   // make the body of the sphere
@@ -1416,10 +1369,6 @@ function GenerateSphereMesh (slicesX, slicesY)
       uv = uv.concat(uv01);
       uv = uv.concat(uv10);
 
-      barycentric = barycentric.concat([1,0,0]);
-      barycentric = barycentric.concat([0,1,0]);
-      barycentric = barycentric.concat([0,0,1]);
-
       // triangle 2 = 01, 11, 10
       pos = pos.concat(point01);
       pos = pos.concat(point11);
@@ -1427,11 +1376,7 @@ function GenerateSphereMesh (slicesX, slicesY)
 
       uv = uv.concat(uv01);
       uv = uv.concat(uv11);
-      uv = uv.concat(uv10);    
-
-      barycentric = barycentric.concat([1,0,0]);
-      barycentric = barycentric.concat([0,1,0]);
-      barycentric = barycentric.concat([0,0,1]);   
+      uv = uv.concat(uv10);     
     }
   }
 
@@ -1459,10 +1404,6 @@ function GenerateSphereMesh (slicesX, slicesY)
       uv = uv.concat(uv1);
       uv = uv.concat(uv2);      
 
-      barycentric = barycentric.concat([1,0,0]);
-      barycentric = barycentric.concat([0,1,0]);
-      barycentric = barycentric.concat([0,0,1]);
-
       percentY = 1.0 - percentY;
 
       point2 = [0, -1, 0];
@@ -1480,20 +1421,24 @@ function GenerateSphereMesh (slicesX, slicesY)
       uv = uv.concat(uv0);
       uv = uv.concat(uv1);
       uv = uv.concat(uv2);      
-
-      barycentric = barycentric.concat([1,0,0]);
-      barycentric = barycentric.concat([0,1,0]);
-      barycentric = barycentric.concat([0,0,1]);
   }
-
-  // make the normals
-  for (var index = 0; index < pos.length; ++index)
-    norm[index] = pos[index];
 
   // make the tangents
   var numTris = Math.floor(pos.length / 3);
   for (var index = 0; index < numTris; ++index)
     tangent = tangent.concat(CalculateTriangleTangent(uv, index*2, pos, index*3));
+
+  // make the normals. We want smoothed normals on the sphere
+  var norm = pos;
+
+  // make barycentric coordinates
+  var barycentric = [];
+  for (var i = 0; i < pos.length; i += 9)
+  {
+    barycentric = barycentric.concat([1,0,0]);
+    barycentric = barycentric.concat([0,1,0]);
+    barycentric = barycentric.concat([0,0,1]);   
+  }  
 
   ret.pos = pos;
   ret.norm = norm;

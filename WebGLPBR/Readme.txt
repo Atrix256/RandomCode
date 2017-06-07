@@ -1,3 +1,5 @@
+* drop down menu for texture slots, with one main drop down for "presets" for the materials. Yes get rid of untextured shader permutations.
+
 * add cube, tetrahedron, model to draw object list
 
 * yes make vertex format automating a little better.
@@ -9,7 +11,7 @@
 
 * make wireframe take derivative of uv's to see how wide to be?
 
-* later, blend normals between faces to make smoother normals?
+* see if there's any places where you need to use VectorSubtract etc instead of doing it manually?
 
 * get normal mapping working for texturing on
  * https://learnopengl.com/#!Advanced-Lighting/Normal-Mapping
@@ -19,6 +21,12 @@
  * I'm not sure that we can because each triangle is it's own thing.
  * we aren't using index buffers
  ? maybe we should use index buffers for meshes?
+
+* profile code to see where time is going so far
+
+* understand the PBR so far
+
+? is it normal for colors to show up on metal when it shouldn't? ask SE. like red metal showing a green light
 
 * then move to IBL!
 
@@ -49,6 +57,8 @@
 
 ? use the #define's to change the vertex format to be leaner when it can be?
 
+? load images on demand instead of in the beginning?
+
 ===== LATER =====
 
 * blog post with links to resources, basic shell webgl pbr program, any programs you made or used.
@@ -64,6 +74,9 @@
 * reflection / refraction / absorption / etc
 * second specular lobe like in disney brdf
 * and so on!
+
+? blend normals across faces to make smoother normals?
+ * make a flag to allow this or not.  The sphere would like it, but box and tetrahedron for example wouldn't.
 
 ===== LINKS =====
 
