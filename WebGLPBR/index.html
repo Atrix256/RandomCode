@@ -950,6 +950,87 @@ function DrawScene (thisFrameTimeStamp)
         }
       }
     }
+    else if (document.getElementById("Debug_SceneSingle").selectedIndex == 1)
+    {
+      for (var iy = 0; iy < 8; ++iy)
+      {
+        for (var ix = 0; ix < 8; ++ix)
+        {
+          if (objectType == 0)
+          {
+            DrawSphere(
+              [(ix - 3.5), (iy - 3.5), 0],
+              [0.4, 0.4, 0.4],
+              objectAlebdo,
+              [0, 0, 0],
+              objectMetallic, objectRoughness,
+              objectTextures);
+          }
+          else if (objectType == 1)
+          {
+            DrawCube(
+              [(ix - 3.5), (iy - 3.5), 0],
+              [0.4, 0.4, 0.4],
+              objectAlebdo,
+              [0, 0, 0],
+              objectMetallic, objectRoughness,
+              objectTextures);
+          }
+          else
+          {
+            DrawTetrahedron(
+              [(ix - 3.5), (iy - 3.5), 0],
+              [0.4, 0.4, 0.4],
+              objectAlebdo,
+              [0, 0, 0],
+              objectMetallic, objectRoughness,
+              objectTextures);            
+          }
+        }
+      }
+    }    
+    else if (document.getElementById("Debug_SceneSingle").selectedIndex == 2)
+    {
+      for (var iz = 0; iz < 8; ++iz)
+      {
+        for (var iy = 0; iy < 8; ++iy)
+        {
+          for (var ix = 0; ix < 8; ++ix)
+          {
+            if (objectType == 0)
+            {
+              DrawSphere(
+                [(ix - 3.5), (iy - 3.5), (iz - 3.5)],
+                [0.4, 0.4, 0.4],
+                objectAlebdo,
+                [0, 0, 0],
+                objectMetallic, objectRoughness,
+                objectTextures);
+            }
+            else if (objectType == 1)
+            {
+              DrawCube(
+                [(ix - 3.5), (iy - 3.5), (iz - 3.5)],
+                [0.4, 0.4, 0.4],
+                objectAlebdo,
+                [0, 0, 0],
+                objectMetallic, objectRoughness,
+                objectTextures);
+            }
+            else
+            {
+              DrawTetrahedron(
+                [(ix - 3.5), (iy - 3.5), (iz - 3.5)],
+                [0.4, 0.4, 0.4],
+                objectAlebdo,
+                [0, 0, 0],
+                objectMetallic, objectRoughness,
+                objectTextures);            
+            }
+          }
+        }
+      }
+    }        
     // else draw a single one
     else
     {
@@ -1674,8 +1755,10 @@ function Initialize ()
             <input type="checkbox" id="Debug_AnimateLights"/>Animate Lights<br/>
             Draw:
             <select id="Debug_SceneSingle">
-              <option value="0">Grid of</option>
-              <option value="1" selected="true">Single</option>
+              <option value="0">PBR Grid of</option>
+              <option value="1">Grid of</option>
+              <option value="2">Cube of</option>
+              <option value="3" selected="true">Single</option>
             </select>
             <select id="Debug_SceneMaterial">
               <option value="0">Untextured</option>
