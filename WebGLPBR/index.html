@@ -281,8 +281,10 @@ vec3 PositionalLight (vec3 worldPos, vec3 N, vec3 V, vec3 lightPos, vec3 lightCo
 void main()
 {
   #if DEBUG_WIREFRAME
+    float margin = length(fwidth(v_barycentric)) * 0.25;
+
     float barycentricMin = min(v_barycentric.x, min(v_barycentric.y, v_barycentric.z));
-    if (barycentricMin > 0.025)
+    if (barycentricMin > margin) //0.025)
       discard;
   #endif
 
@@ -595,6 +597,16 @@ function VectorSubtract(a, b)
     a[0] - b[0],
     a[1] - b[1],
     a[2] - b[2],
+  ];
+}
+
+//=========================================================================================
+function VectorDivide(a, b)
+{
+  return [
+    a[0] / b,
+    a[1] / b,
+    a[2] / b
   ];
 }
 
@@ -913,7 +925,7 @@ function DrawScene (thisFrameTimeStamp)
               (ix / 7) * 0.95 + 0.05,
               objectTextures);
           }
-          else if (objectType == 0)
+          else if (objectType == 1)
           {
             DrawCube(
               [(ix - 3.5), (iy - 3.5), 0],
@@ -1146,26 +1158,44 @@ function GenerateTetrahedronMesh ()
 
   var pos = [];
   var uv = [];
-
   var tangent = [];
-
-  // TODO: finish this!
-  // TODO: divide by 2!
-  // TODO: auto-calculate normals? maybe do that for all meshes?
-  // TODO: how to calculate UV's?
 
   var point0 = [-1, 0, -1 / Math.sqrt(2)];
   var point1 = [ 1, 0, -1 / Math.sqrt(2)];
   var point2 = [ 0,-1,  1 / Math.sqrt(2)];
   var point3 = [ 0, 1,  1 / Math.sqrt(2)];
 
+  pos = pos.concat(point2);
+  pos = pos.concat(point1);
+  pos = pos.concat(point0);
+
   pos = pos.concat(point0);
   pos = pos.concat(point1);
+  pos = pos.concat(point3);  
+
+  pos = pos.concat(point3);
   pos = pos.concat(point2);
+  pos = pos.concat(point0);
+
+  pos = pos.concat(point1);
+  pos = pos.concat(point2);
+  pos = pos.concat(point3);    
 
   uv = uv.concat([0, 0]);
   uv = uv.concat([0.5, 1]);
   uv = uv.concat([1, 0]);
+
+  uv = uv.concat([0, 0]);
+  uv = uv.concat([0.5, 1]);
+  uv = uv.concat([1, 0]);
+
+  uv = uv.concat([0, 0]);
+  uv = uv.concat([0.5, 1]);
+  uv = uv.concat([1, 0]);
+
+  uv = uv.concat([0, 0]);
+  uv = uv.concat([0.5, 1]);
+  uv = uv.concat([1, 0]);  
 
   // make the normals 
   var norm = CalculateNormals(pos);  

@@ -1,15 +1,11 @@
 * drop down menu for texture slots, with one main drop down for "presets" for the materials. Yes get rid of untextured shader permutations.
 
-* add cube, tetrahedron, model to draw object list
-
-* yes make vertex format automating a little better.
+* add a model to the shape drop down list
 
 * get normals working and transforming in scenes before doing normal mapping'
  (get box, tetrahedron, model?)
 
 * an option to rotate the objects over time (will also help make sure normal transforms work correctly)
-
-* make wireframe take derivative of uv's to see how wide to be?
 
 * see if there's any places where you need to use VectorSubtract etc instead of doing it manually?
 
@@ -32,8 +28,6 @@
 
 * Make a PBR renderer in WebGL:
  * https://learnopengl.com/#!PBR/Theory
-
-* show ms next to fps
 
 * TODO's!
 
