@@ -2,10 +2,11 @@
 
 * add a model to the shape drop down list
 
-* get normals working and transforming in scenes before doing normal mapping'
- (get box, tetrahedron, model?)
+! get normal mapping working
 
-* an option to rotate the objects over time (will also help make sure normal transforms work correctly)
+* see if you can factor the mesh buffers out of the loop - as much as you can
+* see if you are doing anything odd in drawing shapes, like setting up shader and constants over and over
+* profile? seems a bit slow with grid
 
 * see if there's any places where you need to use VectorSubtract etc instead of doing it manually?
 
