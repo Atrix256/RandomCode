@@ -175,7 +175,7 @@ void main()
   v_normal = mat3(transpose(inverse(u_objectMatrix))) * a_normal;  
 
   // TODO: make this work! matrix isn't quite right
-  v_normal = mat3(u_invTransObjectMatrix) * a_normal;
+  //v_normal = mat3(u_invTransObjectMatrix) * a_normal;
 
   /*
   // make TBN matrix via Gram-Schmidt process
