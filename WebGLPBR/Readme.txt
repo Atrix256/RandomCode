@@ -2,28 +2,17 @@
 
 * drop down menu for texture slots, with one main drop down for "presets" for the materials. Yes get rid of untextured shader permutations.
 
-* add a model to the shape drop down list
-
-! get normal mapping working
-
-* profile at some point
-
-* see if there's any places where you need to use VectorSubtract etc instead of doing it manually?
-
-* get normal mapping working for texturing on
+* get normal mapping working
  * https://learnopengl.com/#!Advanced-Lighting/Normal-Mapping
  * including the Gram-Schmidt process
 
-? should blend the tangent / bitangent vectors for a vertex to be the normalized average of the faces?
- * I'm not sure that we can because each triangle is it's own thing.
- * we aren't using index buffers
- ? maybe we should use index buffers for meshes?
+* add a model to the shape drop down list
 
 * profile code to see where time is going so far
 
 * understand the PBR so far
 
-? is it normal for colors to show up on metal when it shouldn't? ask SE. like red metal showing a green light
+? is it normal for colors to show up on metal when it shouldn't? ask SE. like red metal showing a green light.
 
 * then move to IBL!
 
@@ -34,15 +23,13 @@
 
 * make shader compiler do non blocking thing with webgl2 render fences
 
-* be able to load or define models somehow (or switch from spheres to boxes or tetrahedrons?)
-
 * a starting image that says "click to begin. mouse look, WASD controls"
-* a starting image that says "loading..." for image loading (and later, shader compilations)
+* an image that says "loading..." for image loading (and later, shader compilations)
 
 * ambient occlusion of meshes, if using more complex meshes.
  * a program that does it, with a blog post about it!
 
-* after IBL, get rid of ambient light?
+* after IBL, get rid of ambient light? or have a mode to turn off IBL and use ambient in that case?
 
 * bezier rectangle later? (ray marched)
 
@@ -51,6 +38,7 @@
 ? is there a better way to get barycentrics in webgl?
 
 ? use the #define's to change the vertex format to be leaner when it can be?
+ * or can we share the buffers better?
 
 ? load images on demand instead of in the beginning?
 
@@ -70,8 +58,9 @@
 * second specular lobe like in disney brdf
 * and so on!
 
-? blend normals across faces to make smoother normals?
+? blend normals / tangent / bitangent across faces to make smoother normals?
  * make a flag to allow this or not.  The sphere would like it, but box and tetrahedron for example wouldn't.
+ * probably need to move to index buffers if doing this, to find all faces to average across. a good idea anyways likely
 
 ===== LINKS =====
 
