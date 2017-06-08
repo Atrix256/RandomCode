@@ -6,6 +6,7 @@ body { border-collapse: collapse; margin:0; padding:0;}
 canvas#RenderWindow {position: absolute; left: 0; top: 0; z-index: 0; width:100%; height:100%;}
 span#DebugPanel {position: absolute; right: 0; top: 0; z-index: 1; color: #00FF00; background-color: rgba(255,255,255,0.3); padding: 10px;}
 span#FPSDisplay {position: absolute; left: 0; bottom: 0; z-index: 1; color: #00FF00; background-color: rgba(255,255,255,0.0); padding: 10px;}
+span#LogDisplay {position: absolute; left: 0; top: 0; z-index: 1; color: #00FF00; background-color: rgba(255,255,255,0.3); padding: 10px;}
 span#CameraPosDisplay {position: absolute; right: 0; bottom: 0; z-index: 1; color: #00FF00; background-color: rgba(255,255,255,0.0); padding: 10px;}
 div#WholeWindow {position:relative; width:100%; height:100%;}
 a#DebugPanelCollapseIcon {color:#00FF00;text-decoration: none; font-weight: bold; text-align: right; display: block;}
@@ -174,7 +175,7 @@ void main()
   v_normal = mat3(transpose(inverse(u_objectMatrix))) * a_normal;  
 
   // TODO: make this work! matrix isn't quite right
-  //v_normal = mat3(u_invTransObjectMatrix) * a_normal;
+  v_normal = mat3(u_invTransObjectMatrix) * a_normal;
 
   /*
   // make TBN matrix via Gram-Schmidt process
@@ -657,7 +658,7 @@ function InverseTransposeTransformationMatrix (yawPitchRoll, translation, scale)
     -translation[0], -translation[1], -translation[2], 1
   ];
 
-  var inverse = MultiplyMatrix4x4(MultiplyMatrix4x4(trans, rot), scale);
+  var inverse = MultiplyMatrix4x4(trans, MultiplyMatrix4x4(rot, scale));
 
   var inverseTranspose = [
     inverse[0*4+0], inverse[1*4+0], inverse[2*4+0], inverse[3*4+0],
@@ -667,6 +668,19 @@ function InverseTransposeTransformationMatrix (yawPitchRoll, translation, scale)
   ];
 
   return inverseTranspose;
+}
+
+//=========================================================================================
+function MatrixToString (matrix)
+{
+  var ret = "";
+
+  ret += matrix[0*4+0].toFixed(2) + ", " + matrix[0*4+1].toFixed(2) + ", " + matrix[0*4+2].toFixed(2) + ", " + matrix[0*4+3].toFixed(2) + "\n";
+  ret += matrix[1*4+0].toFixed(2) + ", " + matrix[1*4+1].toFixed(2) + ", " + matrix[1*4+2].toFixed(2) + ", " + matrix[1*4+3].toFixed(2) + "\n";
+  ret += matrix[2*4+0].toFixed(2) + ", " + matrix[2*4+1].toFixed(2) + ", " + matrix[2*4+2].toFixed(2) + ", " + matrix[2*4+3].toFixed(2) + "\n";
+  ret += matrix[3*4+0].toFixed(2) + ", " + matrix[3*4+1].toFixed(2) + ", " + matrix[3*4+2].toFixed(2) + ", " + matrix[3*4+3].toFixed(2) + "\n";
+
+  return ret;
 }
 
 //=========================================================================================
@@ -788,6 +802,12 @@ function PrepareToDrawMesh (translation, yawPitchRoll, scale, albedo, emissive, 
     objectValues.u_textureNormal = textures[3];
     objectValues.u_textureAO = textures[4];
   }
+
+  // TODO: temp!
+  var testYawPitchRoll = [0, 0, 0];
+  var testTranslation = [10, 20, 30];
+  var testScale = [2, 3, 4];
+  document.getElementById("LogDisplay").innerText = MatrixToString(TransformationMatrix(testYawPitchRoll, testTranslation, testScale)) + "\n\n" + MatrixToString(InverseTransposeTransformationMatrix(testYawPitchRoll, testTranslation, testScale));
 
   // fill out the uniforms
   for (var key in shader.uniforms)
@@ -1869,6 +1889,7 @@ function Initialize ()
 <body onLoad="Initialize();" onkeydown="return OnKeyDown(event);" onkeyup="return OnKeyUp(event);">
 <div id="WholeWindow">
     <canvas id="RenderWindow" onclick="OnRenderWindowClick()"></canvas>
+    <span id="LogDisplay"></span>
     <span id="FPSDisplay">FPS: ---</span>    
     <span id="CameraPosDisplay">Camera: (0.00,0.00,0.00)</span>    
     <span id="DebugPanel">

@@ -1,4 +1,14 @@
+
 * calculate inverse transpose of object matrix in javascript and pass it through so calculated once, instead of once per vertex?
+ * the calculated inverse isn't even correct before the transpose, need to look into why!
+ * http://matrix.reshish.com/inverse.php
+ ? maybe isolate to just rotation, just translation, just scale, see if any of those don't match up.
+  * doing translation and scale works fine. rotation must be having a problem.
+  ! need to reverse operations of rotation (yaw, pitch, roll)?
+
+* make a function called Log which adds (or sets - via a bool?) text to the log window and make sure it appears.
+ * make a button in the log window to clear it and hide it?
+ * make log window start hidden
 
 * drop down menu for texture slots, with one main drop down for "presets" for the materials. Yes get rid of untextured shader permutations.
 
