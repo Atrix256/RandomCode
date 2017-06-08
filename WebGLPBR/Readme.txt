@@ -1,12 +1,12 @@
+* calculate inverse transpose of object matrix in javascript and pass it through so calculated once, instead of once per vertex?
+
 * drop down menu for texture slots, with one main drop down for "presets" for the materials. Yes get rid of untextured shader permutations.
 
 * add a model to the shape drop down list
 
 ! get normal mapping working
 
-* see if you can factor the mesh buffers out of the loop - as much as you can
-* see if you are doing anything odd in drawing shapes, like setting up shader and constants over and over
-* profile? seems a bit slow with grid
+* profile at some point
 
 * see if there's any places where you need to use VectorSubtract etc instead of doing it manually?
 

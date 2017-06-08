@@ -80,6 +80,8 @@ g_imagesToLoad = [
 
 var g_shaders = [];
 
+var g_lastShaderUsed = null;
+
 var g_light0Pos = [-5,-5, 5];
 var g_light1Pos = [-5, 5, 5];
 var g_light2Pos = [ 5,-5, 5];
@@ -118,6 +120,7 @@ var g_uniforms = {
   "u_light3Color"           : ["vec3",      (key, location, objectValues) => {var color = GetLightColor(3); gl.uniform3fv(location, color);}],
 
   "u_objectMatrix"          : ["mat4",      (key, location, objectValues) => {gl.uniformMatrix4fv(location, false, GetObjectValue(objectValues, key));}],  
+  "u_invTransObjectMatrix"  : ["mat4",      (key, location, objectValues) => {gl.uniformMatrix4fv(location, false, GetObjectValue(objectValues, key));}],  
   "u_objectAlbedo"          : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, GetObjectValue(objectValues, key));}],
   "u_objectEmissive"        : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, GetObjectValue(objectValues, key));}],
   "u_objectMetallic"        : ["float",     (key, location, objectValues) => {gl.uniform1f(location, GetObjectValue(objectValues, key));}],
@@ -169,6 +172,9 @@ void main()
 {
   v_worldPos = (u_objectMatrix * a_position).xyz;
   v_normal = mat3(transpose(inverse(u_objectMatrix))) * a_normal;  
+
+  // TODO: make this work! matrix isn't quite right
+  //v_normal = mat3(u_invTransObjectMatrix) * a_normal;
 
   /*
   // make TBN matrix via Gram-Schmidt process
@@ -619,6 +625,51 @@ function TransformationMatrix (yawPitchRoll, translation, scale) {
 }
 
 //=========================================================================================
+function InverseTransposeTransformationMatrix (yawPitchRoll, translation, scale) {
+
+  var cosAlpha = Math.cos(-yawPitchRoll[2]);
+  var sinAlpha = Math.sin(-yawPitchRoll[2]);
+
+  var cosBeta = Math.cos(-yawPitchRoll[0]);
+  var sinBeta = Math.sin(-yawPitchRoll[0]);
+
+  var cosGamma = Math.cos(-yawPitchRoll[1]);
+  var sinGamma = Math.sin(-yawPitchRoll[1]);
+
+  var rot = [
+    cosAlpha * cosBeta, cosAlpha * sinBeta * sinGamma - sinAlpha * cosGamma, cosAlpha * sinBeta * cosGamma + sinAlpha * sinGamma, 0,
+    sinAlpha * cosBeta, sinAlpha * sinBeta * sinGamma + cosAlpha * cosGamma, sinAlpha * sinBeta * cosGamma - cosAlpha * sinGamma, 0,
+    -sinBeta, cosBeta * sinGamma, cosBeta * cosGamma, 0,
+    0, 0, 0, 1
+  ];
+
+  var scale = [
+    1/scale[0], 0, 0, 0,
+    0, 1/scale[1], 0, 0,
+    0, 0, 1/scale[2], 0,
+    0, 0, 0, 1,
+  ];
+
+  var trans = [
+    1, 0, 0, 0,
+    0, 1, 0, 0,
+    0, 0, 1, 0,
+    -translation[0], -translation[1], -translation[2], 1
+  ];
+
+  var inverse = MultiplyMatrix4x4(MultiplyMatrix4x4(trans, rot), scale);
+
+  var inverseTranspose = [
+    inverse[0*4+0], inverse[1*4+0], inverse[2*4+0], inverse[3*4+0],
+    inverse[0*4+1], inverse[1*4+1], inverse[2*4+1], inverse[3*4+1],
+    inverse[0*4+2], inverse[1*4+2], inverse[2*4+2], inverse[3*4+2],
+    inverse[0*4+3], inverse[1*4+3], inverse[2*4+3], inverse[3*4+3],
+  ];
+
+  return inverseTranspose;
+}
+
+//=========================================================================================
 function NormalizeVector (v)
 {
   var length = Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]);
@@ -714,11 +765,16 @@ function PrepareToDrawMesh (translation, yawPitchRoll, scale, albedo, emissive, 
   gl.frontFace(gl.CW);
 
   // Tell it to use our program (pair of shaders)
-  gl.useProgram(shader.program);    
+  if (g_lastShaderUsed != shader.program)
+  {
+    gl.useProgram(shader.program);    
+    g_lastShaderUsed = shader.program;
+  }
 
   // make our object values
   var objectValues = {};
   objectValues.u_objectMatrix = TransformationMatrix(yawPitchRoll, translation, scale);
+  objectValues.u_invTransObjectMatrix = InverseTransposeTransformationMatrix(yawPitchRoll, translation, scale);
   objectValues.u_objectAlbedo = albedo;
   objectValues.u_objectEmissive = emissive;    
   objectValues.u_objectMetallic = metallic;
@@ -878,9 +934,9 @@ function DrawScene (thisFrameTimeStamp)
     if (document.getElementById("Debug_AnimateObjects").checked)
     {
       var seconds = new Date().getTime() / 1000;
-      objectYawPitchRoll[0] = seconds * 0.25;
-      objectYawPitchRoll[1] = seconds * 0.3;
-      objectYawPitchRoll[2] = seconds * 0.7;
+      objectYawPitchRoll[0] = seconds * 0.25 * 2;
+      objectYawPitchRoll[1] = seconds * 0.3 * 2;
+      objectYawPitchRoll[2] = seconds * 0.7 * 2;
     }    
 
     // get the material parameters
@@ -963,11 +1019,13 @@ function DrawScene (thisFrameTimeStamp)
       {
         for (var ix = 0; ix < 8; ++ix)
         {
+          var rotMultiply = Math.sin((ix + 0.3) * (iy + 0.7)) % 1;
+
           if (objectType == 0)
           {
             DrawSphere(
               [(ix - 3.5), (iy - 3.5), 0],
-              objectYawPitchRoll,
+              VectorMultiply(objectYawPitchRoll, rotMultiply),
               [0.4, 0.4, 0.4],
               objectAlebdo,
               [0, 0, 0],
@@ -979,7 +1037,7 @@ function DrawScene (thisFrameTimeStamp)
           {
             DrawCube(
               [(ix - 3.5), (iy - 3.5), 0],
-              objectYawPitchRoll,
+              VectorMultiply(objectYawPitchRoll, rotMultiply),
               [0.4, 0.4, 0.4],
               objectAlebdo,
               [0, 0, 0],
@@ -991,7 +1049,7 @@ function DrawScene (thisFrameTimeStamp)
           {
             DrawTetrahedron(
               [(ix - 3.5), (iy - 3.5), 0],
-              objectYawPitchRoll,
+              VectorMultiply(objectYawPitchRoll, rotMultiply),
               [0.4, 0.4, 0.4],
               objectAlebdo,
               [0, 0, 0],
@@ -1008,11 +1066,13 @@ function DrawScene (thisFrameTimeStamp)
       {
         for (var ix = 0; ix < 8; ++ix)
         {
+          var rotMultiply = Math.sin((ix + 0.3) * (iy + 0.7)) % 1;
+
           if (objectType == 0)
           {
             DrawSphere(
               [(ix - 3.5), (iy - 3.5), 0],
-              objectYawPitchRoll,
+              VectorMultiply(objectYawPitchRoll, rotMultiply),
               [0.4, 0.4, 0.4],
               objectAlebdo,
               [0, 0, 0],
@@ -1023,7 +1083,7 @@ function DrawScene (thisFrameTimeStamp)
           {
             DrawCube(
               [(ix - 3.5), (iy - 3.5), 0],
-              objectYawPitchRoll,
+              VectorMultiply(objectYawPitchRoll, rotMultiply),
               [0.4, 0.4, 0.4],
               objectAlebdo,
               [0, 0, 0],
@@ -1034,7 +1094,7 @@ function DrawScene (thisFrameTimeStamp)
           {
             DrawTetrahedron(
               [(ix - 3.5), (iy - 3.5), 0],
-              objectYawPitchRoll,
+              VectorMultiply(objectYawPitchRoll, rotMultiply),
               [0.4, 0.4, 0.4],
               objectAlebdo,
               [0, 0, 0],
@@ -1052,11 +1112,13 @@ function DrawScene (thisFrameTimeStamp)
         {
           for (var ix = 0; ix < 8; ++ix)
           {
+            var rotMultiply = Math.sin((ix + 0.3) * (iy + 0.7) * (iz + 0.5)) % 1;
+
             if (objectType == 0)
             {
               DrawSphere(
                 [(ix - 3.5), (iy - 3.5), (iz - 3.5)],
-                objectYawPitchRoll,
+                VectorMultiply(objectYawPitchRoll, rotMultiply),
                 [0.4, 0.4, 0.4],
                 objectAlebdo,
                 [0, 0, 0],
@@ -1067,7 +1129,7 @@ function DrawScene (thisFrameTimeStamp)
             {
               DrawCube(
                 [(ix - 3.5), (iy - 3.5), (iz - 3.5)],
-                objectYawPitchRoll,
+                VectorMultiply(objectYawPitchRoll, rotMultiply),
                 [0.4, 0.4, 0.4],
                 objectAlebdo,
                 [0, 0, 0],
@@ -1078,7 +1140,7 @@ function DrawScene (thisFrameTimeStamp)
             {
               DrawTetrahedron(
                 [(ix - 3.5), (iy - 3.5), (iz - 3.5)],
-                objectYawPitchRoll,
+                VectorMultiply(objectYawPitchRoll, rotMultiply),
                 [0.4, 0.4, 0.4],
                 objectAlebdo,
                 [0, 0, 0],
