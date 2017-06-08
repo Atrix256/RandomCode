@@ -163,32 +163,28 @@ in vec3 a_barycentric;
 // vertex output
 out vec3 v_worldPos;
 out vec3 v_normal;
+out vec3 v_tangent;
 out vec2 v_uv;
 out vec3 v_barycentric;
-
-// TODO: temp
-out vec3 v_tangent;
+out mat3 v_tbn;
 
 void main()
 {
   v_worldPos = (u_objectMatrix * a_position).xyz;
-  v_normal = mat3(transpose(inverse(u_objectMatrix))) * a_normal;  
 
-  // TODO: make this work! matrix isn't quite right
-  //v_normal = mat3(u_invTransObjectMatrix) * a_normal;
+  // This offloads inverse transpose matrix calculation to the GPU, but is done per vertex instead of per object.
+  //v_normal = mat3(transpose(inverse(u_objectMatrix))) * a_normal;  
 
-  /*
+  // write out the world space normal and tangent vectors
+  v_normal = mat3(u_invTransObjectMatrix) * a_normal;
+  v_tangent = mat3(u_invTransObjectMatrix) * a_tangent;  
+
   // make TBN matrix via Gram-Schmidt process
   vec3 T = normalize(vec3(u_objectMatrix * vec4(a_tangent, 0.0)));
   vec3 N = normalize(vec3(u_objectMatrix * vec4(a_normal, 0.0)));
-  // re-orthogonalize T with respect to N
   T = normalize(T - dot(T, N) * N);
-  // then retrieve perpendicular vector B with the cross product of T and N
   vec3 B = cross(N, T);
-  mat3 TBN = mat3(T, B, N);
-  */
-  // TODO: temp
-  v_tangent = a_tangent;
+  v_tbn = mat3(T, B, N);  
 
   v_uv = a_uv;
   v_barycentric = a_barycentric;
@@ -202,11 +198,10 @@ var fragmentShaderSource = `
 // pixel input
 in vec3 v_worldPos;
 in vec3 v_normal;
+in vec3 v_tangent;
 in vec2 v_uv;
 in vec3 v_barycentric;
-
-// TODO: temp
-in vec3 v_tangent;
+in mat3 v_tbn;
 
 // pixel output
 out vec4 outColor;
@@ -309,6 +304,10 @@ void main()
     objectMetalic *= texture(u_textureMetalic, v_uv).r;
     objectRoughness *= texture(u_textureRoughness, v_uv).r;
     objectAO *= texture(u_textureAO, v_uv).r;
+
+    N = texture(u_textureNormal, v_uv).rgb;
+    N = normalize(N * 2.0 - 1.0);
+    N = normalize(v_tbn * N);
   #endif
 
   col += PositionalLight(v_worldPos, N, V, u_light0Pos, u_light0Color, objectAlbedo, objectMetalic, objectRoughness) * objectAO;
@@ -626,16 +625,27 @@ function TransformationMatrix (yawPitchRoll, translation, scale) {
 }
 
 //=========================================================================================
+function MatrixTranspose4x4 (matrix)
+{
+  return [
+    matrix[0*4+0], matrix[1*4+0], matrix[2*4+0], matrix[3*4+0],
+    matrix[0*4+1], matrix[1*4+1], matrix[2*4+1], matrix[3*4+1],
+    matrix[0*4+2], matrix[1*4+2], matrix[2*4+2], matrix[3*4+2],
+    matrix[0*4+3], matrix[1*4+3], matrix[2*4+3], matrix[3*4+3],
+  ];
+}
+
+//=========================================================================================
 function InverseTransposeTransformationMatrix (yawPitchRoll, translation, scale) {
 
-  var cosAlpha = Math.cos(-yawPitchRoll[2]);
-  var sinAlpha = Math.sin(-yawPitchRoll[2]);
+  var cosAlpha = Math.cos(yawPitchRoll[2]);
+  var sinAlpha = Math.sin(yawPitchRoll[2]);
 
-  var cosBeta = Math.cos(-yawPitchRoll[0]);
-  var sinBeta = Math.sin(-yawPitchRoll[0]);
+  var cosBeta = Math.cos(yawPitchRoll[0]);
+  var sinBeta = Math.sin(yawPitchRoll[0]);
 
-  var cosGamma = Math.cos(-yawPitchRoll[1]);
-  var sinGamma = Math.sin(-yawPitchRoll[1]);
+  var cosGamma = Math.cos(yawPitchRoll[1]);
+  var sinGamma = Math.sin(yawPitchRoll[1]);
 
   var rot = [
     cosAlpha * cosBeta, cosAlpha * sinBeta * sinGamma - sinAlpha * cosGamma, cosAlpha * sinBeta * cosGamma + sinAlpha * sinGamma, 0,
@@ -643,6 +653,8 @@ function InverseTransposeTransformationMatrix (yawPitchRoll, translation, scale)
     -sinBeta, cosBeta * sinGamma, cosBeta * cosGamma, 0,
     0, 0, 0, 1
   ];
+  // inverse of a rotatiuon matrix is it's transpose
+  rot = MatrixTranspose4x4(rot);
 
   var scale = [
     1/scale[0], 0, 0, 0,
@@ -659,15 +671,7 @@ function InverseTransposeTransformationMatrix (yawPitchRoll, translation, scale)
   ];
 
   var inverse = MultiplyMatrix4x4(trans, MultiplyMatrix4x4(rot, scale));
-
-  var inverseTranspose = [
-    inverse[0*4+0], inverse[1*4+0], inverse[2*4+0], inverse[3*4+0],
-    inverse[0*4+1], inverse[1*4+1], inverse[2*4+1], inverse[3*4+1],
-    inverse[0*4+2], inverse[1*4+2], inverse[2*4+2], inverse[3*4+2],
-    inverse[0*4+3], inverse[1*4+3], inverse[2*4+3], inverse[3*4+3],
-  ];
-
-  return inverseTranspose;
+  return MatrixTranspose4x4(inverse);
 }
 
 //=========================================================================================
@@ -683,6 +687,7 @@ function MatrixToString (matrix)
   return ret;
 }
 
+// TODO: make general for any sized vector and rename to VectorNormalize
 //=========================================================================================
 function NormalizeVector (v)
 {
@@ -693,31 +698,28 @@ function NormalizeVector (v)
 //=========================================================================================
 function VectorSubtract(a, b)
 {
-  return [
-    a[0] - b[0],
-    a[1] - b[1],
-    a[2] - b[2],
-  ];
+	var ret = [];
+	for (var i = 0; i < a.length; ++i)
+		ret[i] = a[i] - b[i];
+	return ret;
 }
 
 //=========================================================================================
 function VectorDivide(a, b)
 {
-  return [
-    a[0] / b,
-    a[1] / b,
-    a[2] / b
-  ];
+	var ret = [];
+	for (var i = 0; i < a.length; ++i)
+		ret[i] = a[i] / b;
+	return ret;
 }
 
 //=========================================================================================
 function VectorMultiply(a, b)
 {
-  return [
-    a[0] * b,
-    a[1] * b,
-    a[2] * b
-  ];
+	var ret = [];
+	for (var i = 0; i < a.length; ++i)
+		ret[i] = a[i] * b;
+	return ret;
 }
 
 //=========================================================================================
@@ -802,12 +804,6 @@ function PrepareToDrawMesh (translation, yawPitchRoll, scale, albedo, emissive, 
     objectValues.u_textureNormal = textures[3];
     objectValues.u_textureAO = textures[4];
   }
-
-  // TODO: temp!
-  var testYawPitchRoll = [0, 0, 0];
-  var testTranslation = [10, 20, 30];
-  var testScale = [2, 3, 4];
-  document.getElementById("LogDisplay").innerText = MatrixToString(TransformationMatrix(testYawPitchRoll, testTranslation, testScale)) + "\n\n" + MatrixToString(InverseTransposeTransformationMatrix(testYawPitchRoll, testTranslation, testScale));
 
   // fill out the uniforms
   for (var key in shader.uniforms)
@@ -929,7 +925,7 @@ function DrawScene (thisFrameTimeStamp)
     if (g_frameCountTime > 0.5)
     {
       var fps = g_frameCount / g_frameCountTime;
-      document.getElementById("FPSDisplay").innerText = "FPS: " + fps.toFixed(2) + " (" + (1000/fps).toFixed(2)+ " ms)";
+      document.getElementById("FPSDisplay").innerText = "(" + gl.canvas.width + "x" + gl.canvas.height + ") FPS: " + fps.toFixed(2) + " (" + (1000/fps).toFixed(2)+ " ms)";
       g_frameCount = 0;
       g_frameCountTime = 0;
     }
@@ -1331,34 +1327,21 @@ function MouseMoveCallback(e)
   g_cameraYawPitchRoll[0] -= g_cameraRotateSpeed * movementX;
   g_cameraYawPitchRoll[1] -= g_cameraRotateSpeed * movementY;
 
+  // limit pitch to keep from flipping over
+  if (g_cameraYawPitchRoll[1] < -Math.PI/2)
+    g_cameraYawPitchRoll[1] = -Math.PI/2;
+  else if (g_cameraYawPitchRoll[1] > Math.PI/2)
+    g_cameraYawPitchRoll[1] = Math.PI/2;
+
   UpdateCameraMatrix();
-}
-
-//=========================================================================================
-function CalculateTriangleTangent (uv, uvStart, pos, posStart)
-{
-  // https://learnopengl.com/#!Advanced-Lighting/Normal-Mapping
-
-  // uv[uvStart] and pos[posStart] are where three sets of data for each start.
-  // each set of data:
-  //  uv = 2 floats
-  //  pos = 3 floats
-
-  var uv0 = [uv[uvStart+0], uv[uvStart+1]];
-  var uv1 = [uv[uvStart+1], uv[uvStart+2]];
-
-  var pos0 = [pos[posStart+0], pos[posStart+1], pos[posStart+2]];
-  var pos1 = [pos[posStart+3], pos[posStart+4], pos[posStart+5]];
-  var pos2 = [pos[posStart+6], pos[posStart+7], pos[posStart+8]];
-
-  // TODO: finish this!
 }
 
 //=========================================================================================
 function CalculateNormals (pos)
 {
-  var norm = [];
+  var normals = [];
 
+  // for each triangle
   for (var index = 0; index < pos.length; index += 9)
   {
     var point0 = pos.slice(index, index + 3); 
@@ -1368,15 +1351,60 @@ function CalculateNormals (pos)
     var edge1 = VectorSubtract(point1, point0);
     var edge2 = VectorSubtract(point2, point1);
 
-    var normal = VectorCrossProduct(edge2, edge1);
+    var normal = NormalizeVector(VectorCrossProduct(edge2, edge1));
 
-    norm = norm.concat(normal);
-    norm = norm.concat(normal);
-    norm = norm.concat(normal);
+    normals = normals.concat(normal);
+    normals = normals.concat(normal);
+    normals = normals.concat(normal);
   }
 
-  return norm;
+  return normals;
 }
+
+// TODO: could we calculate normals and tangents at the same time? what about sphere that doesn't want calculated normals? Maybe it ignores that part?
+// TODO: Note the difference in calculating edge2 below vs above.  Maybe convert above to look like below first and then merge functions?
+// TODO: does a sphere want smoothed tangents? not sure if it will make a difference or not.  I think it will, when looking at the tangent output.
+
+//=========================================================================================
+function CalculateTangents (pos, uv)
+{
+  var tangents = [];
+
+  // for each triangle
+  var uvIndex = 0;
+  for (var index = 0; index < pos.length; index += 9)
+  {
+    var point0 = pos.slice(index, index + 3); 
+    var point1 = pos.slice(index+3, index + 6); 
+    var point2 = pos.slice(index+6, index + 9); 
+
+    var uv0 = uv.slice(uvIndex, uvIndex + 2);
+    var uv1 = uv.slice(uvIndex+2, uvIndex + 4);
+    var uv2 = uv.slice(uvIndex+4, uvIndex + 6);
+
+    var edge1 = VectorSubtract(point1, point0);
+    var edge2 = VectorSubtract(point2, point0);
+
+    var deltaUV1 = VectorSubtract(uv1, uv0);
+    var deltaUV2 = VectorSubtract(uv2, uv0);
+
+    var f = 1 / (deltaUV1[0] * deltaUV2[1] - deltaUV2[0] * deltaUV1[1]);
+
+    var tangent = [];
+    tangent[0] = f * (deltaUV2[1] * edge1[0] - deltaUV1[1] * edge2[0]);
+    tangent[1] = f * (deltaUV2[1] * edge1[1] - deltaUV1[1] * edge2[1]);
+    tangent[2] = f * (deltaUV2[1] * edge1[2] - deltaUV1[1] * edge2[2]);
+
+    tangents = tangents.concat(tangent);
+    tangents = tangents.concat(tangent);
+    tangents = tangents.concat(tangent);
+
+    uvIndex += 6;
+  }
+
+  return tangents;
+}
+
 
 //=========================================================================================
 function GenerateTetrahedronMesh ()
@@ -1385,7 +1413,6 @@ function GenerateTetrahedronMesh ()
 
   var pos = [];
   var uv = [];
-  var tangent = [];
 
   var point0 = [-1, 0, -1 / Math.sqrt(2)];
   var point1 = [ 1, 0, -1 / Math.sqrt(2)];
@@ -1424,8 +1451,9 @@ function GenerateTetrahedronMesh ()
   uv = uv.concat([0.5, 1]);
   uv = uv.concat([1, 0]);  
 
-  // make the normals 
+  // make the normals and tangents
   var norm = CalculateNormals(pos);  
+  var tangent = CalculateTangents(pos, uv);
 
   // make barycentric coordinates
   var barycentric = [];
@@ -1452,7 +1480,6 @@ function GenerateCubeMesh ()
 
   var pos = [];
   var uv = [];
-  var tangent = [];
 
   // front face
   {
@@ -1568,8 +1595,9 @@ function GenerateCubeMesh ()
     uv = uv.concat([0, 1]);    
   }    
 
-  // make the normals 
+  // make the normals and tangents
   var norm = CalculateNormals(pos);  
+  var tangent = CalculateTangents(pos, uv);
 
   // make barycentric coordinates
   var barycentric = [];
@@ -1596,7 +1624,6 @@ function GenerateSphereMesh (slicesX, slicesY)
 
   var pos = [];
   var uv = [];
-  var tangent = [];
 
   // make the body of the sphere
   for (var indexY = 1; indexY < slicesY - 1; ++indexY)
@@ -1680,13 +1707,11 @@ function GenerateSphereMesh (slicesX, slicesY)
       uv = uv.concat(uv2);      
   }
 
-  // make the tangents
-  var numTris = Math.floor(pos.length / 3);
-  for (var index = 0; index < numTris; ++index)
-    tangent = tangent.concat(CalculateTriangleTangent(uv, index*2, pos, index*3));
-
   // make the normals. We want smoothed normals on the sphere
   var norm = pos;
+
+  // make the tangents
+  var tangent = CalculateTangents(pos, uv);
 
   // make barycentric coordinates
   var barycentric = [];
@@ -1775,7 +1800,7 @@ function MakeMeshBuffers (mesh, program)
     gl.bindBuffer(gl.ARRAY_BUFFER, tangentBuffer);
     gl.enableVertexAttribArray(tangentAttributeLocation);
     gl.vertexAttribPointer(tangentAttributeLocation, 3, gl.FLOAT, false, 0, 0);   
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.norm), gl.STATIC_DRAW);         
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.tangent), gl.STATIC_DRAW);         
 
     // positions
     var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
@@ -1889,8 +1914,8 @@ function Initialize ()
 <body onLoad="Initialize();" onkeydown="return OnKeyDown(event);" onkeyup="return OnKeyUp(event);">
 <div id="WholeWindow">
     <canvas id="RenderWindow" onclick="OnRenderWindowClick()"></canvas>
-    <span id="LogDisplay"></span>
-    <span id="FPSDisplay">FPS: ---</span>    
+    <!--span id="LogDisplay"></span-->
+    <span id="FPSDisplay">(?x?) FPS: ---</span>    
     <span id="CameraPosDisplay">Camera: (0.00,0.00,0.00)</span>    
     <span id="DebugPanel">
         <a href="#" id="DebugPanelCollapseIcon" onClick="ToggleDebugPanel(); return false;">[-] Debug Panel</a>
@@ -1932,7 +1957,7 @@ function Initialize ()
             <select id="Debug_OutputMode">
               <option value="0">Shaded</option>
               <option value="1">Albedo</option>
-              <option value="2">Normal</option>
+              <option value="2">Normal</option>    
               <option value="3">Metallic</option>
               <option value="4">Roughness</option>
               <option value="5">Emissive</option>
