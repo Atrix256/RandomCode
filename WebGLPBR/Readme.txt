@@ -1,5 +1,12 @@
+! upload what you have so far to demofox.org?
 
-* drop down menu for texture slots, with one main drop down for "presets" for the materials. Yes get rid of untextured shader permutations.
+* drop down menu for texture slots, with one main drop down for "presets" for the materials.
+ * Yes get rid of untextured shader permutations after this and just use white textures etc?
+  * or allow untextured still
+
+* try running webgl in renderdoc (launch chrome from renderdoc)
+ * "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe" --allow-file-access-from-files
+ * first attempt didn't work
 
 * clean up debug menu with tables or something
 

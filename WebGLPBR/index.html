@@ -1056,46 +1056,46 @@ function DrawScene (thisFrameTimeStamp)
     var objectType = document.getElementById("Debug_SceneObject").selectedIndex;
     if (document.getElementById("Debug_SceneSingle").selectedIndex == 0)
     {
-      for (var iy = 0; iy < 8; ++iy)
+      for (var iy = 0; iy < 9; ++iy)
       {
-        for (var ix = 0; ix < 8; ++ix)
+        for (var ix = 0; ix < 9; ++ix)
         {
           var rotMultiply = Math.sin((ix + 0.3) * (iy + 0.7)) % 1;
 
           if (objectType == 0)
           {
             DrawSphere(
-              [(ix - 3.5), (iy - 3.5), 0],
+              [(ix - 4), (iy - 4), 0],
               VectorMultiply(objectYawPitchRoll, rotMultiply),
               [0.4, 0.4, 0.4],
               objectAlebdo,
               [0, 0, 0],
-              iy * 2 / 7,
-              (ix / 7) * 1.95 + 0.05,
+              iy * 2 / 8,
+              (ix / 8) * 1.95 + 0.05,
               objectTextures);
           }
           else if (objectType == 1)
           {
             DrawCube(
-              [(ix - 3.5), (iy - 3.5), 0],
+              [(ix - 4), (iy - 4), 0],
               VectorMultiply(objectYawPitchRoll, rotMultiply),
               [0.4, 0.4, 0.4],
               objectAlebdo,
               [0, 0, 0],
-              iy * 2 / 7,
-              (ix / 7) * 1.95 + 0.05,
+              iy * 2 / 8,
+              (ix / 8) * 1.95 + 0.05,
               objectTextures);
           }
           else
           {
             DrawTetrahedron(
-              [(ix - 3.5), (iy - 3.5), 0],
+              [(ix - 4), (iy - 4), 0],
               VectorMultiply(objectYawPitchRoll, rotMultiply),
               [0.4, 0.4, 0.4],
               objectAlebdo,
               [0, 0, 0],
-              iy / 7 * 2,
-              (ix / 7) * 1.95 + 0.05,
+              iy / 8 * 2,
+              (ix / 8) * 1.95 + 0.05,
               objectTextures);            
           }
         }
@@ -1103,16 +1103,16 @@ function DrawScene (thisFrameTimeStamp)
     }
     else if (document.getElementById("Debug_SceneSingle").selectedIndex == 1)
     {
-      for (var iy = 0; iy < 8; ++iy)
+      for (var iy = 0; iy < 9; ++iy)
       {
-        for (var ix = 0; ix < 8; ++ix)
+        for (var ix = 0; ix < 9; ++ix)
         {
           var rotMultiply = Math.sin((ix + 0.3) * (iy + 0.7)) % 1;
 
           if (objectType == 0)
           {
             DrawSphere(
-              [(ix - 3.5), (iy - 3.5), 0],
+              [(ix - 4), (iy - 4), 0],
               VectorMultiply(objectYawPitchRoll, rotMultiply),
               [0.4, 0.4, 0.4],
               objectAlebdo,
@@ -1123,7 +1123,7 @@ function DrawScene (thisFrameTimeStamp)
           else if (objectType == 1)
           {
             DrawCube(
-              [(ix - 3.5), (iy - 3.5), 0],
+              [(ix - 4), (iy - 4), 0],
               VectorMultiply(objectYawPitchRoll, rotMultiply),
               [0.4, 0.4, 0.4],
               objectAlebdo,
@@ -1134,7 +1134,7 @@ function DrawScene (thisFrameTimeStamp)
           else
           {
             DrawTetrahedron(
-              [(ix - 3.5), (iy - 3.5), 0],
+              [(ix - 4), (iy - 4), 0],
               VectorMultiply(objectYawPitchRoll, rotMultiply),
               [0.4, 0.4, 0.4],
               objectAlebdo,
@@ -1147,18 +1147,18 @@ function DrawScene (thisFrameTimeStamp)
     }    
     else if (document.getElementById("Debug_SceneSingle").selectedIndex == 2)
     {
-      for (var iz = 0; iz < 8; ++iz)
+      for (var iz = 0; iz < 9; ++iz)
       {
-        for (var iy = 0; iy < 8; ++iy)
+        for (var iy = 0; iy < 9; ++iy)
         {
-          for (var ix = 0; ix < 8; ++ix)
+          for (var ix = 0; ix < 9; ++ix)
           {
             var rotMultiply = Math.sin((ix + 0.3) * (iy + 0.7) * (iz + 0.5)) % 1;
 
             if (objectType == 0)
             {
               DrawSphere(
-                [(ix - 3.5), (iy - 3.5), (iz - 3.5)],
+                [(ix - 4), (iy - 4), (iz - 4)],
                 VectorMultiply(objectYawPitchRoll, rotMultiply),
                 [0.4, 0.4, 0.4],
                 objectAlebdo,
@@ -1169,7 +1169,7 @@ function DrawScene (thisFrameTimeStamp)
             else if (objectType == 1)
             {
               DrawCube(
-                [(ix - 3.5), (iy - 3.5), (iz - 3.5)],
+                [(ix - 4), (iy - 4), (iz - 4)],
                 VectorMultiply(objectYawPitchRoll, rotMultiply),
                 [0.4, 0.4, 0.4],
                 objectAlebdo,
@@ -1180,7 +1180,7 @@ function DrawScene (thisFrameTimeStamp)
             else
             {
               DrawTetrahedron(
-                [(ix - 3.5), (iy - 3.5), (iz - 3.5)],
+                [(ix - 4), (iy - 4), (iz - 4)],
                 VectorMultiply(objectYawPitchRoll, rotMultiply),
                 [0.4, 0.4, 0.4],
                 objectAlebdo,
