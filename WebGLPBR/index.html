@@ -129,7 +129,7 @@ var g_uniforms = {
   "u_objectAO"              : ["float",     (key, location, objectValues) => {gl.uniform1f(location, GetObjectValue(objectValues, key));}],
 
   "u_textureAlbedo"         : ["sampler2D", (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 0);}],
-  "u_textureMetalic"        : ["sampler2D", (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 1);}],
+  "u_textureMetallic"        : ["sampler2D", (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 1);}],
   "u_textureRoughness"      : ["sampler2D", (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 2);}],
   "u_textureNormal"         : ["sampler2D", (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 3);}],  
   "u_textureAO"             : ["sampler2D", (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 4);}],  
@@ -295,25 +295,44 @@ void main()
   vec3 col = u_objectEmissive;
 
   vec3 objectAlbedo = u_objectAlbedo;
-  float objectMetalic = u_objectMetallic;
+  float objectMetallic = u_objectMetallic;
   float objectRoughness = u_objectRoughness;
   float objectAO = u_objectAO;
 
   #if USE_TEXTURES
-    objectAlbedo *= pow(texture(u_textureAlbedo, v_uv).rgb, vec3(2.2));
-    objectMetalic *= texture(u_textureMetalic, v_uv).r;
-    objectRoughness *= texture(u_textureRoughness, v_uv).r;
-    objectAO *= texture(u_textureAO, v_uv).r;
+    vec3 texAlbedo = pow(texture(u_textureAlbedo, v_uv).rgb, vec3(2.2));
+    float texMetallic = texture(u_textureMetallic, v_uv).r;
+    float texRoughness = texture(u_textureRoughness, v_uv).r;
+    float texAO = texture(u_textureAO, v_uv).r;
 
     N = texture(u_textureNormal, v_uv).rgb;
     N = normalize(N * 2.0 - 1.0);
     N = normalize(v_tbn * N);
+  #else
+    vec3 texAlbedo = vec3(1.0);
+    float texMetallic = 0.5;
+    float texRoughness = 0.5;
+    float texAO = 1.0;
   #endif
 
-  col += PositionalLight(v_worldPos, N, V, u_light0Pos, u_light0Color, objectAlbedo, objectMetalic, objectRoughness) * objectAO;
-  col += PositionalLight(v_worldPos, N, V, u_light1Pos, u_light1Color, objectAlbedo, objectMetalic, objectRoughness) * objectAO;
-  col += PositionalLight(v_worldPos, N, V, u_light2Pos, u_light2Color, objectAlbedo, objectMetalic, objectRoughness) * objectAO;
-  col += PositionalLight(v_worldPos, N, V, u_light3Pos, u_light3Color, objectAlbedo, objectMetalic, objectRoughness) * objectAO;
+  objectAlbedo *= texAlbedo;
+  objectAO *= texAO;
+
+  // TODO: do these branchlessly
+  if (objectMetallic <= 1.0)
+    objectMetallic = mix(0.0, texMetallic, objectMetallic);
+  else
+    objectMetallic = mix(texMetallic, 1.0, objectMetallic - 1.0);
+
+  if (objectRoughness <= 1.0)
+    objectRoughness = mix(0.0, texRoughness, objectRoughness);
+  else
+    objectRoughness = mix(texRoughness, 1.0, objectRoughness - 1.0);
+
+  col += PositionalLight(v_worldPos, N, V, u_light0Pos, u_light0Color, objectAlbedo, objectMetallic, objectRoughness) * objectAO;
+  col += PositionalLight(v_worldPos, N, V, u_light1Pos, u_light1Color, objectAlbedo, objectMetallic, objectRoughness) * objectAO;
+  col += PositionalLight(v_worldPos, N, V, u_light2Pos, u_light2Color, objectAlbedo, objectMetallic, objectRoughness) * objectAO;
+  col += PositionalLight(v_worldPos, N, V, u_light3Pos, u_light3Color, objectAlbedo, objectMetallic, objectRoughness) * objectAO;
 
   col += u_ambientLight * objectAlbedo * objectAO;
 
@@ -333,7 +352,7 @@ void main()
   #endif  
 
   #if OUTPUT_MODE == OUTPUT_MODE_METALLIC
-    outColor.rgb = vec3(objectMetalic);
+    outColor.rgb = vec3(objectMetallic);
   #endif    
 
   #if OUTPUT_MODE == OUTPUT_MODE_ROUGHNESS
@@ -805,7 +824,7 @@ function PrepareToDrawMesh (translation, yawPitchRoll, scale, albedo, emissive, 
   if (textures != null)
   {
     objectValues.u_textureAlbedo = textures[0];
-    objectValues.u_textureMetalic = textures[1];
+    objectValues.u_textureMetallic = textures[1];
     objectValues.u_textureRoughness = textures[2];
     objectValues.u_textureNormal = textures[3];
     objectValues.u_textureAO = textures[4];
@@ -1051,8 +1070,8 @@ function DrawScene (thisFrameTimeStamp)
               [0.4, 0.4, 0.4],
               objectAlebdo,
               [0, 0, 0],
-              iy / 7,
-              (ix / 7) * 0.95 + 0.05,
+              iy * 2 / 7,
+              (ix / 7) * 1.95 + 0.05,
               objectTextures);
           }
           else if (objectType == 1)
@@ -1063,8 +1082,8 @@ function DrawScene (thisFrameTimeStamp)
               [0.4, 0.4, 0.4],
               objectAlebdo,
               [0, 0, 0],
-              iy / 7,
-              (ix / 7) * 0.95 + 0.05,
+              iy * 2 / 7,
+              (ix / 7) * 1.95 + 0.05,
               objectTextures);
           }
           else
@@ -1075,8 +1094,8 @@ function DrawScene (thisFrameTimeStamp)
               [0.4, 0.4, 0.4],
               objectAlebdo,
               [0, 0, 0],
-              iy / 7,
-              (ix / 7) * 0.95 + 0.05,
+              iy / 7 * 2,
+              (ix / 7) * 1.95 + 0.05,
               objectTextures);            
           }
         }
@@ -1957,8 +1976,8 @@ function Initialize ()
               <option value="2">Tetrahedron</option>
             </select>                 
             <br>
-            Metallic <input id="Debug_Metallic" type="range" min="0" max="1" value="1.0" step="0.01"/><br>
-            Roughness <input id="Debug_Roughness" type="range" min="0" max="1" value="1.0" step="0.01"/><br>
+            Metallic <input id="Debug_Metallic" type="range" min="0" max="2" value="1.0" step="0.01"/> <input type="button" onClick="document.getElementById('Debug_Metallic').value=1.0;" value="Reset"/><br>
+            Roughness <input id="Debug_Roughness" type="range" min="0" max="2" value="1.0" step="0.01"/> <input type="button" onClick="document.getElementById('Debug_Roughness').value=1.0;" value="Reset"/><br>
             Albedo R <input id="Debug_AlbedoR" type="range" min="0" max="1" value="1.0" step="0.01"/><br>
             Albedo G <input id="Debug_AlbedoG" type="range" min="0" max="1" value="1.0" step="0.01"/><br>
             Albedo B <input id="Debug_AlbedoB" type="range" min="0" max="1" value="1.0" step="0.01"/><br>
