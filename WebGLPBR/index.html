@@ -380,6 +380,12 @@ function GetLightColor (lightIndex)
 //=========================================================================================
 function GetLightPos (lightIndex)
 {
+
+  if (!document.getElementById("Debug_PointLight" + lightIndex).checked)
+  {
+    return [-10000, -10000, -10000];
+  }
+
   if (document.getElementById("Debug_AnimateLights").checked)
   {
     var seconds = new Date().getTime() / 1000;
@@ -1925,7 +1931,11 @@ function Initialize ()
             <input type="checkbox" id="Debug_DrawPointLights"/>Draw Point Lights<br/>
             <input type="checkbox" id="Debug_UseColoredLights"/>Colored Lights<br/>
             <input type="checkbox" id="Debug_AnimateLights"/>Animate Lights<br/>
-            <input type="checkbox" id="Debug_AnimateObjects"/>Animate Objects<br/>
+            <input type="checkbox" id="Debug_PointLight0" checked="true"/>Point Light 0<br/>
+            <input type="checkbox" id="Debug_PointLight1" checked="true"/>Point Light 1<br/>
+            <input type="checkbox" id="Debug_PointLight2" checked="true"/>Point Light 2<br/>
+            <input type="checkbox" id="Debug_PointLight3" checked="true"/>Point Light 3<br/>
+            <input type="checkbox" id="Debug_AnimateObjects"/>Animate Objects<br/>    
             Draw:
             <select id="Debug_SceneSingle">
               <option value="0">PBR Grid of</option>
@@ -1952,7 +1962,6 @@ function Initialize ()
             Albedo R <input id="Debug_AlbedoR" type="range" min="0" max="1" value="1.0" step="0.01"/><br>
             Albedo G <input id="Debug_AlbedoG" type="range" min="0" max="1" value="1.0" step="0.01"/><br>
             Albedo B <input id="Debug_AlbedoB" type="range" min="0" max="1" value="1.0" step="0.01"/><br>
-            <br>
             Output:
             <select id="Debug_OutputMode">
               <option value="0">Shaded</option>

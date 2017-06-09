@@ -1,10 +1,11 @@
 
 * drop down menu for texture slots, with one main drop down for "presets" for the materials. Yes get rid of untextured shader permutations.
 
-* get normal mapping working
- * https://learnopengl.com/#!Advanced-Lighting/Normal-Mapping
- * including the Gram-Schmidt process
- * need to calculate tangent
+* metal / roughness slider upgrade
+ * 0 to 1 = multiplier of object value. (or maybe make it lerp from 0 to value by that amount).
+ * 1 to 2 = lerp from value to 1 by that amount
+ * button to reset it to 1.0
+ * convert PBR grid to use this 0-2 value.
 
 ! need to read through the whole normal mapping article, make sure you understand it all and are doing right space work etc
  * https://learnopengl.com/#!Advanced-Lighting/Normal-Mapping
