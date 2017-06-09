@@ -10,6 +10,8 @@ span#LogDisplay {position: absolute; left: 0; top: 0; z-index: 1; color: #00FF00
 span#CameraPosDisplay {position: absolute; right: 0; bottom: 0; z-index: 1; color: #00FF00; background-color: rgba(255,255,255,0.0); padding: 10px;}
 div#WholeWindow {position:relative; width:100%; height:100%;}
 a#DebugPanelCollapseIcon {color:#00FF00;text-decoration: none; font-weight: bold; text-align: right; display: block;}
+table {border-collapse: collapse; color: #00FF00;}
+td, th {padding: 0;}
 }
 </style>
 <script>
@@ -1158,7 +1160,7 @@ function DrawScene (thisFrameTimeStamp)
             if (objectType == 0)
             {
               DrawSphere(
-                [(ix - 4), (iy - 4), (iz - 4)],
+                [(ix - 4), (iy - 4), (iz - 8)],
                 VectorMultiply(objectYawPitchRoll, rotMultiply),
                 [0.4, 0.4, 0.4],
                 objectAlebdo,
@@ -1169,7 +1171,7 @@ function DrawScene (thisFrameTimeStamp)
             else if (objectType == 1)
             {
               DrawCube(
-                [(ix - 4), (iy - 4), (iz - 4)],
+                [(ix - 4), (iy - 4), (iz - 8)],
                 VectorMultiply(objectYawPitchRoll, rotMultiply),
                 [0.4, 0.4, 0.4],
                 objectAlebdo,
@@ -1180,7 +1182,7 @@ function DrawScene (thisFrameTimeStamp)
             else
             {
               DrawTetrahedron(
-                [(ix - 4), (iy - 4), (iz - 4)],
+                [(ix - 4), (iy - 4), (iz - 8)],
                 VectorMultiply(objectYawPitchRoll, rotMultiply),
                 [0.4, 0.4, 0.4],
                 objectAlebdo,
@@ -1946,16 +1948,19 @@ function Initialize ()
         <a href="#" id="DebugPanelCollapseIcon" onClick="ToggleDebugPanel(); return false;">[-] Debug Panel</a>
         <span id="DebugPanelControls">
             <hr>
-            <input type="checkbox" id="Debug_Wireframe"/>Wireframe<br/>
-            <input type="checkbox" id="Debug_DrawPointLights"/>Draw Point Lights<br/>
-            <input type="checkbox" id="Debug_UseColoredLights"/>Colored Lights<br/>
-            <input type="checkbox" id="Debug_AnimateLights"/>Animate Lights<br/>
-            <input type="checkbox" id="Debug_PointLight0" checked="true"/>Point Light 0<br/>
-            <input type="checkbox" id="Debug_PointLight1" checked="true"/>Point Light 1<br/>
-            <input type="checkbox" id="Debug_PointLight2" checked="true"/>Point Light 2<br/>
-            <input type="checkbox" id="Debug_PointLight3" checked="true"/>Point Light 3<br/>
-            <input type="checkbox" id="Debug_AnimateObjects"/>Animate Objects<br/>    
-            Draw:
+            <table>
+            <tr><td><input type="checkbox" id="Debug_Wireframe"/></td><td>Wireframe</td></tr>
+            <tr><td><input type="checkbox" id="Debug_DrawPointLights"/></td><td>Draw Point Lights</td></tr>
+            <tr><td><input type="checkbox" id="Debug_UseColoredLights"/></td><td>Colored Lights</td></tr>
+            <tr><td><input type="checkbox" id="Debug_AnimateLights"/></td><td>Animate Lights</td></tr>
+            <tr><td><input type="checkbox" id="Debug_PointLight0" checked="true"/></td><td>Point Light 0</td></tr>
+            <tr><td><input type="checkbox" id="Debug_PointLight1" checked="true"/></td><td>Point Light 1</td></tr>
+            <tr><td><input type="checkbox" id="Debug_PointLight2" checked="true"/></td><td>Point Light 2</td></tr>
+            <tr><td><input type="checkbox" id="Debug_PointLight3" checked="true"/></td><td>Point Light 3</td></tr>
+            <tr><td><input type="checkbox" id="Debug_AnimateObjects"/></td><td>Animate Objects</td></tr>
+            </table>
+            <table>            
+            <tr><td>Draw</td><td>
             <select id="Debug_SceneSingle">
               <option value="0">PBR Grid of</option>
               <option value="1">Grid of</option>
@@ -1975,13 +1980,13 @@ function Initialize ()
               <option value="1">Cube</option>
               <option value="2">Tetrahedron</option>
             </select>                 
-            <br>
-            Metallic <input id="Debug_Metallic" type="range" min="0" max="2" value="1.0" step="0.01"/> <input type="button" onClick="document.getElementById('Debug_Metallic').value=1.0;" value="Reset"/><br>
-            Roughness <input id="Debug_Roughness" type="range" min="0" max="2" value="1.0" step="0.01"/> <input type="button" onClick="document.getElementById('Debug_Roughness').value=1.0;" value="Reset"/><br>
-            Albedo R <input id="Debug_AlbedoR" type="range" min="0" max="1" value="1.0" step="0.01"/><br>
-            Albedo G <input id="Debug_AlbedoG" type="range" min="0" max="1" value="1.0" step="0.01"/><br>
-            Albedo B <input id="Debug_AlbedoB" type="range" min="0" max="1" value="1.0" step="0.01"/><br>
-            Output:
+            </td></tr>         
+            <tr><td>Metallic</td><td><input id="Debug_Metallic" type="range" min="0" max="2" value="1.0" step="0.01"/> <input type="button" onClick="document.getElementById('Debug_Metallic').value=1.0;" value="Reset"/></td></tr>
+            <tr><td>Roughness</td><td><input id="Debug_Roughness" type="range" min="0" max="2" value="1.0" step="0.01"/> <input type="button" onClick="document.getElementById('Debug_Roughness').value=1.0;" value="Reset"/></td></tr>
+            <tr><td>Albedo R</td><td><input id="Debug_AlbedoR" type="range" min="0" max="1" value="1.0" step="0.01"/></td></tr>
+            <tr><td>Albedo G</td><td><input id="Debug_AlbedoG" type="range" min="0" max="1" value="1.0" step="0.01"/></td></tr>
+            <tr><td>Albedo B</td><td><input id="Debug_AlbedoB" type="range" min="0" max="1" value="1.0" step="0.01"/></td></tr>
+            <tr><td>Output</td><td>
             <select id="Debug_OutputMode">
               <option value="0">Shaded</option>
               <option value="1">Albedo</option>
@@ -1991,6 +1996,8 @@ function Initialize ()
               <option value="5">Emissive</option>
               <option value="6">AO</option>
             </select>
+            </td></tr>
+            </table>
         </span>
     </span>
 </div>
