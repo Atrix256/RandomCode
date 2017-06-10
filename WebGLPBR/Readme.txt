@@ -68,12 +68,24 @@
  * make a flag to allow this or not.  The sphere would like it, but box and tetrahedron for example wouldn't.
  * probably need to move to index buffers if doing this, to find all faces to average across. a good idea anyways likely
 
+* when surfaces get wet: https://seblagarde.wordpress.com/2013/04/14/water-drop-3b-physically-based-wet-surfaces/
+
 ===== LINKS =====
 
 * Free PBR Materials:
  http://freepbr.com/materials/rusted-iron-pbr-metal-material-alt/
 
 https://webgl2fundamentals.org/
+
+
+
+https://learnopengl.com/#!PBR/Theory
+
+http://renderwonk.com/publications/s2010-shading-course/hoffman/s2010_physically_based_shading_hoffman_b_notes.pdf
+
+https://disney-animation.s3.amazonaws.com/library/s2012_pbs_disney_brdf_notes_v2.pdf
+
+http://blog.selfshadow.com/publications/s2013-shading-course/karis/s2013_pbs_epic_slides.pdf
 
 ===== NOTES =====
 
@@ -84,5 +96,3 @@ https://webgl2fundamentals.org/
  * The goal is to go deferred at some point though, which would need world space normals, so leaving it like it is.
 
 ==================== LANDFILL ====================
-
-https://webgl2fundamentals.org/
