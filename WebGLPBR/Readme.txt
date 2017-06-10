@@ -1,7 +1,3 @@
-! upload what you have so far to demofox.org?
-
-! need to read through the whole normal mapping article, make sure you understand it all and are doing right space work etc
- * https://learnopengl.com/#!Advanced-Lighting/Normal-Mapping
 
 * add a model to the shape drop down list
 
@@ -11,8 +7,7 @@
 
 ? is it normal for colors to show up on metal when it shouldn't? ask SE. like red metal showing a green light.
 
-! internalize how tangents are calculated from UVs again
- * https://learnopengl.com/#!Advanced-Lighting/Normal-Mapping
+* the PBR images you have are gigantic, at 9MB a pop.  Can you find some smaller ones? Or do they need to be this huge? Could be affecting perf.
 
 * then move to IBL!
 
@@ -28,6 +23,8 @@
 
 * ambient occlusion of meshes, if using more complex meshes.
  * a program that does it, with a blog post about it!
+
+! upload what you have so far to demofox.org?
 
 * after IBL, get rid of ambient light? or have a mode to turn off IBL and use ambient in that case?
 
@@ -64,6 +61,7 @@
 * subsurface scattering
 * reflection / refraction / absorption / etc
 * second specular lobe like in disney brdf
+* parallax bump mapping
 * and so on!
 
 ? blend normals / tangent / bitangent across faces to make smoother normals?
@@ -76,6 +74,14 @@
  http://freepbr.com/materials/rusted-iron-pbr-metal-material-alt/
 
 https://webgl2fundamentals.org/
+
+===== NOTES =====
+
+* Normal Mapping:
+ * We could transform light positions etc into tangent space, in the vertex shader and pass as interpolants.
+ * Instead of doing the TBN matrix multiply to transform the texture normal into world space.
+ * That would save a matrix multiply in the pixel shader.
+ * The goal is to go deferred at some point though, which would need world space normals, so leaving it like it is.
 
 ==================== LANDFILL ====================
 
