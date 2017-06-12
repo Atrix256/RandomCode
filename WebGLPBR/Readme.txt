@@ -11,6 +11,8 @@
 
 * then move to IBL!
 
+* after IBL, make it so PBR grid can use roughness of 0, not the minimum value it has.
+
 * Make a PBR renderer in WebGL:
  * https://learnopengl.com/#!PBR/Theory
 

@@ -122,6 +122,9 @@ var g_uniforms = {
   "u_light3Pos"             : ["vec3",      (key, location, objectValues) => {var pos = GetLightPos(3); gl.uniform3fv(location, pos);}],
   "u_light3Color"           : ["vec3",      (key, location, objectValues) => {var color = GetLightColor(3); gl.uniform3fv(location, color);}],
 
+  "u_normalMapping"         : ["float",     (key, location, objectValues) => {gl.uniform1f(location, GetObjectValue(objectValues, key));}],  
+  "u_AO"                    : ["float",     (key, location, objectValues) => {gl.uniform1f(location, GetObjectValue(objectValues, key));}],  
+
   "u_objectMatrix"          : ["mat4",      (key, location, objectValues) => {gl.uniformMatrix4fv(location, false, GetObjectValue(objectValues, key));}],  
   "u_invTransObjectMatrix"  : ["mat4",      (key, location, objectValues) => {gl.uniformMatrix4fv(location, false, GetObjectValue(objectValues, key));}],  
   "u_objectAlbedo"          : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, GetObjectValue(objectValues, key));}],
@@ -291,7 +294,6 @@ void main()
       discard;
   #endif
 
-  vec3 N = normalize(v_normal); 
   vec3 V = normalize(u_cameraPosition - v_worldPos);  
 
   vec3 col = u_objectEmissive;
@@ -307,18 +309,22 @@ void main()
     float texRoughness = texture(u_textureRoughness, v_uv).r;
     float texAO = texture(u_textureAO, v_uv).r;
 
-    N = texture(u_textureNormal, v_uv).rgb;
-    N = normalize(N * 2.0 - 1.0);
-    N = normalize(v_tbn * N);
+    vec3 texN = texture(u_textureNormal, v_uv).rgb * 2.0 - 1.0;
   #else
     vec3 texAlbedo = vec3(1.0);
     float texMetallic = 0.5;
     float texRoughness = 0.5;
     float texAO = 1.0;
+    vec3 texN = vec3(0.0, 0.0, 1.0);
   #endif
 
   objectAlbedo *= texAlbedo;
   objectAO *= texAO;
+
+  // handle features being turned off
+  objectAO = mix(1.0, objectAO, u_AO);
+  texN = mix(vec3(0.0, 0.0, 1.0), texN, u_normalMapping);
+  vec3 N = normalize(v_tbn * texN);
 
   // TODO: do these branchlessly
   if (objectMetallic <= 1.0)
@@ -832,6 +838,9 @@ function PrepareToDrawMesh (translation, yawPitchRoll, scale, albedo, emissive, 
     objectValues.u_textureAO = textures[4];
   }
 
+  objectValues.u_normalMapping = document.getElementById("Debug_NormalMapping").checked ? 1.0 : 0.0;
+  objectValues.u_AO = document.getElementById("Debug_AO").checked ? 1.0 : 0.0;
+
   // fill out the uniforms
   for (var key in shader.uniforms)
       FillUniformValue(key, shader.uniforms[key], objectValues);
@@ -1073,7 +1082,7 @@ function DrawScene (thisFrameTimeStamp)
               objectAlebdo,
               [0, 0, 0],
               iy * 2 / 8,
-              (ix / 8) * 1.95 + 0.05,
+              (ix / 8) * 1.9 + 0.1,
               objectTextures);
           }
           else if (objectType == 1)
@@ -1085,7 +1094,7 @@ function DrawScene (thisFrameTimeStamp)
               objectAlebdo,
               [0, 0, 0],
               iy * 2 / 8,
-              (ix / 8) * 1.95 + 0.05,
+              (ix / 8) * 1.9 + 0.1,
               objectTextures);
           }
           else
@@ -1097,7 +1106,7 @@ function DrawScene (thisFrameTimeStamp)
               objectAlebdo,
               [0, 0, 0],
               iy / 8 * 2,
-              (ix / 8) * 1.95 + 0.05,
+              (ix / 8) * 1.9 + 0.1,
               objectTextures);            
           }
         }
@@ -1958,6 +1967,8 @@ function Initialize ()
             <tr><td><input type="checkbox" id="Debug_PointLight2" checked="true"/></td><td>Point Light 2</td></tr>
             <tr><td><input type="checkbox" id="Debug_PointLight3" checked="true"/></td><td>Point Light 3</td></tr>
             <tr><td><input type="checkbox" id="Debug_AnimateObjects"/></td><td>Animate Objects</td></tr>
+            <tr><td><input type="checkbox" id="Debug_NormalMapping" checked="true"/></td><td>Normal Mapping</td></tr>
+            <tr><td><input type="checkbox" id="Debug_AO" checked="true"/></td><td>Ambient Occlusion</td></tr>
             </table>
             <table>            
             <tr><td>Draw</td><td>
