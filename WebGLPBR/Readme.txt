@@ -1,9 +1,9 @@
+* Diffuse IBL
+ * make a C++ program (and blog post) on pre-integrating skybox textures
+ * make webgl program load skybox / pre-integrated skybox texture.
+ * have an intensity multiplier for the skybox
 
-* add a model to the shape drop down list
-
-* profile code to see where time is going so far
-
-* understand the PBR so far
+* have a few skyboxes available for drop down to choose from.
 
 ? is it normal for colors to show up on metal when it shouldn't? ask SE. like red metal showing a green light.
 
@@ -15,6 +15,10 @@
 
 * Make a PBR renderer in WebGL:
  * https://learnopengl.com/#!PBR/Theory
+
+* add a model to the shape drop down list
+
+* profile code to see where time is going so far
 
 * TODO's!
 
