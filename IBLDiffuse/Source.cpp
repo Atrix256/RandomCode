@@ -2,14 +2,19 @@
   
 #include <stdio.h>
 #include <stdint.h>
-#include <array>
 #include <vector>
-#include <functional>
+#include <array>
 #include <windows.h>  // for bitmap headers.  Sorry non windows people!
 #include <thread>
 #include <atomic>
+
+#define FORCE_SINGLETHREADED() 0
   
 typedef uint8_t uint8;
+typedef std::array<float, 3> TVector3;
+typedef std::array<float, 2> TVector2;
+
+const float c_pi = 3.14159265359f;
  
 struct SImageData
 {
@@ -18,9 +23,9 @@ struct SImageData
         , m_height(0)
     { }
   
-    long m_width;
-    long m_height;
-    long m_pitch;
+    size_t m_width;
+    size_t m_height;
+    size_t m_pitch;
     std::vector<uint8> m_pixels;
 };
 
@@ -88,12 +93,12 @@ bool SaveImage (const char *fileName, const SImageData &image)
     header.bfOffBits = 54;
   
     infoHeader.biSize = 40;
-    infoHeader.biWidth = image.m_width;
-    infoHeader.biHeight = image.m_height;
+    infoHeader.biWidth = (long)image.m_width;
+    infoHeader.biHeight = (long)image.m_height;
     infoHeader.biPlanes = 1;
     infoHeader.biBitCount = 24;
     infoHeader.biCompression = 0;
-    infoHeader.biSizeImage = image.m_pixels.size();
+    infoHeader.biSizeImage = (DWORD)image.m_pixels.size();
     infoHeader.biXPelsPerMeter = 0;
     infoHeader.biYPelsPerMeter = 0;
     infoHeader.biClrUsed = 0;
@@ -111,13 +116,55 @@ bool SaveImage (const char *fileName, const SImageData &image)
 
 void ProcessFace (size_t faceIndex)
 {
-    // TODO: do this
+    // TODO: this function
+    TVector3 facePlane = { 0, 0, 0 };
+    facePlane[faceIndex % 3] = (faceIndex / 3) ? 1.0f : -1.0f;
+    TVector3 uAxis = { 0, 0, 0 };
+    TVector3 vAxis = { 0, 0, 0 };
+    switch (faceIndex % 3)
+    {
+        case 0:
+        {
+            uAxis[2] = (faceIndex / 3) ? 1.0f : -1.0f;
+            vAxis[1] = 1.0f;
+            break;
+        }
+        case 1:
+        {
+            uAxis[0] = 1.0f;
+            vAxis[2] = (faceIndex / 3) ? 1.0f : -1.0f;
+            break;
+        }
+        case 2:
+        {
+            uAxis[0] = (faceIndex / 3) ? 1.0f : -1.0f;
+            vAxis[1] = 1.0f;
+        }
+    }
+
     SImageData &destData = g_destImages[faceIndex];
-    float sum = 0.0f;
     for (size_t iy = 0; iy < destData.m_height; ++iy)
     {
+        TVector2 uv;
+        uv[1] = (float(iy) / float(destData.m_height - 1));
         for (size_t ix = 0; ix < destData.m_width; ++ix)
         {
+            uv[0] = (float(ix) / float(destData.m_width - 1));
+
+            // TOOD: call ProcessNormal() to process a single pixel?
+
+            // calculate the position of the pixel on the cube and normalize it to get the normal to process
+            /*
+            TVector3 pixelPosition =
+                facePlane +
+                uAxis * (uv[0] * 2.0f - 1.0f) +
+                vaxis + (uv[1] * 2.0f - 1.0f);
+            Normalize(pixelPosition);
+            TVector3 irradiance = ProcessNormal(pixelPosition);
+                */
+
+            // TODO: put irradiance into destination image.
+            // TODO: what if it's too bright. Clip for now? Or normalize the result? maybe normalize across all images?
         }
     }
 
@@ -184,7 +231,7 @@ int main (int argc, char **argv)
     }
 
     // process each destination image, multithreaded.
-    size_t numThreads = std::thread::hardware_concurrency();
+    size_t numThreads = FORCE_SINGLETHREADED() ? 1 : std::thread::hardware_concurrency();
     if (numThreads > 6)
         numThreads = 6;
     std::vector<std::thread> threads;
@@ -221,7 +268,11 @@ int main (int argc, char **argv)
 TODO:
 * take in a skybox, do convolution against cos theta, output the resulting skybox
 * should we make it multithreaded? spawn up a thread per face? it only needs read only data of the source images so maybe!
-
+* profile if needed and find slow parts
+? look into reading and writing png's with windows headers?
+* i guess the result can be small.  The tutorial says 32x32?  Do you generate and then shrink? Or do you make small to begin with?
+* test 32 and 64 bit mode
+? would it be better to use cosine weighted samples or anything?
 
 Blog:
 * Link to PBR / IBL tutorial: https://learnopengl.com/#!PBR/IBL/Diffuse-irradiance
