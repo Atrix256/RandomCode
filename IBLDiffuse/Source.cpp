@@ -101,6 +101,16 @@ size_t LargestMagnitudeComponent (const TVector<N>& a)
     return winningIndex;
 }
 
+TVector<3> Cross (const TVector<3>& a, const TVector<3>& b)
+{
+    return
+    {
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0]
+    };
+}
+
 // ==================================================================================================================
 template <typename T>
 T Clamp (T value, T min, T max)
@@ -229,7 +239,6 @@ TVector3 SampleSourceCubeMap (const TVector3& direction)
     if (!negFace)
         faceIndex += 3;
 
-    // TODO: can we combine this somehow with the u/v axis calculations in ProcessFace?
     TVector2 uv = { 0.0f, 0.0f };
     switch (largestComponent)
     {
@@ -254,7 +263,6 @@ TVector3 SampleSourceCubeMap (const TVector3& direction)
     }
     uv = uv * 0.5f + 0.5f;
 
-    // TODO: this clamping thing could be done better.
     size_t pixelX = (size_t)(float(g_srcImages[faceIndex].m_width-1) * uv[0]);
     pixelX = Clamp<size_t>(pixelX, 0, g_srcImages[faceIndex].m_width - 1);
 
@@ -269,15 +277,55 @@ TVector3 SampleSourceCubeMap (const TVector3& direction)
         float(g_srcImages[faceIndex].m_pixels[pixelOffset + 1]) / 255.0f,
         float(g_srcImages[faceIndex].m_pixels[pixelOffset + 2]) / 255.0f,
     };
-
-    // TODO: bilinear interpolation!
 }
 
 // ==================================================================================================================
 TVector3 DiffuseIrradianceForNormal (const TVector3& normal)
 {
-    // TODO: sample over hemisphere etc
-    return SampleSourceCubeMap(normal);
+    // adapted from https://learnopengl.com/#!PBR/IBL/Diffuse-irradiance
+    TVector3 irradiance = { 0.0f, 0.0f, 0.0f };
+
+    TVector3 up = { 0.0, 1.0, 0.0 };
+    TVector3 right = Cross(up, normal);
+    up = Cross(normal, right);
+
+    float sampleDelta = 0.025f;
+    size_t sampleCount = 0;
+    for (float phi = 0.0f; phi < 2.0f * c_pi; phi += sampleDelta)
+    {
+        for (float theta = 0.0f; theta < 0.5f * c_pi; theta += sampleDelta)
+        {
+            // spherical to cartesian (in tangent space)
+            TVector3 tangentSample = { sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta) };
+            // tangent space to world
+            TVector3 sampleVec = right * tangentSample[0] + up * tangentSample[1] + normal * tangentSample[2];
+
+            irradiance = irradiance + SampleSourceCubeMap(sampleVec) * cos(theta) * sin(theta);
+            ++sampleCount;
+        }
+    }
+    irradiance = irradiance * c_pi * (1.0f / float(sampleCount));
+
+    return irradiance;
+}
+
+// ==================================================================================================================
+void OnRowComplete ()
+{
+    // periodically report progress
+    static std::atomic<size_t> s_progress(0);
+
+    size_t progress = s_progress.fetch_add(1);
+
+    size_t totalRows = 0;
+    for (size_t i = 0; i < 6; ++i)
+        totalRows += g_srcImages[i].m_height;
+
+    size_t oldPercent = (size_t)(100.0f * float(progress-1) / float(totalRows));
+    size_t newPercent = (size_t)(100.0f * float(progress) / float(totalRows));
+
+    if (oldPercent != newPercent)
+        printf("\r               \rProgress: %zu%%", newPercent);
 }
 
 // ==================================================================================================================
@@ -319,23 +367,24 @@ void ProcessFace (size_t faceIndex)
         {
             uv[0] = (float(ix) / float(destData.m_width - 1));
 
-            // calculate the position of the pixel on the cube and normalize it to get the normal to process
+            // calculate the position of the pixel on the cube
             TVector3 normalDir =
                 facePlane +
                 uAxis * (uv[0] * 2.0f - 1.0f) +
                 vAxis * (uv[1] * 2.0f - 1.0f);
 
+            // get the diffuse irradiance for this direction
             TVector3 diffuseIrradiance = DiffuseIrradianceForNormal(normalDir);
 
+            // store the resulting color
             pixel[0] = (uint8)Clamp(diffuseIrradiance[0] * 255.0f, 0.0f, 255.0f);
             pixel[1] = (uint8)Clamp(diffuseIrradiance[1] * 255.0f, 0.0f, 255.0f);
             pixel[2] = (uint8)Clamp(diffuseIrradiance[2] * 255.0f, 0.0f, 255.0f);
             pixel += 3;
-
-            // TODO: put irradiance into destination image.
-            // TODO: what if it's too bright. Clip for now? Or normalize the result? maybe normalize across all images?
-            // TODO: maybe have these processes write to floating point values, then have a post process to normalize, and another to shrink down to desired size
         }
+
+        // update progress
+        OnRowComplete();
     }
 
     int ijkl = 0;
@@ -343,7 +392,7 @@ void ProcessFace (size_t faceIndex)
 
 void ThreadFunc ()
 {
-    static std::atomic<size_t> s_faceIndex;
+    static std::atomic<size_t> s_faceIndex(0);
 
     size_t faceIndex = s_faceIndex.fetch_add(1);
     while (faceIndex < 6)
@@ -401,19 +450,27 @@ int main (int argc, char **argv)
         g_destImages[i].m_pixels.resize(g_destImages[i].m_height * g_destImages[i].m_pitch);
     }
 
-    // process each destination image, multithreaded.
+    // process each destination image, multithreadedly if we can / should.
     size_t numThreads = FORCE_SINGLETHREADED() ? 1 : std::thread::hardware_concurrency();
-    if (numThreads > 6)
-        numThreads = 6;
-    std::vector<std::thread> threads;
-    threads.resize(numThreads);
-    size_t faceIndex = 0;
-    for (std::thread& t : threads)
-        t = std::thread(ThreadFunc);
-    for (std::thread& t : threads)
-        t.join();
+    if (numThreads > 1)
+    {
+        if (numThreads > 6)
+            numThreads = 6;
+        std::vector<std::thread> threads;
+        threads.resize(numThreads);
+        size_t faceIndex = 0;
+        for (std::thread& t : threads)
+            t = std::thread(ThreadFunc);
+        for (std::thread& t : threads)
+            t.join();
+    }
+    else
+    {
+        ThreadFunc();
+    }
 
     // save the resulting images
+    printf("\n");
     for (size_t i = 0; i < 6; ++i)
     {
         char destFileName[256];
@@ -437,15 +494,13 @@ int main (int argc, char **argv)
 /*
 
 TODO:
-* the skybox copy is "working", but the edges of the output images have some problems
-* take in a skybox, do convolution against cos theta, output the resulting skybox
-* should we make it multithreaded? spawn up a thread per face? it only needs read only data of the source images so maybe!
+* irradiance may be too bright.  Store in float arrays and normalize the result across all images.
+* i guess the result can be small.  The tutorial says 32x32?
 * profile if needed and find slow parts
-? look into reading and writing png's with windows headers?
-* i guess the result can be small.  The tutorial says 32x32?  Do you generate and then shrink? Or do you make small to begin with?
 * test 32 and 64 bit mode
-? would it be better to use cosine weighted samples or anything?
+* take source images from command line
 * we may not need the normalize() function (or length / length squared then!)
+* make sure code is cleaned up etc
 
 Blog:
 * Link to PBR / IBL tutorial: https://learnopengl.com/#!PBR/IBL/Diffuse-irradiance
