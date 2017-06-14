@@ -24,7 +24,7 @@ typedef TVector<2> TVector2;
 
 // ==================================================================================================================
 template <size_t N>
-TVector<N> operator + (const TVector<N>& a, const TVector<N>& b)
+inline TVector<N> operator + (const TVector<N>& a, const TVector<N>& b)
 {
     TVector<N> result;
     for (size_t i = 0; i < N; ++i)
@@ -33,7 +33,7 @@ TVector<N> operator + (const TVector<N>& a, const TVector<N>& b)
 }
 
 template <size_t N>
-TVector<N> operator * (const TVector<N>& a, const TVector<N>& b)
+inline TVector<N> operator * (const TVector<N>& a, const TVector<N>& b)
 {
     TVector<N> result;
     for (size_t i = 0; i < N; ++i)
@@ -42,7 +42,7 @@ TVector<N> operator * (const TVector<N>& a, const TVector<N>& b)
 }
 
 template <size_t N>
-TVector<N> operator + (const TVector<N>& a, float b)
+inline TVector<N> operator + (const TVector<N>& a, float b)
 {
     TVector<N> result;
     for (size_t i = 0; i < N; ++i)
@@ -51,7 +51,7 @@ TVector<N> operator + (const TVector<N>& a, float b)
 }
 
 template <size_t N>
-TVector<N> operator * (const TVector<N>& a, float b)
+inline TVector<N> operator * (const TVector<N>& a, float b)
 {
     TVector<N> result;
     for (size_t i = 0; i < N; ++i)
@@ -60,7 +60,7 @@ TVector<N> operator * (const TVector<N>& a, float b)
 }
 
 template <size_t N>
-TVector<N> operator / (const TVector<N>& a, float b)
+inline TVector<N> operator / (const TVector<N>& a, float b)
 {
     TVector<N> result;
     for (size_t i = 0; i < N; ++i)
@@ -69,28 +69,7 @@ TVector<N> operator / (const TVector<N>& a, float b)
 }
 
 template <size_t N>
-float LenSquared (const TVector<N>& a)
-{
-    float length = 0.0f;
-    for (size_t i = 0; i < N; ++i)
-        length += a[i] * a[i];
-    return length;
-}
-
-template <size_t N>
-float Len (const TVector<N>& a)
-{
-    return std::sqrt(LenSquared(a));
-}
-
-template <size_t N>
-void Normalize (const TVector<N>& a)
-{
-    a = a / Len(a);
-}
-
-template <size_t N>
-size_t LargestMagnitudeComponent (const TVector<N>& a)
+inline size_t LargestMagnitudeComponent (const TVector<N>& a)
 {
     size_t winningIndex = 0;
     for (size_t i = 1; i < N; ++i)
@@ -101,7 +80,7 @@ size_t LargestMagnitudeComponent (const TVector<N>& a)
     return winningIndex;
 }
 
-TVector<3> Cross (const TVector<3>& a, const TVector<3>& b)
+inline TVector<3> Cross (const TVector<3>& a, const TVector<3>& b)
 {
     return
     {
@@ -113,7 +92,7 @@ TVector<3> Cross (const TVector<3>& a, const TVector<3>& b)
 
 // ==================================================================================================================
 template <typename T>
-T Clamp (T value, T min, T max)
+inline T Clamp (T value, T min, T max)
 {
     if (value < min)
         return min;
@@ -406,7 +385,8 @@ void ThreadFunc ()
 int main (int argc, char **argv)
 {
     // TODO: take from command line
-    const char* src = "Vasa\\Vasa";
+    //const char* src = "Vasa\\Vasa";
+    const char* src = "ame_ash\\ashcanyon";
 
     const char* srcPatterns[6] = {
         "%sLeft.bmp",
@@ -494,12 +474,14 @@ int main (int argc, char **argv)
 /*
 
 TODO:
+* time it
+* instead of progress, put "convolution" or something
+* ash canyon (eg left) is 32 bits for some reason, even after resaving in mspaint?!
+* process all the skybox images you have.
 * irradiance may be too bright.  Store in float arrays and normalize the result across all images.
-* i guess the result can be small.  The tutorial says 32x32?
-* profile if needed and find slow parts
+* i guess the resulting image can be small.  The tutorial says 32x32?
 * test 32 and 64 bit mode
 * take source images from command line
-* we may not need the normalize() function (or length / length squared then!)
 * make sure code is cleaned up etc
 
 Blog:
@@ -507,5 +489,9 @@ Blog:
 * mention the thing about needing an HDR image format in reality.
 * skyboxes from: http://www.custommapmakers.org/skyboxes.php
 * and: https://opengameart.org/content/indoors-skyboxes
+* There are for sure faster ways to do this, but writing for clarity.
+ * for instance, could just have a for each pixel in every destination image... for each pixel in every source image...
+ * I'd bet that is faster than calling SSampleSourceCubeMap so many times for each pixel just to find the pixel location.
+* talk about how you need 24 bit bmps? mspaint seems to save them ok. gimp made 32 bit bmps even though only RGB. wasted A channel? i dunno. maybe use different loading code if using this for real :P
 
 */
