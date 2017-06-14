@@ -84,6 +84,7 @@
 https://webgl2fundamentals.org/
 
 
+http://blog.selfshadow.com/publications/s2014-shading-course/frostbite/s2014_pbs_frostbite_slides.pdf
 
 https://learnopengl.com/#!PBR/Theory
 

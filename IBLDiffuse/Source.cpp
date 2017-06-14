@@ -474,7 +474,9 @@ int main (int argc, char **argv)
 /*
 
 TODO:
-* time it
+* Make worker threads do a row at a time.  This allows N threads instead of only 6.
+* Maybe switching to ForEveryPixel^2 thing. I think it will be less computation over all
+* time it and report how long it took.
 * instead of progress, put "convolution" or something
 * ash canyon (eg left) is 32 bits for some reason, even after resaving in mspaint?!
 * process all the skybox images you have.
@@ -486,6 +488,7 @@ TODO:
 
 Blog:
 * Link to PBR / IBL tutorial: https://learnopengl.com/#!PBR/IBL/Diffuse-irradiance
+ * show how it fits into the equations
 * mention the thing about needing an HDR image format in reality.
 * skyboxes from: http://www.custommapmakers.org/skyboxes.php
 * and: https://opengameart.org/content/indoors-skyboxes
@@ -493,5 +496,19 @@ Blog:
  * for instance, could just have a for each pixel in every destination image... for each pixel in every source image...
  * I'd bet that is faster than calling SSampleSourceCubeMap so many times for each pixel just to find the pixel location.
 * talk about how you need 24 bit bmps? mspaint seems to save them ok. gimp made 32 bit bmps even though only RGB. wasted A channel? i dunno. maybe use different loading code if using this for real :P
+* talk about how it's only low frequency content (smooth), so is a good candidate for aproximating with functions - like spherical harmonics.
+ * Do a DFT of image to show this? Not sure if it will apply because DFT assumes cyclical data, which would make high frequency content at the edges.  see what kind of results DFT gives.
+ * Would need to do a spherical DFT - which is what spherical harmonics are!
+ * future post
+* solid angle of a texel: http://www.rorydriscoll.com/2012/01/15/cubemap-texel-solid-angle/
+* don't need HDR format out unless you take HDR input in.  The output pixels are a weighted average of input pixels where the weights are less than 1.  The highest valued output pixel will be <= the highest valued input pixel.
+
+https://www.gamedev.net/topic/675390-diffuse-ibl-importance-sampling-vs-spherical-harmonics/
+
+http://blog.selfshadow.com/publications/s2014-shading-course/frostbite/s2014_pbs_frostbite_slides.pdf
+
+https://seblagarde.wordpress.com/2012/06/10/amd-cubemapgen-for-physically-based-rendering/
+
+http://www.rorydriscoll.com/2012/01/15/cubemap-texel-solid-angle/
 
 */
