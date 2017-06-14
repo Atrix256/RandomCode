@@ -1,5 +1,5 @@
 #define _CRT_SECURE_NO_WARNINGS
-  
+
 #include <stdio.h>
 #include <stdint.h>
 #include <vector>
@@ -7,7 +7,9 @@
 #include <windows.h>  // for bitmap headers.  Sorry non windows people!
 #include <thread>
 #include <atomic>
+#include <mutex>
 
+// TODO: make sure this is 0 when you are done
 #define FORCE_SINGLETHREADED() 0
 
 // ==================================================================================================================
@@ -90,6 +92,27 @@ inline TVector<3> Cross (const TVector<3>& a, const TVector<3>& b)
     };
 }
 
+// ============================================================================================
+//                                     SBlockTimer
+// ============================================================================================
+struct SBlockTimer
+{
+    SBlockTimer(const char* label)
+    {
+        m_start = std::chrono::high_resolution_clock::now();
+        m_label = label;
+    }
+
+    ~SBlockTimer()
+    {
+        std::chrono::duration<float> seconds = std::chrono::high_resolution_clock::now() - m_start;
+        printf("%s%0.2f seconds\n", m_label, seconds.count());
+    }
+
+    std::chrono::high_resolution_clock::time_point m_start;
+    const char* m_label;
+};
+
 // ==================================================================================================================
 template <typename T>
 inline T Clamp (T value, T min, T max)
@@ -117,8 +140,8 @@ inline T Clamp (T value, T min, T max)
 };
 
 // ==================================================================================================================
-SImageData g_srcImages[6];
-SImageData g_destImages[6];
+std::array<SImageData, 6> g_srcImages;
+std::array<SImageData, 6> g_destImages;
 
 // ==================================================================================================================
 void WaitForEnter ()
@@ -289,27 +312,37 @@ TVector3 DiffuseIrradianceForNormal (const TVector3& normal)
 }
 
 // ==================================================================================================================
-void OnRowComplete ()
+void OnRowComplete (size_t rowIndex, size_t numrows)
 {
-    // periodically report progress
-    static std::atomic<size_t> s_progress(0);
-
-    size_t progress = s_progress.fetch_add(1);
-
-    size_t totalRows = 0;
-    for (size_t i = 0; i < 6; ++i)
-        totalRows += g_srcImages[i].m_height;
-
-    size_t oldPercent = (size_t)(100.0f * float(progress-1) / float(totalRows));
-    size_t newPercent = (size_t)(100.0f * float(progress) / float(totalRows));
-
+    // report progress
+    int oldPercent = rowIndex > 0 ? (int)(100.0f * float(rowIndex - 1) / float(numrows)) : 0;
+    int newPercent = (int)(100.0f * float(rowIndex) / float(numrows));
     if (oldPercent != newPercent)
-        printf("\r               \rProgress: %zu%%", newPercent);
+        printf("\r               \rProgress: %i%%", newPercent);
 }
 
 // ==================================================================================================================
-void ProcessFace (size_t faceIndex)
+void ProcessRow (size_t rowIndex)
 {
+    size_t faceIndex = 0;
+    while (rowIndex >= g_srcImages[faceIndex].m_height)
+    {
+        rowIndex -= g_srcImages[faceIndex].m_height;
+        ++faceIndex;
+    }
+
+    if (faceIndex >= 6)
+    {
+        printf("rowIndex OOB! (%zu)", faceIndex);
+        ((int*)0)[0] = 0;
+    }
+
+    if (rowIndex >= g_srcImages[faceIndex].m_height)
+    {
+        printf("rowIndex OOB! [%zu](%zu / %zu)", faceIndex, rowIndex, g_srcImages[faceIndex].m_height);
+        ((int*)0)[0] = 0;
+    }
+
     TVector3 facePlane = { 0, 0, 0 };
     facePlane[faceIndex % 3] = (faceIndex / 3) ? 1.0f : -1.0f;
     TVector3 uAxis = { 0, 0, 0 };
@@ -336,48 +369,45 @@ void ProcessFace (size_t faceIndex)
     }
 
     SImageData &destData = g_destImages[faceIndex];
-    for (size_t iy = 0; iy < destData.m_height; ++iy)
+    uint8* pixel = &destData.m_pixels[rowIndex * destData.m_pitch];
+    TVector2 uv;
+    uv[1] = (float(rowIndex) / float(destData.m_height - 1));
+    for (size_t ix = 0; ix < destData.m_width; ++ix)
     {
-        uint8* pixel = &destData.m_pixels[iy * destData.m_pitch];
+        uv[0] = (float(ix) / float(destData.m_width - 1));
 
-        TVector2 uv;
-        uv[1] = (float(iy) / float(destData.m_height - 1));
-        for (size_t ix = 0; ix < destData.m_width; ++ix)
-        {
-            uv[0] = (float(ix) / float(destData.m_width - 1));
+        // calculate the position of the pixel on the cube
+        TVector3 normalDir =
+            facePlane +
+            uAxis * (uv[0] * 2.0f - 1.0f) +
+            vAxis * (uv[1] * 2.0f - 1.0f);
 
-            // calculate the position of the pixel on the cube
-            TVector3 normalDir =
-                facePlane +
-                uAxis * (uv[0] * 2.0f - 1.0f) +
-                vAxis * (uv[1] * 2.0f - 1.0f);
+        // get the diffuse irradiance for this direction
+        TVector3 diffuseIrradiance = DiffuseIrradianceForNormal(normalDir);
 
-            // get the diffuse irradiance for this direction
-            TVector3 diffuseIrradiance = DiffuseIrradianceForNormal(normalDir);
-
-            // store the resulting color
-            pixel[0] = (uint8)Clamp(diffuseIrradiance[0] * 255.0f, 0.0f, 255.0f);
-            pixel[1] = (uint8)Clamp(diffuseIrradiance[1] * 255.0f, 0.0f, 255.0f);
-            pixel[2] = (uint8)Clamp(diffuseIrradiance[2] * 255.0f, 0.0f, 255.0f);
-            pixel += 3;
-        }
-
-        // update progress
-        OnRowComplete();
+        // store the resulting color
+        pixel[0] = (uint8)Clamp(diffuseIrradiance[0] * 255.0f, 0.0f, 255.0f);
+        pixel[1] = (uint8)Clamp(diffuseIrradiance[1] * 255.0f, 0.0f, 255.0f);
+        pixel[2] = (uint8)Clamp(diffuseIrradiance[2] * 255.0f, 0.0f, 255.0f);
+        pixel += 3;
     }
-
-    int ijkl = 0;
 }
 
+// ==================================================================================================================
 void ThreadFunc ()
 {
-    static std::atomic<size_t> s_faceIndex(0);
+    static std::atomic<size_t> s_rowIndex(0);
 
-    size_t faceIndex = s_faceIndex.fetch_add(1);
-    while (faceIndex < 6)
+    size_t numRows = 0;
+    for (const SImageData& image : g_srcImages)
+        numRows += image.m_height;
+
+    size_t rowIndex = s_rowIndex.fetch_add(1);
+    while (rowIndex < numRows)
     {
-        ProcessFace(faceIndex);
-        faceIndex = s_faceIndex.fetch_add(1);
+        ProcessRow(rowIndex);
+        OnRowComplete(rowIndex, numRows);
+        rowIndex = s_rowIndex.fetch_add(1);
     }
 }
 
@@ -431,22 +461,24 @@ int main (int argc, char **argv)
     }
 
     // process each destination image, multithreadedly if we can / should.
-    size_t numThreads = FORCE_SINGLETHREADED() ? 1 : std::thread::hardware_concurrency();
-    if (numThreads > 1)
     {
-        if (numThreads > 6)
-            numThreads = 6;
-        std::vector<std::thread> threads;
-        threads.resize(numThreads);
-        size_t faceIndex = 0;
-        for (std::thread& t : threads)
-            t = std::thread(ThreadFunc);
-        for (std::thread& t : threads)
-            t.join();
-    }
-    else
-    {
-        ThreadFunc();
+        SBlockTimer timer("\nConvolution ");
+        size_t numThreads = FORCE_SINGLETHREADED() ? 1 : std::thread::hardware_concurrency();
+        printf("\nDoing convolution with %zu threads.\n", numThreads);
+        if (numThreads > 1)
+        {
+            std::vector<std::thread> threads;
+            threads.resize(numThreads);
+            size_t faceIndex = 0;
+            for (std::thread& t : threads)
+                t = std::thread(ThreadFunc);
+            for (std::thread& t : threads)
+                t.join();
+        }
+        else
+        {
+            ThreadFunc();
+        }
     }
 
     // save the resulting images
@@ -474,7 +506,7 @@ int main (int argc, char **argv)
 /*
 
 TODO:
-* Make worker threads do a row at a time.  This allows N threads instead of only 6.
+* should i shrink the source images before convolution?
 * Maybe switching to ForEveryPixel^2 thing. I think it will be less computation over all
 * time it and report how long it took.
 * instead of progress, put "convolution" or something
@@ -502,6 +534,7 @@ Blog:
  * future post
 * solid angle of a texel: http://www.rorydriscoll.com/2012/01/15/cubemap-texel-solid-angle/
 * don't need HDR format out unless you take HDR input in.  The output pixels are a weighted average of input pixels where the weights are less than 1.  The highest valued output pixel will be <= the highest valued input pixel.
+* usually done on GPU and runs much faster there (does it usually?)
 
 https://www.gamedev.net/topic/675390-diffuse-ibl-importance-sampling-vs-spherical-harmonics/
 
@@ -509,6 +542,7 @@ http://blog.selfshadow.com/publications/s2014-shading-course/frostbite/s2014_pbs
 
 https://seblagarde.wordpress.com/2012/06/10/amd-cubemapgen-for-physically-based-rendering/
 
+Calculating solid angle of a texel in a cube map
 http://www.rorydriscoll.com/2012/01/15/cubemap-texel-solid-angle/
 
 */
