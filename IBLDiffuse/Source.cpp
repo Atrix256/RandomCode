@@ -722,6 +722,13 @@ int main (int argc, char **argv)
         if (LoadImage(srcFileName, g_srcImages[i]))
         {
             printf("Loaded: %s (%zu x %zu)\n", srcFileName, g_srcImages[i].m_width, g_srcImages[i].m_height);
+
+            if (g_srcImages[i].m_width != g_srcImages[i].m_height)
+            {
+                printf("image is not square!\n");
+                WaitForEnter();
+                return 0;
+            }
         }
         else
         {
@@ -764,16 +771,14 @@ int main (int argc, char **argv)
 /*
 
 TODO:
-* fail loading if images aren't square
-* TexelCoordSolidAngle() doesn't use face index, is that right?
-* should i shrink the source images before convolution?
- ? what size is typical
+* compare your output to AMD CubeMapGen? or some other equivelant thing
+* TexelCoordSolidAngle() doesn't use face index, is that correct?
+? what size is typical of "shrinking to" before convolution (or, source capture size)?
 * Maybe switching to ForEveryPixel^2 thing. I think it will be less computation over all
-? get rid of DiffuseIrradianceForNormalOld() after you time it and see what kind of difference in speed it has
+ * get rid of DiffuseIrradianceForNormalOld() after you time it and see what kind of difference in speed it has
 * process all the skybox images you have.
-* i guess the resulting image can be small.  The tutorial says 32x32?
+* What size should the destination images be? The tutorial says 32x32 works.
 * test 32 and 64 bit mode
-* take source images from command line?
 * make sure code is cleaned up etc
 
 Blog:
