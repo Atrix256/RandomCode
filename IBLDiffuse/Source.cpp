@@ -588,8 +588,9 @@ void RunMultiThreaded (const char* label, const L& lambda, bool newline)
 // ==================================================================================================================
 int main (int argc, char **argv)
 {
-    const char* src = "Vasa\\Vasa";
+    //const char* src = "Vasa\\Vasa";
     //const char* src = "ame_ash\\ashcanyon";
+    const char* src = "DallasW\\dallas";
 
     const char* srcPatterns[6] = {
         "%sLeft.bmp",
@@ -692,7 +693,7 @@ TODO:
 * process all the skybox images you have.
 * What size should the destination images be? The tutorial says 32x32 works.
 * make sure code is cleaned up etc
-? sRGB? maybe make a bool for it for completeness. Assume that these textures are?
+? make a bool for sRGB and have it on for these guys since you'll be using it as if it's sRGB
 
 Blog:
 * Link to PBR / IBL tutorial: https://learnopengl.com/#!PBR/IBL/Diffuse-irradiance
