@@ -73,6 +73,29 @@ inline TVector<N> operator / (const TVector<N>& a, float b)
 }
 
 template <size_t N>
+float LenSquared (const TVector<N>& a)
+{
+    float length = 0.0f;
+    for (size_t i = 0; i < N; ++i)
+        length += a[i] * a[i];
+    return length;
+}
+
+template <size_t N>
+float Len (const TVector<N>& a)
+{
+    return std::sqrt(LenSquared(a));
+}
+
+template <size_t N>
+void Normalize (TVector<N>& a)
+{
+    float length = Len(a);
+    for (size_t i = 0; i < N; ++i)
+        a[i] /= length;
+}
+
+template <size_t N>
 inline size_t LargestMagnitudeComponent (const TVector<N>& a)
 {
     size_t winningIndex = 0;
@@ -92,6 +115,15 @@ inline TVector<3> Cross (const TVector<3>& a, const TVector<3>& b)
         a[2] * b[0] - a[0] * b[2],
         a[0] * b[1] - a[1] * b[0]
     };
+}
+
+template <size_t N>
+inline float Dot (const TVector<N>& a, const TVector<N>& b)
+{
+    float result = 0.0f;
+    for (size_t i = 0; i < N; ++i)
+        result += a[i] * b[i];
+    return result;
 }
 
 // ============================================================================================
@@ -484,9 +516,13 @@ TVector3 DiffuseIrradianceForNormalNew (const TVector3& normal)
                     float(pixel[2]) / 255.0f,
                 };
 
-                // TODO: also need cosine theta!
+                TVector3 sampleDir =
+                    facePlane +
+                    uAxis * (uv[0] * 2.0f - 1.0f) +
+                    vAxis * (uv[1] * 2.0f - 1.0f);
+                Normalize(sampleDir);
 
-                irradiance = irradiance + pixelColor * solidAngle;
+                irradiance = irradiance + pixelColor * solidAngle * Clamp(Dot(sampleDir, normal), 0.0f, 1.0f);
                 pixel += 3;
             }
         }
@@ -531,10 +567,12 @@ void ProcessRow (size_t rowIndex)
             facePlane +
             uAxis * (uv[0] * 2.0f - 1.0f) +
             vAxis * (uv[1] * 2.0f - 1.0f);
+        Normalize(normalDir);
 
         // get the diffuse irradiance for this direction
         //TVector3 diffuseIrradiance = DiffuseIrradianceForNormalOld(normalDir);
         TVector3 diffuseIrradiance = DiffuseIrradianceForNormalNew(normalDir);
+        //diffuseIrradiance = diffuseIrradiance / (2.0f * c_pi);
         // TODO: remove comment after it's working and timed
 
         // store the resulting color
@@ -632,7 +670,7 @@ void RunMultiThreaded (const char* label, const L& lambda, bool newline)
 {
     SBlockTimer timer(label);
     size_t numThreads = FORCE_SINGLETHREADED() ? 1 : std::thread::hardware_concurrency();
-    printf("\nDoing %s with %zu threads.\n", label, numThreads);
+    printf("Doing %s with %zu threads.\n", label, numThreads);
     if (numThreads > 1)
     {
         std::vector<std::thread> threads;
@@ -683,7 +721,7 @@ int main (int argc, char **argv)
         sprintf(srcFileName, srcPatterns[i], src);
         if (LoadImage(srcFileName, g_srcImages[i]))
         {
-            printf("Loaded: %s\n", srcFileName);
+            printf("Loaded: %s (%zu x %zu)\n", srcFileName, g_srcImages[i].m_width, g_srcImages[i].m_height);
         }
         else
         {
@@ -694,9 +732,11 @@ int main (int argc, char **argv)
     }
 
     // Resize source images in memory
+    printf("\nResizing source images to %i x %i\n", MAX_SOURCE_IMAGE_SIZE, MAX_SOURCE_IMAGE_SIZE);
     RunMultiThreaded("image resize", ResizeThreadFunc, false);
 
     // Do the convolution
+    printf("\n");
     RunMultiThreaded("convolution", ConvolutionThreadFunc, true);
 
     // save the resulting images
