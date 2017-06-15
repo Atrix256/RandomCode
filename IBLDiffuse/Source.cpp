@@ -7,10 +7,9 @@
 #include <windows.h>  // for bitmap headers.  Sorry non windows people!
 #include <thread>
 #include <atomic>
-#include <mutex>
 
 // TODO: make sure this is 0 when you are done
-#define FORCE_SINGLETHREADED() 0
+#define FORCE_SINGLETHREADED() 1
 
 // ==================================================================================================================
 const float c_pi = 3.14159265359f;
@@ -93,6 +92,41 @@ inline TVector<3> Cross (const TVector<3>& a, const TVector<3>& b)
 }
 
 // ============================================================================================
+// these two functions are taken from http://www.rorydriscoll.com/2012/01/15/cubemap-texel-solid-angle/
+inline float AreaElement (float x, float y)
+{
+    return std::atan2(x * y, std::sqrt(x * x + y * y + 1));
+}
+ 
+// ============================================================================================
+float TexelCoordSolidAngle (size_t faceIndex, TVector2 uv, size_t imageWidthHeight)
+{
+    //scale up to [-1, 1] range (inclusive), offset by 0.5 to point to texel center.
+    //float U = (2.0f * ((float)uv[0] + 0.5f) / (float)imageWidthHeight) - 1.0f;
+    //float V = (2.0f * ((float)uv[1] + 0.5f) / (float)imageWidthHeight) - 1.0f;
+    
+    // TODO: can keep track of uv's in -1,1 space at center of pixel (+ 0.5) in loop.  have a current and next. At end of loop, current = next, and recalculate next.
+    // TODO: can keep track of x0,x1,y0,y1 in loops with current / next like above. x's in x loop. y's in y loop.
+    // TODO: can also keep track of AreaElement current and next like above, inside of x loop.
+    // TODO: after that, all we have is shrinking the starting image size
+
+    float U = (uv[0] + 0.5f / float(imageWidthHeight)) * 2.0f - 1.0f;
+    float V = (uv[0] + 0.5f / float(imageWidthHeight)) * 2.0f - 1.0f;
+ 
+    float InvResolution = 1.0f / float(imageWidthHeight);
+ 
+    // U and V are the -1..1 texture coordinate on the current face.
+    // Get projected area for this texel
+    float x0 = U - InvResolution;
+    float y0 = V - InvResolution;
+    float x1 = U + InvResolution;
+    float y1 = V + InvResolution;
+    float SolidAngle = AreaElement(x0, y0) - AreaElement(x0, y1) - AreaElement(x1, y0) + AreaElement(x1, y1);
+ 
+    return SolidAngle;
+}
+
+// ============================================================================================
 //                                     SBlockTimer
 // ============================================================================================
 struct SBlockTimer
@@ -146,7 +180,7 @@ std::array<SImageData, 6> g_destImages;
 // ==================================================================================================================
 void WaitForEnter ()
 {
-    printf("Press Enter to quit");
+    printf("\nPress Enter to quit");
     fflush(stdin);
     getchar();
 }
@@ -228,6 +262,36 @@ bool SaveImage (const char *fileName, const SImageData &image)
     return true;
 }
 
+
+// ==================================================================================================================
+void GetFaceBasis (size_t faceIndex, TVector3& facePlane, TVector3& uAxis, TVector3& vAxis)
+{
+    facePlane = { 0, 0, 0 };
+    facePlane[faceIndex % 3] = (faceIndex / 3) ? 1.0f : -1.0f;
+    uAxis = { 0, 0, 0 };
+    vAxis = { 0, 0, 0 };
+    switch (faceIndex % 3)
+    {
+        case 0:
+        {
+            uAxis[2] = (faceIndex / 3) ? 1.0f : -1.0f;
+            vAxis[1] = 1.0f;
+            break;
+        }
+        case 1:
+        {
+            uAxis[0] = 1.0f;
+            vAxis[2] = (faceIndex / 3) ? 1.0f : -1.0f;
+            break;
+        }
+        case 2:
+        {
+            uAxis[0] = (faceIndex / 3) ? 1.0f : -1.0f;
+            vAxis[1] = 1.0f;
+        }
+    }
+}
+
 // ==================================================================================================================
 TVector3 SampleSourceCubeMap (const TVector3& direction)
 {
@@ -241,6 +305,7 @@ TVector3 SampleSourceCubeMap (const TVector3& direction)
     if (!negFace)
         faceIndex += 3;
 
+    // TODO: can we leverage GetFaceBasis() somehow? maybe dot product to get these or something?
     TVector2 uv = { 0.0f, 0.0f };
     switch (largestComponent)
     {
@@ -279,10 +344,11 @@ TVector3 SampleSourceCubeMap (const TVector3& direction)
         float(g_srcImages[faceIndex].m_pixels[pixelOffset + 1]) / 255.0f,
         float(g_srcImages[faceIndex].m_pixels[pixelOffset + 2]) / 255.0f,
     };
+
 }
 
 // ==================================================================================================================
-TVector3 DiffuseIrradianceForNormal (const TVector3& normal)
+TVector3 DiffuseIrradianceForNormalOld (const TVector3& normal)
 {
     // adapted from https://learnopengl.com/#!PBR/IBL/Diffuse-irradiance
     TVector3 irradiance = { 0.0f, 0.0f, 0.0f };
@@ -312,6 +378,45 @@ TVector3 DiffuseIrradianceForNormal (const TVector3& normal)
 }
 
 // ==================================================================================================================
+TVector3 DiffuseIrradianceForNormalNew (const TVector3& normal)
+{
+    // TODO: there is a face (at minimum? maybe more) which is entirely skipable, detect that and skip it!
+    // TODO: is there any way to factor TexelCoordSolidAngle() out of the loop, at least in part?
+    TVector3 irradiance = { 0.0f, 0.0f, 0.0f };
+    for (size_t faceIndex = 0; faceIndex < 6; ++faceIndex)
+    {
+        const SImageData& src = g_srcImages[faceIndex];
+        TVector3 facePlane, uAxis, vAxis;
+        GetFaceBasis(faceIndex, facePlane, uAxis, vAxis);
+
+        for (size_t iy = 0, iyc = src.m_height; iy < iyc; ++iy)
+        {
+            TVector2 uv = { 0.0f, float(iy) / float(iyc - 1) };
+
+            const uint8* pixel = &src.m_pixels[iy * src.m_pitch];
+            for (size_t ix = 0, ixc = src.m_width; ix < ixc; ++ix)
+            {
+                uv[0] = float(ix) / float(ixc - 1);
+                float solidAngle = TexelCoordSolidAngle(faceIndex, uv, ixc);
+
+                TVector3 pixelColor =
+                {
+                    float(pixel[0]) / 255.0f,
+                    float(pixel[1]) / 255.0f,
+                    float(pixel[2]) / 255.0f,
+                };
+
+                // TODO: also need cosine theta!
+
+                irradiance = irradiance + pixelColor * solidAngle;
+                pixel += 3;
+            }
+        }
+    }
+    return irradiance;
+}
+
+// ==================================================================================================================
 void OnRowComplete (size_t rowIndex, size_t numrows)
 {
     // report progress
@@ -331,30 +436,8 @@ void ProcessRow (size_t rowIndex)
         ++faceIndex;
     }
 
-    TVector3 facePlane = { 0, 0, 0 };
-    facePlane[faceIndex % 3] = (faceIndex / 3) ? 1.0f : -1.0f;
-    TVector3 uAxis = { 0, 0, 0 };
-    TVector3 vAxis = { 0, 0, 0 };
-    switch (faceIndex % 3)
-    {
-        case 0:
-        {
-            uAxis[2] = (faceIndex / 3) ? 1.0f : -1.0f;
-            vAxis[1] = 1.0f;
-            break;
-        }
-        case 1:
-        {
-            uAxis[0] = 1.0f;
-            vAxis[2] = (faceIndex / 3) ? 1.0f : -1.0f;
-            break;
-        }
-        case 2:
-        {
-            uAxis[0] = (faceIndex / 3) ? 1.0f : -1.0f;
-            vAxis[1] = 1.0f;
-        }
-    }
+    TVector3 facePlane, uAxis, vAxis;
+    GetFaceBasis(faceIndex, facePlane, uAxis, vAxis);
 
     SImageData &destData = g_destImages[faceIndex];
     uint8* pixel = &destData.m_pixels[rowIndex * destData.m_pitch];
@@ -371,7 +454,9 @@ void ProcessRow (size_t rowIndex)
             vAxis * (uv[1] * 2.0f - 1.0f);
 
         // get the diffuse irradiance for this direction
-        TVector3 diffuseIrradiance = DiffuseIrradianceForNormal(normalDir);
+        //TVector3 diffuseIrradiance = DiffuseIrradianceForNormalOld(normalDir);
+        TVector3 diffuseIrradiance = DiffuseIrradianceForNormalNew(normalDir);
+        // TODO: remove comment after it's working and timed
 
         // store the resulting color
         pixel[0] = (uint8)Clamp(diffuseIrradiance[0] * 255.0f, 0.0f, 255.0f);
@@ -449,7 +534,7 @@ int main (int argc, char **argv)
 
     // process each destination image, multithreadedly if we can / should.
     {
-        SBlockTimer timer("\nConvolution ");
+        SBlockTimer timer("\nConvolution took ");
         size_t numThreads = FORCE_SINGLETHREADED() ? 1 : std::thread::hardware_concurrency();
         printf("\nDoing convolution with %zu threads.\n", numThreads);
         if (numThreads > 1)
@@ -493,8 +578,10 @@ int main (int argc, char **argv)
 /*
 
 TODO:
+* TexelCoordSolidAngle() doesn't use face index, is that right?
 * should i shrink the source images before convolution?
 * Maybe switching to ForEveryPixel^2 thing. I think it will be less computation over all
+? get rid of DiffuseIrradianceForNormalOld() after you time it and see what kind of difference in speed it has
 * process all the skybox images you have.
 * i guess the resulting image can be small.  The tutorial says 32x32?
 * test 32 and 64 bit mode
