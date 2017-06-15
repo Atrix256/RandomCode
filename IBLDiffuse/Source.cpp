@@ -8,11 +8,13 @@
 #include <thread>
 #include <atomic>
 
-// TODO: make sure this is 0 when you are done
 #define FORCE_SINGLETHREADED() 0
 
 // Source images will be resized to this width and height in memory if they are larger than this, before convolution
-#define MAX_SOURCE_IMAGE_SIZE 64 // TODO: pick a decent number here! 
+#define MAX_SOURCE_IMAGE_SIZE 64
+
+// Destination images will be resized to this width and height in memory if they are larger than this, after convolution
+#define MAX_OUTPUT_IMAGE_SIZE 32
 
 // ==================================================================================================================
 const float c_pi = 3.14159265359f;
@@ -96,28 +98,6 @@ void Normalize (TVector<N>& a)
 }
 
 template <size_t N>
-inline size_t LargestMagnitudeComponent (const TVector<N>& a)
-{
-    size_t winningIndex = 0;
-    for (size_t i = 1; i < N; ++i)
-    {
-        if (std::abs(a[i]) > std::abs(a[winningIndex]))
-            winningIndex = i;
-    }
-    return winningIndex;
-}
-
-inline TVector<3> Cross (const TVector<3>& a, const TVector<3>& b)
-{
-    return
-    {
-        a[1] * b[2] - a[2] * b[1],
-        a[2] * b[0] - a[0] * b[2],
-        a[0] * b[1] - a[1] * b[0]
-    };
-}
-
-template <size_t N>
 inline float Dot (const TVector<N>& a, const TVector<N>& b)
 {
     float result = 0.0f;
@@ -126,64 +106,6 @@ inline float Dot (const TVector<N>& a, const TVector<N>& b)
     return result;
 }
 
-// ============================================================================================
-// these two functions are taken from http://www.rorydriscoll.com/2012/01/15/cubemap-texel-solid-angle/
-inline float AreaElement (float x, float y)
-{
-    return std::atan2(x * y, std::sqrt(x * x + y * y + 1));
-}
- 
-// TODO: if we stop calling this function, get rid of it and the one above
-// ============================================================================================
-float TexelCoordSolidAngle (size_t faceIndex, TVector2 uv, size_t imageWidthHeight)
-{
-    //scale up to [-1, 1] range (inclusive), offset by 0.5 to point to texel center.
-    //float U = (2.0f * ((float)uv[0] + 0.5f) / (float)imageWidthHeight) - 1.0f;
-    //float V = (2.0f * ((float)uv[1] + 0.5f) / (float)imageWidthHeight) - 1.0f;
-    
-    // TODO: can keep track of uv's in -1,1 space at center of pixel (+ 0.5) in loop.  have a current and next. At end of loop, current = next, and recalculate next.
-    // TODO: can keep track of x0,x1,y0,y1 in loops with current / next like above. x's in x loop. y's in y loop.
-    // TODO: can also keep track of AreaElement current and next like above, inside of x loop.
-    // TODO: after that, all we have is shrinking the starting image size
-
-    float U = (uv[0] + 0.5f / float(imageWidthHeight)) * 2.0f - 1.0f;
-    float V = (uv[1] + 0.5f / float(imageWidthHeight)) * 2.0f - 1.0f;
- 
-    float InvResolution = 1.0f / float(imageWidthHeight);
- 
-    // U and V are the -1..1 texture coordinate on the current face.
-    // Get projected area for this texel
-    float x0 = U - InvResolution;
-    float y0 = V - InvResolution;
-    float x1 = U + InvResolution;
-    float y1 = V + InvResolution;
-    float SolidAngle = AreaElement(x0, y0) - AreaElement(x0, y1) - AreaElement(x1, y0) + AreaElement(x1, y1);
- 
-    return SolidAngle;
-}
-
-// ============================================================================================
-//                                     SBlockTimer
-// ============================================================================================
-struct SBlockTimer
-{
-    SBlockTimer(const char* label)
-    {
-        m_start = std::chrono::high_resolution_clock::now();
-        m_label = label;
-    }
-
-    ~SBlockTimer()
-    {
-        std::chrono::duration<float> seconds = std::chrono::high_resolution_clock::now() - m_start;
-        printf("%s took %0.2f seconds\n", m_label, seconds.count());
-    }
-
-    std::chrono::high_resolution_clock::time_point m_start;
-    const char* m_label;
-};
-
-// ==================================================================================================================
 template <typename T>
 inline T Clamp (T value, T min, T max)
 {
@@ -195,10 +117,38 @@ inline T Clamp (T value, T min, T max)
         return value;
 }
 
+// ============================================================================================
+// from http://www.rorydriscoll.com/2012/01/15/cubemap-texel-solid-angle/
+inline float AreaElement (float x, float y)
+{
+    return std::atan2(x * y, std::sqrt(x * x + y * y + 1));
+}
+ 
+// ============================================================================================
+//                                     SBlockTimer
+// ============================================================================================
+struct SBlockTimer
+{
+    SBlockTimer (const char* label)
+    {
+        m_start = std::chrono::high_resolution_clock::now();
+        m_label = label;
+    }
+
+    ~SBlockTimer ()
+    {
+        std::chrono::duration<float> seconds = std::chrono::high_resolution_clock::now() - m_start;
+        printf("%s took %0.2f seconds\n", m_label, seconds.count());
+    }
+
+    std::chrono::high_resolution_clock::time_point m_start;
+    const char* m_label;
+};
+
 // ==================================================================================================================
  struct SImageData
 {
-    SImageData()
+    SImageData ()
         : m_width(0)
         , m_height(0)
     { }
@@ -218,7 +168,7 @@ std::array<SImageData, 6> g_destImages;
 // when t is 0, this will return B.  When t is 1, this will return C.  Inbetween values will return an interpolation
 // between B and C.  A and B are used to calculate slopes at the edges.
 // More info at: https://blog.demofox.org/2015/08/15/resizing-images-with-bicubic-interpolation/
-float CubicHermite(float A, float B, float C, float D, float t)
+float CubicHermite (float A, float B, float C, float D, float t)
 {
     float a = -A / 2.0f + (3.0f*B) / 2.0f - (3.0f*C) / 2.0f + D / 2.0f;
     float b = A - (5.0f*B) / 2.0f + 2.0f*C - D / 2.0f;
@@ -229,7 +179,7 @@ float CubicHermite(float A, float B, float C, float D, float t)
 }
 
 // ==================================================================================================================
-const uint8* GetPixelClamped(const SImageData& image, int x, int y)
+const uint8* GetPixelClamped (const SImageData& image, int x, int y)
 {
     x = Clamp<int>(x, 0, (int)image.m_width - 1);
     y = Clamp<int>(y, 0, (int)image.m_height - 1);
@@ -237,7 +187,7 @@ const uint8* GetPixelClamped(const SImageData& image, int x, int y)
 }
 
 // ==================================================================================================================
-std::array<uint8, 3> SampleBicubic(const SImageData& image, float u, float v)
+std::array<uint8, 3> SampleBicubic (const SImageData& image, float u, float v)
 {
     // calculate coordinates -> also need to offset by half a pixel to keep image from shifting down and left half a pixel
     float x = (u * image.m_width) - 0.5f;
@@ -403,95 +353,10 @@ void GetFaceBasis (size_t faceIndex, TVector3& facePlane, TVector3& uAxis, TVect
 }
 
 // ==================================================================================================================
-TVector3 SampleSourceCubeMap (const TVector3& direction)
+TVector3 DiffuseIrradianceForNormal (const TVector3& normal)
 {
-    size_t largestComponent = LargestMagnitudeComponent(direction);
-    bool negFace = direction[largestComponent] < 0.0f;
-    TVector3 cubePos = direction / direction[largestComponent];
-    if (negFace)
-        cubePos = cubePos * -1.0f;
-
-    size_t faceIndex = largestComponent;
-    if (!negFace)
-        faceIndex += 3;
-
-    // TODO: can we leverage GetFaceBasis() somehow? maybe dot product to get these or something?
-    TVector2 uv = { 0.0f, 0.0f };
-    switch (largestComponent)
-    {
-        case 0:
-        {
-            uv[0] = cubePos[2] * (negFace ? -1.0f : 1.0f);
-            uv[1] = cubePos[1];
-            break;
-        }
-        case 1:
-        {
-            uv[0] = cubePos[0];
-            uv[1] = cubePos[2] * (negFace ? -1.0f : 1.0f);
-            break;
-        }
-        case 2:
-        {
-            uv[0] = cubePos[0] * (negFace ? -1.0f : 1.0f);
-            uv[1] = cubePos[1];
-            break;
-        }
-    }
-    uv = uv * 0.5f + 0.5f;
-
-    size_t pixelX = (size_t)(float(g_srcImages[faceIndex].m_width-1) * uv[0]);
-    pixelX = Clamp<size_t>(pixelX, 0, g_srcImages[faceIndex].m_width - 1);
-
-    size_t pixelY = (size_t)(float(g_srcImages[faceIndex].m_height-1) * uv[1]);
-    pixelY = Clamp<size_t>(pixelY, 0, g_srcImages[faceIndex].m_height - 1);
-
-    size_t pixelOffset = pixelY * g_srcImages[faceIndex].m_pitch + pixelX * 3;
-
-    return
-    {
-        float(g_srcImages[faceIndex].m_pixels[pixelOffset + 0]) / 255.0f,
-        float(g_srcImages[faceIndex].m_pixels[pixelOffset + 1]) / 255.0f,
-        float(g_srcImages[faceIndex].m_pixels[pixelOffset + 2]) / 255.0f,
-    };
-
-}
-
-// ==================================================================================================================
-TVector3 DiffuseIrradianceForNormalOld (const TVector3& normal)
-{
-    // adapted from https://learnopengl.com/#!PBR/IBL/Diffuse-irradiance
-    TVector3 irradiance = { 0.0f, 0.0f, 0.0f };
-
-    TVector3 up = { 0.0, 1.0, 0.0 };
-    TVector3 right = Cross(up, normal);
-    up = Cross(normal, right);
-
-    float sampleDelta = 0.025f;
-    size_t sampleCount = 0;
-    for (float phi = 0.0f; phi < 2.0f * c_pi; phi += sampleDelta)
-    {
-        for (float theta = 0.0f; theta < 0.5f * c_pi; theta += sampleDelta)
-        {
-            // spherical to cartesian (in tangent space)
-            TVector3 tangentSample = { sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta) };
-            // tangent space to world
-            TVector3 sampleVec = right * tangentSample[0] + up * tangentSample[1] + normal * tangentSample[2];
-
-            irradiance = irradiance + SampleSourceCubeMap(sampleVec) * cos(theta) * sin(theta);
-            ++sampleCount;
-        }
-    }
-    irradiance = irradiance * c_pi * (1.0f / float(sampleCount));
-
-    return irradiance;
-}
-
-// ==================================================================================================================
-TVector3 DiffuseIrradianceForNormalNew (const TVector3& normal)
-{
-    // TODO: there is a face (at minimum? maybe more) which is entirely skipable, detect that and skip it!
-    // TODO: is there any way to factor TexelCoordSolidAngle() out of the loop, at least in part?
+    // loop through every pixel in the source cube map and add that pixel's contribution to the diffuse irradiance
+    float totalWeight = 0.0f;
     TVector3 irradiance = { 0.0f, 0.0f, 0.0f };
     for (size_t faceIndex = 0; faceIndex < 6; ++faceIndex)
     {
@@ -499,36 +364,54 @@ TVector3 DiffuseIrradianceForNormalNew (const TVector3& normal)
         TVector3 facePlane, uAxis, vAxis;
         GetFaceBasis(faceIndex, facePlane, uAxis, vAxis);
 
+        float invResolution = 1.0f / src.m_width;
+
         for (size_t iy = 0, iyc = src.m_height; iy < iyc; ++iy)
         {
-            TVector2 uv = { 0.0f, float(iy) / float(iyc - 1) };
+            TVector2 uv;
+            uv[1] = (float(iy) / float(iyc - 1)) * 2.0f - 1.0f;
 
             const uint8* pixel = &src.m_pixels[iy * src.m_pitch];
             for (size_t ix = 0, ixc = src.m_width; ix < ixc; ++ix)
             {
-                uv[0] = float(ix) / float(ixc - 1);
-                float solidAngle = TexelCoordSolidAngle(faceIndex, uv, ixc);
+                uv[0] = (float(ix) / float(ixc - 1)) * 2.0f - 1.0f;
 
+                // only accept directions where dot product greater than 0
+                TVector3 sampleDir =
+                    facePlane +
+                    uAxis * uv[0] +
+                    vAxis * uv[1];
+                Normalize(sampleDir);
+                float cosTheta = Dot(normal, sampleDir);
+                if (cosTheta <= 0.0f)
+                    continue;
+
+                // get the pixel color and move to the next pixel
                 TVector3 pixelColor =
                 {
                     float(pixel[0]) / 255.0f,
                     float(pixel[1]) / 255.0f,
                     float(pixel[2]) / 255.0f,
                 };
-
-                TVector3 sampleDir =
-                    facePlane +
-                    uAxis * (uv[0] * 2.0f - 1.0f) +
-                    vAxis * (uv[1] * 2.0f - 1.0f);
-                Normalize(sampleDir);
-
-                irradiance = irradiance + pixelColor * solidAngle * Clamp(Dot(sampleDir, normal), 0.0f, 1.0f);
                 pixel += 3;
+
+                // calculate solid angle (size) of the pixel
+                float x0 = uv[0] - invResolution;
+                float y0 = uv[1] - invResolution;
+                float x1 = uv[0] + invResolution;
+                float y1 = uv[1] + invResolution;
+                float solidAngle = AreaElement(x0, y0) - AreaElement(x0, y1) - AreaElement(x1, y0) + AreaElement(x1, y1);
+
+                // add this pixel's contribution into the radiance
+                irradiance = irradiance + pixelColor * solidAngle * cosTheta;
+
+                // keep track of the total weight so we can normalize later
+                totalWeight += solidAngle;                
             }
         }
     }
     
-    return irradiance;
+    return irradiance * 4.0f / totalWeight;
 }
 
 // ==================================================================================================================
@@ -570,10 +453,7 @@ void ProcessRow (size_t rowIndex)
         Normalize(normalDir);
 
         // get the diffuse irradiance for this direction
-        //TVector3 diffuseIrradiance = DiffuseIrradianceForNormalOld(normalDir);
-        TVector3 diffuseIrradiance = DiffuseIrradianceForNormalNew(normalDir);
-        //diffuseIrradiance = diffuseIrradiance / (2.0f * c_pi);
-        // TODO: remove comment after it's working and timed
+        TVector3 diffuseIrradiance = DiffuseIrradianceForNormal(normalDir);
 
         // store the resulting color
         pixel[0] = (uint8)Clamp(diffuseIrradiance[0] * 255.0f, 0.0f, 255.0f);
@@ -602,21 +482,21 @@ void ConvolutionThreadFunc ()
 }
 
 // ==================================================================================================================
-void ResizeImage (SImageData& image)
+void DownsizeImage (SImageData& image, size_t imageSize)
 {
     // repeatedly cut image in half (at max) until we reach the desired size.
     // done this way to avoid aliasing.
-    while (image.m_width > MAX_SOURCE_IMAGE_SIZE)
+    while (image.m_width > imageSize)
     {
         // calculate new image size
         size_t newImageSize = image.m_width / 2;
-        if (newImageSize < MAX_SOURCE_IMAGE_SIZE)
-            newImageSize = MAX_SOURCE_IMAGE_SIZE;
+        if (newImageSize < imageSize)
+            newImageSize = imageSize;
 
         // allocate new image
         SImageData newImage;
-        newImage.m_width = MAX_SOURCE_IMAGE_SIZE;
-        newImage.m_height = MAX_SOURCE_IMAGE_SIZE;
+        newImage.m_width = newImageSize;
+        newImage.m_height = newImageSize;
         newImage.m_pitch = 4 * ((newImage.m_width * 24 + 31) / 32);
         newImage.m_pixels.resize(newImage.m_height * newImage.m_pitch);
 
@@ -639,25 +519,41 @@ void ResizeImage (SImageData& image)
             }
         }
 
-        // set the image
+        // set the image to the new image to possibly go through the loop again
         image = newImage;
     }
 }
 
 // ==================================================================================================================
-void ResizeThreadFunc ()
+void DownsizeSourceThreadFunc ()
 {
     static std::atomic<size_t> s_imageIndex(0);
     size_t imageIndex = s_imageIndex.fetch_add(1);
     while (imageIndex < 6)
     {
-        ResizeImage(g_srcImages[imageIndex]);
+        // downsize
+        DownsizeImage(g_srcImages[imageIndex], MAX_SOURCE_IMAGE_SIZE);
 
         // initialize destination image
         g_destImages[imageIndex].m_width = g_srcImages[imageIndex].m_width;
         g_destImages[imageIndex].m_height = g_srcImages[imageIndex].m_height;
         g_destImages[imageIndex].m_pitch = g_srcImages[imageIndex].m_pitch;
         g_destImages[imageIndex].m_pixels.resize(g_destImages[imageIndex].m_height * g_destImages[imageIndex].m_pitch);
+
+        // get next image to process
+        imageIndex = s_imageIndex.fetch_add(1);
+    }
+}
+
+// ==================================================================================================================
+void DownsizeOutputThreadFunc ()
+{
+    static std::atomic<size_t> s_imageIndex(0);
+    size_t imageIndex = s_imageIndex.fetch_add(1);
+    while (imageIndex < 6)
+    {
+        // downsize
+        DownsizeImage(g_destImages[imageIndex], MAX_OUTPUT_IMAGE_SIZE);
 
         // get next image to process
         imageIndex = s_imageIndex.fetch_add(1);
@@ -692,8 +588,8 @@ void RunMultiThreaded (const char* label, const L& lambda, bool newline)
 // ==================================================================================================================
 int main (int argc, char **argv)
 {
-    //const char* src = "Vasa\\Vasa";
-    const char* src = "ame_ash\\ashcanyon";
+    const char* src = "Vasa\\Vasa";
+    //const char* src = "ame_ash\\ashcanyon";
 
     const char* srcPatterns[6] = {
         "%sLeft.bmp",
@@ -738,13 +634,34 @@ int main (int argc, char **argv)
         }
     }
 
+    // verify that the images are all the same size
+    for (size_t i = 1; i < 6; ++i)
+    {
+        if (g_srcImages[i].m_width != g_srcImages[0].m_width || g_srcImages[i].m_height != g_srcImages[0].m_height)
+        {
+            printf("images are not all the same size!\n");
+            WaitForEnter();
+            return 0;
+        }
+    }
+
     // Resize source images in memory
-    printf("\nResizing source images to %i x %i\n", MAX_SOURCE_IMAGE_SIZE, MAX_SOURCE_IMAGE_SIZE);
-    RunMultiThreaded("image resize", ResizeThreadFunc, false);
+    if (g_srcImages[0].m_width > MAX_SOURCE_IMAGE_SIZE)
+    {
+        printf("\nDownsizing source images in memory to %i x %i\n", MAX_SOURCE_IMAGE_SIZE, MAX_SOURCE_IMAGE_SIZE);
+        RunMultiThreaded("Downsize source image", DownsizeSourceThreadFunc, false);
+    }
 
     // Do the convolution
     printf("\n");
     RunMultiThreaded("convolution", ConvolutionThreadFunc, true);
+
+    // Resize destination images in memory
+    if (g_srcImages[0].m_width > MAX_OUTPUT_IMAGE_SIZE)
+    {
+        printf("\nDownsizing output images in memory to %i x %i\n", MAX_OUTPUT_IMAGE_SIZE, MAX_OUTPUT_IMAGE_SIZE);
+        RunMultiThreaded("Downsize output image", DownsizeOutputThreadFunc, false);
+    }
 
     // save the resulting images
     printf("\n");
@@ -771,15 +688,11 @@ int main (int argc, char **argv)
 /*
 
 TODO:
-* compare your output to AMD CubeMapGen? or some other equivelant thing
-* TexelCoordSolidAngle() doesn't use face index, is that correct?
 ? what size is typical of "shrinking to" before convolution (or, source capture size)?
-* Maybe switching to ForEveryPixel^2 thing. I think it will be less computation over all
- * get rid of DiffuseIrradianceForNormalOld() after you time it and see what kind of difference in speed it has
 * process all the skybox images you have.
 * What size should the destination images be? The tutorial says 32x32 works.
-* test 32 and 64 bit mode
 * make sure code is cleaned up etc
+? sRGB? maybe make a bool for it for completeness. Assume that these textures are?
 
 Blog:
 * Link to PBR / IBL tutorial: https://learnopengl.com/#!PBR/IBL/Diffuse-irradiance
@@ -800,6 +713,7 @@ Blog:
 * usually done on GPU and runs much faster there (does it usually?)
 * make and provide zip of bmp files.
 * feels like a waste having it spend all that time to calculate this thing that has such low detail hehe.
+* note sRGB correction may need to happen on load and writing back out, otherwise integration will be incorrect.
 
 https://www.gamedev.net/topic/675390-diffuse-ibl-importance-sampling-vs-spherical-harmonics/
 
