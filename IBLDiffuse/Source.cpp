@@ -331,18 +331,6 @@ void ProcessRow (size_t rowIndex)
         ++faceIndex;
     }
 
-    if (faceIndex >= 6)
-    {
-        printf("rowIndex OOB! (%zu)", faceIndex);
-        ((int*)0)[0] = 0;
-    }
-
-    if (rowIndex >= g_srcImages[faceIndex].m_height)
-    {
-        printf("rowIndex OOB! [%zu](%zu / %zu)", faceIndex, rowIndex, g_srcImages[faceIndex].m_height);
-        ((int*)0)[0] = 0;
-    }
-
     TVector3 facePlane = { 0, 0, 0 };
     facePlane[faceIndex % 3] = (faceIndex / 3) ? 1.0f : -1.0f;
     TVector3 uAxis = { 0, 0, 0 };
@@ -414,7 +402,6 @@ void ThreadFunc ()
 // ==================================================================================================================
 int main (int argc, char **argv)
 {
-    // TODO: take from command line
     //const char* src = "Vasa\\Vasa";
     const char* src = "ame_ash\\ashcanyon";
 
@@ -508,14 +495,10 @@ int main (int argc, char **argv)
 TODO:
 * should i shrink the source images before convolution?
 * Maybe switching to ForEveryPixel^2 thing. I think it will be less computation over all
-* time it and report how long it took.
-* instead of progress, put "convolution" or something
-* ash canyon (eg left) is 32 bits for some reason, even after resaving in mspaint?!
 * process all the skybox images you have.
-* irradiance may be too bright.  Store in float arrays and normalize the result across all images.
 * i guess the resulting image can be small.  The tutorial says 32x32?
 * test 32 and 64 bit mode
-* take source images from command line
+* take source images from command line?
 * make sure code is cleaned up etc
 
 Blog:
@@ -535,6 +518,7 @@ Blog:
 * solid angle of a texel: http://www.rorydriscoll.com/2012/01/15/cubemap-texel-solid-angle/
 * don't need HDR format out unless you take HDR input in.  The output pixels are a weighted average of input pixels where the weights are less than 1.  The highest valued output pixel will be <= the highest valued input pixel.
 * usually done on GPU and runs much faster there (does it usually?)
+* make and provide zip of bmp files.
 
 https://www.gamedev.net/topic/675390-diffuse-ibl-importance-sampling-vs-spherical-harmonics/
 
