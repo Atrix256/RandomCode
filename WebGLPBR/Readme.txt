@@ -1,3 +1,11 @@
+* make materials be defined as json, make textures loaded be the set of the textures needed.
+* make material drop down list be dynamic, and have it use the keys from the materials array
+* then, do similar with skyboxes
+ * make a json list of skyboxes
+ * make a dynamic drop down list of skyboxes to use
+ * make it use the skyboxes (show regular and diffuse as options?)
+
+
 * Diffuse IBL
  * make a C++ program (and blog post) on pre-integrating skybox textures
  * make webgl program load skybox / pre-integrated skybox texture.

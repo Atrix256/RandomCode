@@ -50,6 +50,46 @@ var g_ambientLight = [0.001, 0.001, 0.001];
 // a dictionary of file names to textures
 var g_images = {};
 
+// materials
+var g_materials = 
+{
+  "Rusted Iron" : [
+    "rustediron2_basecolor.png",
+    "rustediron2_metallic.png",
+    "rustediron2_roughness.png",
+    "rustediron2_normal.png",
+    "white.png",
+  ],
+  "Rough Rock" : [
+    "roughrockface2_Base_Color.png",
+    "roughrockface2_Metallic.png",
+    "roughrockface2_Roughness.png",
+    "roughrockface2_Normal.png",
+    "roughrockface2_Ambient_Occlusion.png",  
+  ],
+  "Greasy Pan" : [
+    "greasy-pan-2-albedo.png",
+    "greasy-pan-2-metal.png",
+    "greasy-pan-2-roughness.png",
+    "greasy-pan-2-normal.png",
+    "white.png",
+  ],
+  "Scuffed Iron" : [
+    "Iron-Scuffed_basecolor.png",
+    "Iron-Scuffed_metallic.png",
+    "Iron-Scuffed_roughness.png",
+    "Iron-Scuffed_normal.png",
+    "white.png",  
+  ],
+  "Floorboards" : [
+    "sculptedfloorboards2b_basecolor.png",
+    "sculptedfloorboards2b_metalness.png",
+    "sculptedfloorboards2b_roughness.png",
+    "sculptedfloorboards2b_normal.png",
+    "sculptedfloorboards2b_AO.png",  
+  ],
+};
+
 g_imagesToLoad = [
   "white.png",
 
@@ -1778,7 +1818,24 @@ function loadImage(url, callback) {
 //=========================================================================================
 function LoadImagesAndRender ()
 {
+  /*
+  var loadingImagesSet = new Set();
+  for (var key in g_materials)
+  {
+    for (var image in g_materials[key])
+    {
+      loadingImagesSet.add(image);
+    }
+  }
+  var loadingImages = [];
+  for (var key in loadingImagesSet)
+    loadingImages.push(key);
+  alert(loadingImages);
+
+  var imagesToLoad = loadingImages.size;
+  */
   var imagesToLoad = g_imagesToLoad.length;
+
   var images = [];
 
   // Called each time an image finished loading.
@@ -1963,9 +2020,9 @@ function Initialize ()
             <tr><td><input type="checkbox" id="Debug_UseColoredLights"/></td><td>Colored Lights</td></tr>
             <tr><td><input type="checkbox" id="Debug_AnimateLights"/></td><td>Animate Lights</td></tr>
             <tr><td><input type="checkbox" id="Debug_PointLight0" checked="true"/></td><td>Point Light 0</td></tr>
-            <tr><td><input type="checkbox" id="Debug_PointLight1" checked="true"/></td><td>Point Light 1</td></tr>
-            <tr><td><input type="checkbox" id="Debug_PointLight2" checked="true"/></td><td>Point Light 2</td></tr>
-            <tr><td><input type="checkbox" id="Debug_PointLight3" checked="true"/></td><td>Point Light 3</td></tr>
+            <tr><td><input type="checkbox" id="Debug_PointLight1"/></td><td>Point Light 1</td></tr>
+            <tr><td><input type="checkbox" id="Debug_PointLight2"/></td><td>Point Light 2</td></tr>
+            <tr><td><input type="checkbox" id="Debug_PointLight3"/></td><td>Point Light 3</td></tr>
             <tr><td><input type="checkbox" id="Debug_AnimateObjects"/></td><td>Animate Objects</td></tr>
             <tr><td><input type="checkbox" id="Debug_NormalMapping" checked="true"/></td><td>Normal Mapping</td></tr>
             <tr><td><input type="checkbox" id="Debug_AO" checked="true"/></td><td>Ambient Occlusion</td></tr>
