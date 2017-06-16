@@ -1733,7 +1733,7 @@ function GenerateSphereMesh (slicesX, slicesY)
 }
 
 //=========================================================================================
-function loadImage(url, callback) {
+function loadImage (url, callback) {
   var image = new Image();
   image.src = url;
   image.onload = callback;
@@ -1743,7 +1743,6 @@ function loadImage(url, callback) {
 //=========================================================================================
 function LoadImagesAndRender ()
 {
-
   // get the unique list of images to load
   var loadingImagesSet = new Set();
   for (var key in g_materials)
@@ -1751,6 +1750,18 @@ function LoadImagesAndRender ()
     for (var index = 0; index < g_materials[key].length; ++index)
     {
       loadingImagesSet.add(g_materials[key][index]);
+    }
+  }
+  for (var key in g_skyboxes)
+  {
+    for (var index = 0; index < g_skyboxes[key].length; ++index)
+    {
+      loadingImagesSet.add(g_skyboxes[key][index] + "Back.png");
+      loadingImagesSet.add(g_skyboxes[key][index] + "Down.png");
+      loadingImagesSet.add(g_skyboxes[key][index] + "Front.png");
+      loadingImagesSet.add(g_skyboxes[key][index] + "Left.png");
+      loadingImagesSet.add(g_skyboxes[key][index] + "Right.png");
+      loadingImagesSet.add(g_skyboxes[key][index] + "Up.png");
     }
   }
   var loadingImages = Array.from(loadingImagesSet);
@@ -1763,6 +1774,8 @@ function LoadImagesAndRender ()
     --imagesToLoad;
     // If all the images are loaded call the callback.
     if (imagesToLoad == 0) {
+
+      // create all the 2d images (even of skybox images, in case we want to use them for 2d stuff for some reason)
       for (var i = 0; i < images.length; ++i)
       {
         var texture = gl.createTexture();
@@ -1783,9 +1796,58 @@ function LoadImagesAndRender ()
         gl.generateMipmap(gl.TEXTURE_2D);
         g_images[loadingImages[i]] = texture;
       }
-
       gl.bindTexture(gl.TEXTURE_2D, null);
 
+      // create all the skyboxes
+      for (var key in g_skyboxes)
+      {
+        for (var index = 0; index < g_skyboxes[key].length; ++index)
+        {
+          var texture = gl.createTexture();          
+          gl.bindTexture(gl.TEXTURE_CUBE_MAP, texture);
+
+          for (var imageIndex = 0; imageIndex < images.length; ++imageIndex)
+          {
+            var side = null;
+
+            if (images[imageIndex].src == (g_skyboxes[key][index] + "Back.png"))
+              side = gl.TEXTURE_CUBE_MAP_NEGATIVE_Z;
+            else if (images[imageIndex].src == (g_skyboxes[key][index] + "Down.png"))
+              side = gl.TEXTURE_CUBE_MAP_NEGATIVE_Y;            
+            else if (images[imageIndex].src == (g_skyboxes[key][index] + "Front.png"))
+              side = gl.TEXTURE_CUBE_MAP_POSITIVE_Z;            
+            else if (images[imageIndex].src == (g_skyboxes[key][index] + "Left.png"))
+              side = gl.TEXTURE_CUBE_MAP_NEGATIVE_X;            
+            else if (images[imageIndex].src == (g_skyboxes[key][index] + "Right.png"))
+              side = gl.TEXTURE_CUBE_MAP_POSITIVE_X;            
+            else if (images[imageIndex].src == (g_skyboxes[key][index] + "Up.png"))
+              side = gl.TEXTURE_CUBE_MAP_POSITIVE_Y;
+
+            if (side != null)
+            {
+              gl.texImage2D(side,
+                            0,
+                            gl.RGBA,
+                            gl.RGBA,
+                            gl.UNSIGNED_BYTE,
+                            images[i]);       
+            }
+          }
+
+          gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+          gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, gl.LINEAR);      
+          gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.REPEAT);
+          gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.REPEAT);
+          gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_R, gl.REPEAT);
+
+          gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
+          // TODO: store this texture off in a map or something, like g_images does.
+          // TODO: see if you still get error about mips after getting this all setup
+        }
+      }
+      gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
+
+      // start rendering
       DrawScene();
     }
   };

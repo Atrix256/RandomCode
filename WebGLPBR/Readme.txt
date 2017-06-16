@@ -1,9 +1,11 @@
 * then, do similar with skyboxes
  * draw the skybox as background
- * use the diffuse skybox in the shader
+ * use the diffuse skybox in the shader (as described in the tutorial: https://learnopengl.com/#!PBR/IBL/Diffuse-irradiance)
 
 * move all the skyboxes over from IBL project
 * organize PBR material images into folders
+
+* blog post on diffuse IBL at this point, with screenshots?
 
 * Diffuse IBL
  * make a C++ program (and blog post) on pre-integrating skybox textures
