@@ -8,6 +8,7 @@
 #include <thread>
 #include <atomic>
 
+// for debugging. Set to 1 to make it all run on the main thread.
 #define FORCE_SINGLETHREADED() 0
 
 // Source images will be resized to this width and height in memory if they are larger than this, before convolution
@@ -15,6 +16,9 @@
 
 // Destination images will be resized to this width and height in memory if they are larger than this, after convolution
 #define MAX_OUTPUT_IMAGE_SIZE 32
+
+// If true, assumes source images are sRGB, and while write results as sRGB as well. If 0, assumes source is linear and also writes out linear results.
+#define DO_SRGB_CORRECTIONS() 1
 
 // ==================================================================================================================
 const float c_pi = 3.14159265359f;
@@ -395,6 +399,12 @@ TVector3 DiffuseIrradianceForNormal (const TVector3& normal)
                 };
                 pixel += 3;
 
+                #if DO_SRGB_CORRECTIONS()
+                    pixelColor[0] = std::pow(pixelColor[0], 2.2f);
+                    pixelColor[1] = std::pow(pixelColor[1], 2.2f);
+                    pixelColor[2] = std::pow(pixelColor[2], 2.2f);
+                #endif
+
                 // calculate solid angle (size) of the pixel
                 float x0 = uv[0] - invResolution;
                 float y0 = uv[1] - invResolution;
@@ -411,7 +421,15 @@ TVector3 DiffuseIrradianceForNormal (const TVector3& normal)
         }
     }
     
-    return irradiance * 4.0f / totalWeight;
+    irradiance = irradiance * 4.0f / totalWeight;
+
+    #if DO_SRGB_CORRECTIONS()
+        irradiance[0] = std::pow(irradiance[0], 1.0f / 2.2f);
+        irradiance[1] = std::pow(irradiance[1], 1.0f / 2.2f);
+        irradiance[2] = std::pow(irradiance[2], 1.0f / 2.2f);
+    #endif
+
+    return irradiance;
 }
 
 // ==================================================================================================================
@@ -693,9 +711,7 @@ int main (int argc, char **argv)
 TODO:
 ? what size is typical of "shrinking to" before convolution (or, source capture size)?
 * What size should the destination images be? The tutorial says 32x32 works.
-* make sure code is cleaned up etc
-? make a bool for sRGB and have it on for these guys since you'll be using it as if it's sRGB
-* use this in the webgl program before making blog post!
+* use this in the webgl program before making blog post!  That will help verify correctness, but also will give you screenshots.
 
 Blog:
 * Link to PBR / IBL tutorial: https://learnopengl.com/#!PBR/IBL/Diffuse-irradiance
