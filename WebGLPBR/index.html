@@ -90,37 +90,6 @@ var g_materials =
   ],
 };
 
-g_imagesToLoad = [
-  "white.png",
-
-  "rustediron2_basecolor.png",
-  "rustediron2_metallic.png",
-  "rustediron2_roughness.png",
-  "rustediron2_normal.png",
-
-  "roughrockface2_Base_Color.png",
-  "roughrockface2_Metallic.png",
-  "roughrockface2_Roughness.png",
-  "roughrockface2_Normal.png",
-  "roughrockface2_Ambient_Occlusion.png",
-
-  "greasy-pan-2-albedo.png",
-  "greasy-pan-2-metal.png",
-  "greasy-pan-2-normal.png",
-  "greasy-pan-2-roughness.png",
-
-  "Iron-Scuffed_basecolor.png",
-  "Iron-Scuffed_metallic.png",
-  "Iron-Scuffed_normal.png",
-  "Iron-Scuffed_roughness.png",
-
-  "sculptedfloorboards2b_AO.png",
-  "sculptedfloorboards2b_basecolor.png",
-  "sculptedfloorboards2b_metalness.png",
-  "sculptedfloorboards2b_normal.png",
-  "sculptedfloorboards2b_roughness.png",
-];
-
 var g_shaders = [];
 
 var g_lastShaderUsed = null;
@@ -1036,71 +1005,15 @@ function DrawScene (thisFrameTimeStamp)
     var objectAlebdo = [document.getElementById("Debug_AlbedoR").value, document.getElementById("Debug_AlbedoG").value, document.getElementById("Debug_AlbedoB").value];
     var objectMetallic = document.getElementById("Debug_Metallic").value;
     var objectRoughness = document.getElementById("Debug_Roughness").value;
-    switch (document.getElementById("Debug_SceneMaterial").selectedIndex)
+
+    // set the material textures
+    var e = document.getElementById("Debug_SceneMaterial");
+    var material = e.options[e.selectedIndex].value;
+    if (g_materials[material])
     {
-      case 0:
-      {
-        break;
-      }
-      case 1:
-      {
-        objectTextures = [
-          g_images["rustediron2_basecolor.png"],
-          g_images["rustediron2_metallic.png"],
-          g_images["rustediron2_roughness.png"],
-          g_images["rustediron2_normal.png"],
-          g_images["white.png"],
-        ];
-        break;
-      }
-
-      case 2:
-      {
-        objectTextures = [
-          g_images["roughrockface2_Base_Color.png"],
-          g_images["roughrockface2_Metallic.png"],
-          g_images["roughrockface2_Roughness.png"],
-          g_images["roughrockface2_Normal.png"],
-          g_images["roughrockface2_Ambient_Occlusion.png"],
-        ];
-        break;
-      }
-
-      case 3:
-      {
-        objectTextures = [
-          g_images["greasy-pan-2-albedo.png"],
-          g_images["greasy-pan-2-metal.png"],
-          g_images["greasy-pan-2-roughness.png"],
-          g_images["greasy-pan-2-normal.png"],
-          g_images["white.png"],
-        ];
-        break;
-      }      
-
-      case 4:
-      {
-        objectTextures = [
-          g_images["Iron-Scuffed_basecolor.png"],
-          g_images["Iron-Scuffed_metallic.png"],
-          g_images["Iron-Scuffed_roughness.png"],
-          g_images["Iron-Scuffed_normal.png"],
-          g_images["white.png"],
-        ];
-        break;
-      }     
-
-      case 5:
-      {
-        objectTextures = [
-          g_images["sculptedfloorboards2b_basecolor.png"],
-          g_images["sculptedfloorboards2b_metalness.png"],
-          g_images["sculptedfloorboards2b_roughness.png"],
-          g_images["sculptedfloorboards2b_normal.png"],
-          g_images["sculptedfloorboards2b_AO.png"],
-        ];
-        break;
-      }          
+      objectTextures = [];
+      for (var index = 0; index < g_materials[material].length; ++index)
+        objectTextures[index] = g_images[g_materials[material][index]];
     }
 
     // draw a grid of things if we are supposed to
@@ -1818,23 +1731,18 @@ function loadImage(url, callback) {
 //=========================================================================================
 function LoadImagesAndRender ()
 {
-  /*
+
+  // get the unique list of images to load
   var loadingImagesSet = new Set();
   for (var key in g_materials)
   {
-    for (var image in g_materials[key])
+    for (var index = 0; index < g_materials[key].length; ++index)
     {
-      loadingImagesSet.add(image);
+      loadingImagesSet.add(g_materials[key][index]);
     }
   }
-  var loadingImages = [];
-  for (var key in loadingImagesSet)
-    loadingImages.push(key);
-  alert(loadingImages);
-
-  var imagesToLoad = loadingImages.size;
-  */
-  var imagesToLoad = g_imagesToLoad.length;
+  var loadingImages = Array.from(loadingImagesSet);
+  var imagesToLoad = loadingImages.length;
 
   var images = [];
 
@@ -1861,7 +1769,7 @@ function LoadImagesAndRender ()
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);                           
 
         gl.generateMipmap(gl.TEXTURE_2D);
-        g_images[g_imagesToLoad[i]] = texture;
+        g_images[loadingImages[i]] = texture;
       }
 
       gl.bindTexture(gl.TEXTURE_2D, null);
@@ -1870,8 +1778,8 @@ function LoadImagesAndRender ()
     }
   };
  
-  for (var i = 0; i < g_imagesToLoad.length; ++i) {
-    var image = loadImage(g_imagesToLoad[i], onImageLoad);
+  for (var i = 0; i < loadingImages.length; ++i) {
+    var image = loadImage(loadingImages[i], onImageLoad);
     images.push(image);
   }  
 }
@@ -1923,6 +1831,17 @@ function MakeMeshBuffers (mesh, program)
 //=========================================================================================
 function Initialize ()
 {
+    // fill in the material 
+    for (var key in g_materials)
+    {
+      var option = document.createElement("option");
+      option.text = key;
+      document.getElementById("Debug_SceneMaterial").add(option);
+    }
+    var option = document.createElement("option");
+    option.text = "Untextured";
+    document.getElementById("Debug_SceneMaterial").add(option);    
+
     //debug panel starts closed
     ToggleDebugPanel();
 
@@ -2035,14 +1954,7 @@ function Initialize ()
               <option value="2">Cube of</option>
               <option value="3" selected="true">Single</option>
             </select>
-            <select id="Debug_SceneMaterial">
-              <option value="0">Untextured</option>
-              <option value="1" selected="true">Rusty Iron</option>
-              <option value="2">Rough Rock</option>
-              <option value="3">Greasy Pan</option>
-              <option value="4">Scuffed Iron</option>
-              <option value="5">Sculpted Floorboards</option>
-            </select>           
+            <select id="Debug_SceneMaterial"></select>           
             <select id="Debug_SceneObject">
               <option value="0">Sphere</option>
               <option value="1">Cube</option>
