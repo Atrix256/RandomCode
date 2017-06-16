@@ -1,8 +1,9 @@
 * then, do similar with skyboxes
- * make a json list of skyboxes
- * make a dynamic drop down list of skyboxes to use
- * make it use the skyboxes (show regular and diffuse as options?)
+ * draw the skybox as background
+ * use the diffuse skybox in the shader
 
+* move all the skyboxes over from IBL project
+* organize PBR material images into folders
 
 * Diffuse IBL
  * make a C++ program (and blog post) on pre-integrating skybox textures
