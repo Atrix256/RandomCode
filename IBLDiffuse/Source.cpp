@@ -590,7 +590,9 @@ int main (int argc, char **argv)
 {
     //const char* src = "Vasa\\Vasa";
     //const char* src = "ame_ash\\ashcanyon";
-    const char* src = "DallasW\\dallas";
+    //const char* src = "DallasW\\dallas";
+    //const char* src = "MarriottMadisonWest\\Marriot";
+    const char* src = "mnight\\mnight";
 
     const char* srcPatterns[6] = {
         "%sLeft.bmp",
@@ -690,10 +692,10 @@ int main (int argc, char **argv)
 
 TODO:
 ? what size is typical of "shrinking to" before convolution (or, source capture size)?
-* process all the skybox images you have.
 * What size should the destination images be? The tutorial says 32x32 works.
 * make sure code is cleaned up etc
 ? make a bool for sRGB and have it on for these guys since you'll be using it as if it's sRGB
+* use this in the webgl program before making blog post!
 
 Blog:
 * Link to PBR / IBL tutorial: https://learnopengl.com/#!PBR/IBL/Diffuse-irradiance
