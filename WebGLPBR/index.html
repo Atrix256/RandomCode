@@ -1,6 +1,6 @@
 <html>
 <head>
-<title>WebGL</title>
+<title>WebGL PBR</title>
 <style type="text/css">
 body { border-collapse: collapse; margin:0; padding:0;}
 canvas#RenderWindow {position: absolute; left: 0; top: 0; z-index: 0; width:100%; height:100%;}
@@ -49,6 +49,7 @@ var g_ambientLight = [0.01, 0.01, 0.01];
 
 // a dictionary of file names to textures
 var g_images = {};
+var g_skyboxImages = {};
 
 // skyboxes
 var g_skyboxes = 
@@ -118,42 +119,44 @@ var g_light3ColorB = [300.0, 300.0,   0.0];
 
 // You can use these uniforms in your vertex or pixel shaders without defining them, they are automatically defined and piped through if actually used.
 var g_uniforms = {
-  "u_projectionMatrix"      : ["mat4",      (key, location, objectValues) => {gl.uniformMatrix4fv(location, false, g_projectionMatrix);}],
-  "u_cameraMatrix"          : ["mat4",      (key, location, objectValues) => {gl.uniformMatrix4fv(location, false, g_cameraMatrix);}],
-  "u_screenResolution"      : ["vec2",      (key, location, objectValues) => {gl.uniform2fv(location, [gl.canvas.width, gl.canvas.height]);}],
+  "u_projectionMatrix"      : ["mat4",        (key, location, objectValues) => {gl.uniformMatrix4fv(location, false, g_projectionMatrix);}],
+  "u_cameraMatrix"          : ["mat4",        (key, location, objectValues) => {gl.uniformMatrix4fv(location, false, g_cameraMatrix);}],
+  "u_screenResolution"      : ["vec2",        (key, location, objectValues) => {gl.uniform2fv(location, [gl.canvas.width, gl.canvas.height]);}],
 
-  "u_cameraPosition"        : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, g_cameraPosition);}],
+  "u_cameraPosition"        : ["vec3",        (key, location, objectValues) => {gl.uniform3fv(location, g_cameraPosition);}],
 
-  "u_ambientLight"          : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, g_ambientLight);}],
+  "u_ambientLight"          : ["vec3",        (key, location, objectValues) => {gl.uniform3fv(location, g_ambientLight);}],
 
-  "u_light0Pos"             : ["vec3",      (key, location, objectValues) => {var pos = GetLightPos(0); gl.uniform3fv(location, pos);}],
-  "u_light0Color"           : ["vec3",      (key, location, objectValues) => {var color = GetLightColor(0); gl.uniform3fv(location, color);}],
+  "u_light0Pos"             : ["vec3",        (key, location, objectValues) => {var pos = GetLightPos(0); gl.uniform3fv(location, pos);}],
+  "u_light0Color"           : ["vec3",        (key, location, objectValues) => {var color = GetLightColor(0); gl.uniform3fv(location, color);}],
 
-  "u_light1Pos"             : ["vec3",      (key, location, objectValues) => {var pos = GetLightPos(1); gl.uniform3fv(location, pos);}],
-  "u_light1Color"           : ["vec3",      (key, location, objectValues) => {var color = GetLightColor(1); gl.uniform3fv(location, color);}],
+  "u_light1Pos"             : ["vec3",        (key, location, objectValues) => {var pos = GetLightPos(1); gl.uniform3fv(location, pos);}],
+  "u_light1Color"           : ["vec3",        (key, location, objectValues) => {var color = GetLightColor(1); gl.uniform3fv(location, color);}],
 
-  "u_light2Pos"             : ["vec3",      (key, location, objectValues) => {var pos = GetLightPos(2); gl.uniform3fv(location, pos);}],
-  "u_light2Color"           : ["vec3",      (key, location, objectValues) => {var color = GetLightColor(2); gl.uniform3fv(location, color);}],
+  "u_light2Pos"             : ["vec3",        (key, location, objectValues) => {var pos = GetLightPos(2); gl.uniform3fv(location, pos);}],
+  "u_light2Color"           : ["vec3",        (key, location, objectValues) => {var color = GetLightColor(2); gl.uniform3fv(location, color);}],
 
-  "u_light3Pos"             : ["vec3",      (key, location, objectValues) => {var pos = GetLightPos(3); gl.uniform3fv(location, pos);}],
-  "u_light3Color"           : ["vec3",      (key, location, objectValues) => {var color = GetLightColor(3); gl.uniform3fv(location, color);}],
+  "u_light3Pos"             : ["vec3",        (key, location, objectValues) => {var pos = GetLightPos(3); gl.uniform3fv(location, pos);}],
+  "u_light3Color"           : ["vec3",        (key, location, objectValues) => {var color = GetLightColor(3); gl.uniform3fv(location, color);}],
 
-  "u_normalMapping"         : ["float",     (key, location, objectValues) => {gl.uniform1f(location, GetObjectValue(objectValues, key));}],  
-  "u_AO"                    : ["float",     (key, location, objectValues) => {gl.uniform1f(location, GetObjectValue(objectValues, key));}],  
+  "u_normalMapping"         : ["float",       (key, location, objectValues) => {gl.uniform1f(location, GetObjectValue(objectValues, key));}],  
+  "u_AO"                    : ["float",       (key, location, objectValues) => {gl.uniform1f(location, GetObjectValue(objectValues, key));}],  
 
-  "u_objectMatrix"          : ["mat4",      (key, location, objectValues) => {gl.uniformMatrix4fv(location, false, GetObjectValue(objectValues, key));}],  
-  "u_invTransObjectMatrix"  : ["mat4",      (key, location, objectValues) => {gl.uniformMatrix4fv(location, false, GetObjectValue(objectValues, key));}],  
-  "u_objectAlbedo"          : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, GetObjectValue(objectValues, key));}],
-  "u_objectEmissive"        : ["vec3",      (key, location, objectValues) => {gl.uniform3fv(location, GetObjectValue(objectValues, key));}],
-  "u_objectMetallic"        : ["float",     (key, location, objectValues) => {gl.uniform1f(location, GetObjectValue(objectValues, key));}],
-  "u_objectRoughness"       : ["float",     (key, location, objectValues) => {gl.uniform1f(location, GetObjectValue(objectValues, key));}],
-  "u_objectAO"              : ["float",     (key, location, objectValues) => {gl.uniform1f(location, GetObjectValue(objectValues, key));}],
+  "u_objectMatrix"          : ["mat4",        (key, location, objectValues) => {gl.uniformMatrix4fv(location, false, GetObjectValue(objectValues, key));}],  
+  "u_invTransObjectMatrix"  : ["mat4",        (key, location, objectValues) => {gl.uniformMatrix4fv(location, false, GetObjectValue(objectValues, key));}],  
+  "u_objectAlbedo"          : ["vec3",        (key, location, objectValues) => {gl.uniform3fv(location, GetObjectValue(objectValues, key));}],
+  "u_objectEmissive"        : ["vec3",        (key, location, objectValues) => {gl.uniform3fv(location, GetObjectValue(objectValues, key));}],
+  "u_objectMetallic"        : ["float",       (key, location, objectValues) => {gl.uniform1f(location, GetObjectValue(objectValues, key));}],
+  "u_objectRoughness"       : ["float",       (key, location, objectValues) => {gl.uniform1f(location, GetObjectValue(objectValues, key));}],
+  "u_objectAO"              : ["float",       (key, location, objectValues) => {gl.uniform1f(location, GetObjectValue(objectValues, key));}],
 
-  "u_textureAlbedo"         : ["sampler2D", (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 0);}],
-  "u_textureMetallic"        : ["sampler2D", (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 1);}],
-  "u_textureRoughness"      : ["sampler2D", (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 2);}],
-  "u_textureNormal"         : ["sampler2D", (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 3);}],  
-  "u_textureAO"             : ["sampler2D", (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 4);}],  
+  "u_textureAlbedo"         : ["sampler2D",   (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 0);}],
+  "u_textureMetallic"       : ["sampler2D",   (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 1);}],
+  "u_textureRoughness"      : ["sampler2D",   (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 2);}],
+  "u_textureNormal"         : ["sampler2D",   (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 3);}],  
+  "u_textureAO"             : ["sampler2D",   (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 4);}],  
+
+  "u_diffuseIBL"            : ["samplerCube", (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE5); gl.bindTexture(gl.TEXTURE_CUBE_MAP, GetObjectValue(objectValues, key)); gl.uniform1i(location, 5);}], 
 };
 
 EOutputMode = {
@@ -358,7 +361,14 @@ void main()
   col += PositionalLight(v_worldPos, N, V, u_light2Pos, u_light2Color, objectAlbedo, objectMetallic, objectRoughness) * objectAO;
   col += PositionalLight(v_worldPos, N, V, u_light3Pos, u_light3Color, objectAlbedo, objectMetallic, objectRoughness) * objectAO;
 
-  col += u_ambientLight * objectAlbedo * objectAO;
+  // TODO: instead of USE_TEXTURES, make this one be based on whether we are doing IBL or not
+  // TODO: maybe make the other define be about material textures?
+  #if USE_TEXTURES
+    // TODO: +=, also take into account albedo and AO.  Also do the formulas the tutorial talks about!
+    col = pow(texture(u_diffuseIBL, N).rgb, vec3(2.2));
+  #else
+    col += u_ambientLight * objectAlbedo * objectAO;
+  #endif
 
   // HDR -> LDR
   col = col / (col + vec3(1.0));
@@ -853,6 +863,12 @@ function PrepareToDrawMesh (translation, yawPitchRoll, scale, albedo, emissive, 
     objectValues.u_textureNormal = textures[3];
     objectValues.u_textureAO = textures[4];
   }
+
+  // TODO: handle having no diffuse IBL!
+  var e = document.getElementById("Debug_SceneIBL");
+  var skybox = e.options[e.selectedIndex].value;
+  if (g_skyboxImages[skybox])  
+    objectValues.u_diffuseIBL = g_skyboxImages[skybox][1]; // TODO: should be [1];
 
   objectValues.u_normalMapping = document.getElementById("Debug_NormalMapping").checked ? 1.0 : 0.0;
   objectValues.u_AO = document.getElementById("Debug_AO").checked ? 1.0 : 0.0;
@@ -1737,6 +1753,7 @@ function loadImage (url, callback) {
   var image = new Image();
   image.src = url;
   image.onload = callback;
+  image.rawSrc = url;
   return image;
 }
 
@@ -1801,47 +1818,51 @@ function LoadImagesAndRender ()
       // create all the skyboxes
       for (var key in g_skyboxes)
       {
+        g_skyboxImages[key] = [];
         for (var index = 0; index < g_skyboxes[key].length; ++index)
         {
           var texture = gl.createTexture();          
           gl.bindTexture(gl.TEXTURE_CUBE_MAP, texture);
 
+          var found = [];
           for (var imageIndex = 0; imageIndex < images.length; ++imageIndex)
           {
             var side = null;
 
-            if (images[imageIndex].src == (g_skyboxes[key][index] + "Back.png"))
+            if (images[imageIndex].rawSrc == (g_skyboxes[key][index] + "Back.png"))
               side = gl.TEXTURE_CUBE_MAP_NEGATIVE_Z;
-            else if (images[imageIndex].src == (g_skyboxes[key][index] + "Down.png"))
+            else if (images[imageIndex].rawSrc == (g_skyboxes[key][index] + "Down.png"))
               side = gl.TEXTURE_CUBE_MAP_NEGATIVE_Y;            
-            else if (images[imageIndex].src == (g_skyboxes[key][index] + "Front.png"))
+            else if (images[imageIndex].rawSrc == (g_skyboxes[key][index] + "Front.png"))
               side = gl.TEXTURE_CUBE_MAP_POSITIVE_Z;            
-            else if (images[imageIndex].src == (g_skyboxes[key][index] + "Left.png"))
+            else if (images[imageIndex].rawSrc == (g_skyboxes[key][index] + "Left.png"))
               side = gl.TEXTURE_CUBE_MAP_NEGATIVE_X;            
-            else if (images[imageIndex].src == (g_skyboxes[key][index] + "Right.png"))
+            else if (images[imageIndex].rawSrc == (g_skyboxes[key][index] + "Right.png"))
               side = gl.TEXTURE_CUBE_MAP_POSITIVE_X;            
-            else if (images[imageIndex].src == (g_skyboxes[key][index] + "Up.png"))
+            else if (images[imageIndex].rawSrc == (g_skyboxes[key][index] + "Up.png"))
               side = gl.TEXTURE_CUBE_MAP_POSITIVE_Y;
+            else
+              continue;
 
-            if (side != null)
-            {
-              gl.texImage2D(side,
-                            0,
-                            gl.RGBA,
-                            gl.RGBA,
-                            gl.UNSIGNED_BYTE,
-                            images[imageIndex]);       
-            }
+            gl.texImage2D(side,
+                          0,
+                          gl.RGBA,
+                          gl.RGBA,
+                          gl.UNSIGNED_BYTE,
+                          images[imageIndex]);   
           }
 
-          gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+          // TODO: get mipmaps working on skybox after getting skyboxes working at all?
+          //gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+          gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR);   
           gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, gl.LINEAR);      
-          gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.REPEAT);
-          gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.REPEAT);
-          gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_R, gl.REPEAT);
+          gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+          gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+          gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE);
 
-          gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
-          // TODO: store this texture off in a map or something, like g_images does.
+          // TODO: when doing mipmapping
+          //gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
+          g_skyboxImages[key][index] = texture;
           // TODO: see if you still get error about mips after getting this all setup
         }
       }
