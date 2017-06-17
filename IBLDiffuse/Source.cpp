@@ -610,10 +610,10 @@ void RunMultiThreaded (const char* label, const L& lambda, bool newline)
 int main (int argc, char **argv)
 {
     //const char* src = "Vasa\\Vasa";
-    //const char* src = "ame_ash\\ashcanyon";
+    const char* src = "ame_ash\\ashcanyon";
     //const char* src = "DallasW\\dallas";
     //const char* src = "MarriottMadisonWest\\Marriot";
-    const char* src = "mnight\\mnight";
+    //const char* src = "mnight\\mnight";
 
     const char* srcPatterns[6] = {
         "%sLeft.bmp",
@@ -625,12 +625,12 @@ int main (int argc, char **argv)
     };
 
     const char* destPatterns[6] = {
-        "%sLeft_Diffuse.bmp",
-        "%sDown_Diffuse.bmp",
-        "%sBack_Diffuse.bmp",
-        "%sRight_Diffuse.bmp",
-        "%sUp_Diffuse.bmp",
-        "%sFront_Diffuse.bmp",
+        "%sDiffuseLeft.bmp",
+        "%sDiffuseDown.bmp",
+        "%sDiffuseBack.bmp",
+        "%sDiffuseRight.bmp",
+        "%sDiffuseUp.bmp",
+        "%sDiffuseFront.bmp",
     };
 
     // try and load the source images, while initializing the destination images
