@@ -4,9 +4,9 @@
 <style type="text/css">
 body { border-collapse: collapse; margin:0; padding:0;}
 canvas#RenderWindow {position: absolute; left: 0; top: 0; z-index: 0; width:100%; height:100%;}
-span#DebugPanel {position: absolute; right: 0; top: 0; z-index: 1; color: #00FF00; background-color: rgba(255,255,255,0.3); padding: 10px;}
+span#DebugPanel {position: absolute; right: 0; top: 0; z-index: 1; color: #00FF00; background-color: rgba(128,128,128,0.85); padding: 10px;}
 span#FPSDisplay {position: absolute; left: 0; bottom: 0; z-index: 1; color: #00FF00; background-color: rgba(255,255,255,0.0); padding: 10px;}
-span#LogDisplay {position: absolute; left: 0; top: 0; z-index: 1; color: #00FF00; background-color: rgba(255,255,255,0.3); padding: 10px;}
+span#LogDisplay {position: absolute; left: 0; top: 0; z-index: 1; color: #00FF00; background-color: rgba(128,128,128,0.85); padding: 10px;}
 span#CameraPosDisplay {position: absolute; right: 0; bottom: 0; z-index: 1; color: #00FF00; background-color: rgba(255,255,255,0.0); padding: 10px;}
 div#WholeWindow {position:relative; width:100%; height:100%;}
 a#DebugPanelCollapseIcon {color:#00FF00;text-decoration: none; font-weight: bold; text-align: right; display: block;}
@@ -56,12 +56,16 @@ var g_skyboxImages = {};
 // skyboxes
 var g_skyboxes = 
 {
-  "Vasa"            : ["Skyboxes\\Vasa\\Vasa", "Skyboxes\\Vasa\\VasaDiffuse"],
-  "mnight"          : ["Skyboxes\\mnight\\mnight", "Skyboxes\\mnight\\mnightDiffuse"],
-  "Marriot"         : ["Skyboxes\\Marriot\\Marriot", "Skyboxes\\Marriot\\MarriotDiffuse"],
-  "Vasa Diffuse"    : ["Skyboxes\\Vasa\\VasaDiffuse", "Skyboxes\\Vasa\\VasaDiffuse"],
-  "mnight Diffuse"  : ["Skyboxes\\mnight\\mnightDiffuse", "Skyboxes\\mnight\\mnightDiffuse"], 
-  "Marriot Diffuse" : ["Skyboxes\\Marriot\\Marriot", "Skyboxes\\Marriot\\MarriotDiffuse"],   
+  "Vasa"              : ["Skyboxes\\Vasa\\Vasa", "Skyboxes\\Vasa\\VasaDiffuse"],
+  "Marriot"           : ["Skyboxes\\Marriot\\Marriot", "Skyboxes\\Marriot\\MarriotDiffuse"],
+  "Dallas"            : ["Skyboxes\\Dallas\\Dallas", "Skyboxes\\Dallas\\DallasDiffuse"],
+  "mnight"            : ["Skyboxes\\mnight\\mnight", "Skyboxes\\mnight\\mnightDiffuse"],  
+  "ashcanyon"         : ["Skyboxes\\ashcanyon\\ashcanyon", "Skyboxes\\ashcanyon\\ashcanyonDiffuse"],
+  "Vasa Diffuse"      : ["Skyboxes\\Vasa\\VasaDiffuse", "Skyboxes\\Vasa\\VasaDiffuse"],
+  "Marriot Diffuse"   : ["Skyboxes\\Marriot\\MarriotDiffuse", "Skyboxes\\Marriot\\MarriotDiffuse"],   
+  "Dallas Diffuse"    : ["Skyboxes\\Dallas\\DallasDiffuse", "Skyboxes\\Dallas\\DallasDiffuse"],
+  "mnight Diffuse"    : ["Skyboxes\\mnight\\mnightDiffuse", "Skyboxes\\mnight\\mnightDiffuse"],   
+  "ashcanyon Diffuse" : ["Skyboxes\\ashcanyon\\ashcanyonDiffuse", "Skyboxes\\ashcanyon\\ashcanyonDiffuse"],
 };
 
 // materials
