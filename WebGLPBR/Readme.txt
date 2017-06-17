@@ -1,8 +1,11 @@
-! I think the integrated front and back are reversed.  swapping em makes the x axis flipped though. look into it!
+* mnight somehow has screwed up uv's!
+ ? do others too?
 
-* then, do similar with skyboxes
- * draw the skybox as background
- * use the diffuse skybox in the shader (as described in the tutorial: https://learnopengl.com/#!PBR/IBL/Diffuse-irradiance)
+
+* bring all skyboxes in
+* make sure it's ok with no skybox selected
+
+* sort out the skybox file naming with both C++ program and skybox loading.  it sucks to have to rename it
 
 * move all the skyboxes over from IBL project
 * organize PBR material images into folders

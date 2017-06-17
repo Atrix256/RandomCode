@@ -34,7 +34,7 @@ var g_cameraPosition = [0,0,15];
 
 var g_cameraYawPitchRoll = [0, 0, 0];
 
-var g_cameraMoveSpeed = 2.0;    // meters per second
+var g_cameraMoveSpeed = 5.0;    // meters per second
 var g_cameraRotateSpeed = 0.01; // radians per second
 
 var g_lastFrameTimeStamp = 0;
@@ -51,11 +51,17 @@ var g_ambientLight = [0.01, 0.01, 0.01];
 var g_images = {};
 var g_skyboxImages = {};
 
+// TODO: remove diffuse versions when things are working? or leave it for debugging?
+
 // skyboxes
 var g_skyboxes = 
 {
-  "Vasa"         : ["Skyboxes\\Vasa\\Vasa", "Skyboxes\\Vasa\\VasaDiffuse"],
-  "Vasa Diffuse" : ["Skyboxes\\Vasa\\VasaDiffuse", "Skyboxes\\Vasa\\VasaDiffuse"],
+  "Vasa"            : ["Skyboxes\\Vasa\\Vasa", "Skyboxes\\Vasa\\VasaDiffuse"],
+  "mnight"          : ["Skyboxes\\mnight\\mnight", "Skyboxes\\mnight\\mnightDiffuse"],
+  "Marriot"         : ["Skyboxes\\Marriot\\Marriot", "Skyboxes\\Marriot\\MarriotDiffuse"],
+  "Vasa Diffuse"    : ["Skyboxes\\Vasa\\VasaDiffuse", "Skyboxes\\Vasa\\VasaDiffuse"],
+  "mnight Diffuse"  : ["Skyboxes\\mnight\\mnightDiffuse", "Skyboxes\\mnight\\mnightDiffuse"], 
+  "Marriot Diffuse" : ["Skyboxes\\Marriot\\Marriot", "Skyboxes\\Marriot\\MarriotDiffuse"],   
 };
 
 // materials
@@ -99,6 +105,7 @@ var g_materials =
 };
 
 var g_shaders = [];
+var g_skyboxShader = null;
 
 var g_lastShaderUsed = null;
 
@@ -174,6 +181,35 @@ var g_uniformsShaderSource = "";
 
 //=========================================================================================
 var precisionSource = "precision mediump float;\n\n";
+
+//=========================================================================================
+var skyboxVertexShaderSource = `
+in vec4 a_position;
+
+out vec3 u_uvw;
+
+void main()
+{
+    u_uvw = a_position.xyz;
+    vec4 adjustedPos;
+    adjustedPos.xyz = a_position.xyz * 10.0;
+    adjustedPos.w = a_position.w;
+    gl_Position = u_projectionMatrix * mat4(mat3(u_cameraMatrix)) * adjustedPos;
+}  
+`;
+
+//=========================================================================================
+var skyboxFragmentShaderSource = `
+
+in vec3 u_uvw;
+
+out vec4 outColor;
+
+void main()
+{    
+    outColor = texture(u_diffuseIBL, u_uvw);
+}
+`;
 
 //=========================================================================================
 var vertexShaderSource = ` 
@@ -267,6 +303,11 @@ float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
   
     return ggx1 * ggx2;
 }
+
+vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness)
+{
+    return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);
+}  
 
 vec3 fresnelSchlick(float cosTheta, vec3 F0)
 {
@@ -363,9 +404,20 @@ void main()
 
   // TODO: instead of USE_TEXTURES, make this one be based on whether we are doing IBL or not
   // TODO: maybe make the other define be about material textures?
+  // TODO: move this into it's own function!
   #if USE_TEXTURES
-    // TODO: +=, also take into account albedo and AO.  Also do the formulas the tutorial talks about!
-    col = pow(texture(u_diffuseIBL, N).rgb, vec3(2.2));
+    {
+      // TODO: make F0 be a material parameter.  It's used in the positional light code too!
+      // TODO: F0 could be a user slider value as well, defaulting to 0.04.
+
+      vec3 F0 = vec3(0.04); 
+      vec3 kS = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, objectRoughness); 
+      vec3 kD = 1.0 - kS;
+      vec3 irradiance = pow(texture(u_diffuseIBL, N).rgb, vec3(2.2));
+      vec3 diffuse    = irradiance * objectAlbedo;
+      vec3 ambient    = (kD * diffuse) * objectAO; 
+      col += ambient;
+    }
   #else
     col += u_ambientLight * objectAlbedo * objectAO;
   #endif
@@ -868,7 +920,7 @@ function PrepareToDrawMesh (translation, yawPitchRoll, scale, albedo, emissive, 
   var e = document.getElementById("Debug_SceneIBL");
   var skybox = e.options[e.selectedIndex].value;
   if (g_skyboxImages[skybox])  
-    objectValues.u_diffuseIBL = g_skyboxImages[skybox][1]; // TODO: should be [1];
+    objectValues.u_diffuseIBL = g_skyboxImages[skybox][1];
 
   objectValues.u_normalMapping = document.getElementById("Debug_NormalMapping").checked ? 1.0 : 0.0;
   objectValues.u_AO = document.getElementById("Debug_AO").checked ? 1.0 : 0.0;
@@ -920,6 +972,44 @@ function DrawSphere (translation, yawPitchRoll, scale, albedo, emissive, metalli
   var offset = 0;
   var count = shader.sphereMeshVertCount / 3;
   gl.drawArrays(primitiveType, offset, count);      
+}
+
+//=========================================================================================
+function DrawSkyboxCube ()
+{
+  // if no skybox selected, bail out
+  var e = document.getElementById("Debug_SceneIBL");
+  var skybox = e.options[e.selectedIndex].value;
+  if(g_skyboxImages[skybox] == null)
+    return;
+
+  // Tell it to use our program (pair of shaders)
+  if (g_lastShaderUsed != g_skyboxShader.program)
+  {
+    gl.useProgram(g_skyboxShader.program);    
+    g_lastShaderUsed = g_skyboxShader.program;
+  }
+
+  // make our object values
+  var objectValues = {};
+  objectValues.u_diffuseIBL = g_skyboxImages[skybox][0];
+
+  // fill out the uniforms
+  for (var key in g_skyboxShader.uniforms)
+      FillUniformValue(key, g_skyboxShader.uniforms[key], objectValues);
+
+  // Bind the attribute/buffer set we want.
+  gl.bindVertexArray(g_skyboxShader.cubeMesh);    
+
+  // draw
+  gl.disable(gl.CULL_FACE);
+  gl.depthMask(0);
+  var primitiveType = gl.TRIANGLES;
+  var offset = 0;
+  var count = g_skyboxShader.cubeMeshVertCount / 3;
+  gl.drawArrays(primitiveType, offset, count);    
+  gl.depthMask(1);
+  gl.enable(gl.CULL_FACE);
 }
 
 //=========================================================================================
@@ -1005,10 +1095,7 @@ function DrawScene (thisFrameTimeStamp)
     Resize(gl.canvas);
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 
-    // enable depth test
-    gl.enable(gl.DEPTH_TEST);
-    gl.depthFunc(gl.LESS);
-
+    // TODO: make the clear color a global and only calculate it once!
     // calculate the tone mapped srgb corrected ambient light, to use as the clear color
     var clearColor = [];
     for (var index = 0; index < 3; ++index)
@@ -1027,6 +1114,16 @@ function DrawScene (thisFrameTimeStamp)
       objectYawPitchRoll[1] = seconds * 0.3 * 2;
       objectYawPitchRoll[2] = seconds * 0.7 * 2;
     }    
+
+    // draw the skybox
+    // TODO: only do this if we have one selected!
+    // TODO: draw at scale 1 with no translation and z write off?
+    // TODO: do other thing where you draw this last?
+    DrawSkyboxCube();
+
+    // enable depth test
+    gl.enable(gl.DEPTH_TEST);
+    gl.depthFunc(gl.LESS);    
 
     // get the material parameters
     var objectTextures = null;
@@ -1884,43 +1981,58 @@ function MakeMeshBuffers (mesh, program)
 {
     // normals
     var normalAttributeLocation = gl.getAttribLocation(program, "a_normal");
-    var normalBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
-    gl.enableVertexAttribArray(normalAttributeLocation);
-    gl.vertexAttribPointer(normalAttributeLocation, 3, gl.FLOAT, false, 0, 0);   
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.norm), gl.STATIC_DRAW);     
+    if (normalAttributeLocation != -1)
+    {
+      var normalBuffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+      gl.enableVertexAttribArray(normalAttributeLocation);
+      gl.vertexAttribPointer(normalAttributeLocation, 3, gl.FLOAT, false, 0, 0);   
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.norm), gl.STATIC_DRAW);     
+    }
 
     // tangents
     var tangentAttributeLocation = gl.getAttribLocation(program, "a_tangent");
-    var tangentBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, tangentBuffer);
-    gl.enableVertexAttribArray(tangentAttributeLocation);
-    gl.vertexAttribPointer(tangentAttributeLocation, 3, gl.FLOAT, false, 0, 0);   
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.tangent), gl.STATIC_DRAW);         
+    if (tangentAttributeLocation != -1)
+    {
+      var tangentBuffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, tangentBuffer);
+      gl.enableVertexAttribArray(tangentAttributeLocation);
+      gl.vertexAttribPointer(tangentAttributeLocation, 3, gl.FLOAT, false, 0, 0);   
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.tangent), gl.STATIC_DRAW);      
+    }   
 
     // positions
     var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
-    var positionBuffer = gl.createBuffer(); 
-    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-    gl.enableVertexAttribArray(positionAttributeLocation);      
-    gl.vertexAttribPointer(positionAttributeLocation, 3, gl.FLOAT, false, 0, 0);        
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.pos), gl.STATIC_DRAW);
+    if (positionAttributeLocation != -1)
+    {
+      var positionBuffer = gl.createBuffer(); 
+      gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+      gl.enableVertexAttribArray(positionAttributeLocation);      
+      gl.vertexAttribPointer(positionAttributeLocation, 3, gl.FLOAT, false, 0, 0);        
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.pos), gl.STATIC_DRAW);
+    }
 
     // uv
     var uvAttributeLocation = gl.getAttribLocation(program, "a_uv");
-    var uvBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, uvBuffer);
-    gl.enableVertexAttribArray(uvAttributeLocation);
-    gl.vertexAttribPointer(uvAttributeLocation, 2, gl.FLOAT, false, 0, 0);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.uv), gl.STATIC_DRAW);
+    if (uvAttributeLocation != -1)
+    {
+      var uvBuffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, uvBuffer);
+      gl.enableVertexAttribArray(uvAttributeLocation);
+      gl.vertexAttribPointer(uvAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.uv), gl.STATIC_DRAW);
+    }
 
     // barycentric coordinates
     var barycentricAttributeLocation = gl.getAttribLocation(program, "a_barycentric");
-    var barycentricBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, barycentricBuffer);
-    gl.enableVertexAttribArray(barycentricAttributeLocation);
-    gl.vertexAttribPointer(barycentricAttributeLocation, 3, gl.FLOAT, false, 0, 0);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.barycentric), gl.STATIC_DRAW);       
+    if (barycentricAttributeLocation != -1)
+    {
+      var barycentricBuffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, barycentricBuffer);
+      gl.enableVertexAttribArray(barycentricAttributeLocation);
+      gl.vertexAttribPointer(barycentricAttributeLocation, 3, gl.FLOAT, false, 0, 0);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.barycentric), gl.STATIC_DRAW); 
+    }      
 }
 
 //=========================================================================================
@@ -2019,6 +2131,20 @@ function Initialize ()
       MakeMeshBuffers(tetrahedronMesh, shader.program);           
 
       g_shaders[i] = shader;
+    }
+
+    // make the skybox shader
+    {
+      // make the shader
+      var shader = MakeShader(skyboxVertexShaderSource, skyboxFragmentShaderSource, "");
+
+      // make the cube mesh buffers
+      shader.cubeMeshVertCount = cubeMesh.pos.length;
+      shader.cubeMesh = gl.createVertexArray();
+      gl.bindVertexArray(shader.cubeMesh);    
+      MakeMeshBuffers(cubeMesh, shader.program);           
+
+      g_skyboxShader = shader;
     }
 
     // calculate initial camera matrix

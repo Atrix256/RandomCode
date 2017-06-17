@@ -717,6 +717,7 @@ TODO:
 * use this in the webgl program before making blog post!  That will help verify correctness, but also will give you screenshots.
 
 Blog:
+* note problems with UV's from different sources! needed to adjust images to be correct
 * Link to PBR / IBL tutorial: https://learnopengl.com/#!PBR/IBL/Diffuse-irradiance
  * show how it fits into the equations
 * mention the thing about needing an HDR image format in reality.
