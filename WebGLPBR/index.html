@@ -160,6 +160,7 @@ var g_uniforms = {
   "u_objectMetallic"        : ["float",       (key, location, objectValues) => {gl.uniform1f(location, GetObjectValue(objectValues, key));}],
   "u_objectRoughness"       : ["float",       (key, location, objectValues) => {gl.uniform1f(location, GetObjectValue(objectValues, key));}],
   "u_objectAO"              : ["float",       (key, location, objectValues) => {gl.uniform1f(location, GetObjectValue(objectValues, key));}],
+  "u_objectF0"              : ["float",       (key, location, objectValues) => {gl.uniform1f(location, GetObjectValue(objectValues, key));}],
 
   "u_textureAlbedo"         : ["sampler2D",   (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 0);}],
   "u_textureMetallic"       : ["sampler2D",   (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 1);}],
@@ -328,7 +329,7 @@ vec3 PositionalLight (vec3 worldPos, vec3 N, vec3 V, vec3 lightPos, vec3 lightCo
 
   vec3 radiance     = lightColor * attenuation;     
 
-  vec3 F0 = vec3(0.04); 
+  vec3 F0 = vec3(u_objectF0); 
   F0      = mix(F0, albedo, metallic);
   vec3 F  = fresnelSchlick(max(dot(H, V), 0.0), F0);    
 
@@ -406,15 +407,14 @@ void main()
   col += PositionalLight(v_worldPos, N, V, u_light2Pos, u_light2Color, objectAlbedo, objectMetallic, objectRoughness) * objectAO;
   col += PositionalLight(v_worldPos, N, V, u_light3Pos, u_light3Color, objectAlbedo, objectMetallic, objectRoughness) * objectAO;
 
+  // TODO: make F0 be passed to functions that use it, instead of it being a hidden global parameter
+
   // TODO: instead of USE_TEXTURES, make this one be based on whether we are doing IBL or not
   // TODO: maybe make the other define be about material textures?
   // TODO: move this into it's own function!
   #if USE_TEXTURES
     {
-      // TODO: make F0 be a material parameter.  It's used in the positional light code too!
-      // TODO: F0 could be a user slider value as well, defaulting to 0.04.
-
-      vec3 F0 = vec3(0.04); 
+      vec3 F0 = vec3(u_objectF0); 
       F0      = mix(F0, objectAlbedo, objectMetallic);
       vec3 kS = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, objectRoughness); 
       vec3 kD = 1.0 - kS;
@@ -882,7 +882,7 @@ function FillUniformValue (key, location, objectValues)
 }
 
 //=========================================================================================
-function PrepareToDrawMesh (translation, yawPitchRoll, scale, albedo, emissive, metallic, roughness, textures)
+function PrepareToDrawMesh (translation, yawPitchRoll, scale, albedo, emissive, metallic, roughness, F0, textures)
 {
   // get the right shader to use
   var shader = g_shaders[GetShaderPermutationIndex(
@@ -913,6 +913,7 @@ function PrepareToDrawMesh (translation, yawPitchRoll, scale, albedo, emissive, 
   objectValues.u_objectMetallic = metallic;
   objectValues.u_objectRoughness = roughness;
   objectValues.u_objectAO = 1.0;
+  objectValues.u_objectF0 = F0;
   if (textures != null)
   {
     objectValues.u_textureAlbedo = textures[0];
@@ -939,9 +940,9 @@ function PrepareToDrawMesh (translation, yawPitchRoll, scale, albedo, emissive, 
 }
 
 //=========================================================================================
-function DrawTetrahedron (translation, yawPitchRoll, scale, albedo, emissive, metallic, roughness, textures)
+function DrawTetrahedron (translation, yawPitchRoll, scale, albedo, emissive, metallic, roughness, F0, textures)
 {
-  var shader = PrepareToDrawMesh(translation, yawPitchRoll, scale, albedo, emissive, metallic, roughness, textures);
+  var shader = PrepareToDrawMesh(translation, yawPitchRoll, scale, albedo, emissive, metallic, roughness, F0, textures);
 
   // Bind the attribute/buffer set we want.
   gl.bindVertexArray(shader.tetrahedronMesh);    
@@ -953,9 +954,9 @@ function DrawTetrahedron (translation, yawPitchRoll, scale, albedo, emissive, me
 }
 
 //=========================================================================================
-function DrawCube (translation, yawPitchRoll, scale, albedo, emissive, metallic, roughness, textures)
+function DrawCube (translation, yawPitchRoll, scale, albedo, emissive, metallic, roughness, F0, textures)
 {
-  var shader = PrepareToDrawMesh(translation, yawPitchRoll, scale, albedo, emissive, metallic, roughness, textures);
+  var shader = PrepareToDrawMesh(translation, yawPitchRoll, scale, albedo, emissive, metallic, roughness, F0, textures);
 
   // Bind the attribute/buffer set we want.
   gl.bindVertexArray(shader.cubeMesh);    
@@ -967,9 +968,9 @@ function DrawCube (translation, yawPitchRoll, scale, albedo, emissive, metallic,
 }
 
 //=========================================================================================
-function DrawSphere (translation, yawPitchRoll, scale, albedo, emissive, metallic, roughness, textures)
+function DrawSphere (translation, yawPitchRoll, scale, albedo, emissive, metallic, roughness, F0, textures)
 {
-  var shader = PrepareToDrawMesh(translation, yawPitchRoll, scale, albedo, emissive, metallic, roughness, textures);
+  var shader = PrepareToDrawMesh(translation, yawPitchRoll, scale, albedo, emissive, metallic, roughness, F0, textures);
 
   // Bind the attribute/buffer set we want.
   gl.bindVertexArray(shader.sphereMesh);    
@@ -1136,6 +1137,7 @@ function DrawScene (thisFrameTimeStamp)
     var objectAlebdo = [document.getElementById("Debug_AlbedoR").value, document.getElementById("Debug_AlbedoG").value, document.getElementById("Debug_AlbedoB").value];
     var objectMetallic = document.getElementById("Debug_Metallic").value;
     var objectRoughness = document.getElementById("Debug_Roughness").value;
+    var objectF0 = document.getElementById("Debug_F0").value;
 
     // set the material textures
     var e = document.getElementById("Debug_SceneMaterial");
@@ -1167,6 +1169,7 @@ function DrawScene (thisFrameTimeStamp)
               [0, 0, 0],
               iy * 2 / 8,
               (ix / 8) * 1.9 + 0.1,
+              objectF0,
               objectTextures);
           }
           else if (objectType == 1)
@@ -1179,6 +1182,7 @@ function DrawScene (thisFrameTimeStamp)
               [0, 0, 0],
               iy * 2 / 8,
               (ix / 8) * 1.9 + 0.1,
+              objectF0,
               objectTextures);
           }
           else
@@ -1191,6 +1195,7 @@ function DrawScene (thisFrameTimeStamp)
               [0, 0, 0],
               iy / 8 * 2,
               (ix / 8) * 1.9 + 0.1,
+              objectF0,
               objectTextures);            
           }
         }
@@ -1212,7 +1217,7 @@ function DrawScene (thisFrameTimeStamp)
               [0.4, 0.4, 0.4],
               objectAlebdo,
               [0, 0, 0],
-              objectMetallic, objectRoughness,
+              objectMetallic, objectRoughness, objectF0,
               objectTextures);
           }
           else if (objectType == 1)
@@ -1223,7 +1228,7 @@ function DrawScene (thisFrameTimeStamp)
               [0.4, 0.4, 0.4],
               objectAlebdo,
               [0, 0, 0],
-              objectMetallic, objectRoughness,
+              objectMetallic, objectRoughness, objectF0,
               objectTextures);
           }
           else
@@ -1234,7 +1239,7 @@ function DrawScene (thisFrameTimeStamp)
               [0.4, 0.4, 0.4],
               objectAlebdo,
               [0, 0, 0],
-              objectMetallic, objectRoughness,
+              objectMetallic, objectRoughness, objectF0,
               objectTextures);            
           }
         }
@@ -1258,7 +1263,7 @@ function DrawScene (thisFrameTimeStamp)
                 [0.4, 0.4, 0.4],
                 objectAlebdo,
                 [0, 0, 0],
-                objectMetallic, objectRoughness,
+                objectMetallic, objectRoughness, objectF0,
                 objectTextures);
             }
             else if (objectType == 1)
@@ -1269,7 +1274,7 @@ function DrawScene (thisFrameTimeStamp)
                 [0.4, 0.4, 0.4],
                 objectAlebdo,
                 [0, 0, 0],
-                objectMetallic, objectRoughness,
+                objectMetallic, objectRoughness, objectF0,
                 objectTextures);
             }
             else
@@ -1280,7 +1285,7 @@ function DrawScene (thisFrameTimeStamp)
                 [0.4, 0.4, 0.4],
                 objectAlebdo,
                 [0, 0, 0],
-                objectMetallic, objectRoughness,
+                objectMetallic, objectRoughness, objectF0,
                 objectTextures);            
             }
           }
@@ -1298,7 +1303,7 @@ function DrawScene (thisFrameTimeStamp)
           [1, 1, 1],
           objectAlebdo,
           [0, 0, 0],
-          objectMetallic, objectRoughness,
+          objectMetallic, objectRoughness, objectF0,
           objectTextures);
       }
       else if (objectType == 1)
@@ -1309,7 +1314,7 @@ function DrawScene (thisFrameTimeStamp)
           [1, 1, 1],
           objectAlebdo,
           [0, 0, 0],
-          objectMetallic, objectRoughness,
+          objectMetallic, objectRoughness, objectF0,
           objectTextures);
       }
       else
@@ -1320,7 +1325,7 @@ function DrawScene (thisFrameTimeStamp)
           [1, 1, 1],
           objectAlebdo,
           [0, 0, 0],
-          objectMetallic, objectRoughness,
+          objectMetallic, objectRoughness, objectF0,
           objectTextures);        
       }
     }
@@ -1335,7 +1340,7 @@ function DrawScene (thisFrameTimeStamp)
         [0.1, 0.1, 0.1],
         [0, 0, 0],
         color,
-        0,0,
+        0,0,0,
         null
       );
       color = GetLightColor(1);
@@ -1345,7 +1350,7 @@ function DrawScene (thisFrameTimeStamp)
         [0.1, 0.1, 0.1],
         [0, 0, 0],
         color,
-        0,0,
+        0,0,0,
         null
       );
       color = GetLightColor(2);
@@ -1365,7 +1370,7 @@ function DrawScene (thisFrameTimeStamp)
         [0.1, 0.1, 0.1],
         [0, 0, 0],
         color,
-        0,0,
+        0,0,0,
         null
       );  
     }
@@ -2203,6 +2208,7 @@ function Initialize ()
             <tr><td>Scene (IBL)</td><td><select id="Debug_SceneIBL"></select></td></tr>
             <tr><td>Metallic</td><td><input id="Debug_Metallic" type="range" min="0" max="2" value="1.0" step="0.01"/> <input type="button" onClick="document.getElementById('Debug_Metallic').value=1.0;" value="Reset"/></td></tr>
             <tr><td>Roughness</td><td><input id="Debug_Roughness" type="range" min="0" max="2" value="1.0" step="0.01"/> <input type="button" onClick="document.getElementById('Debug_Roughness').value=1.0;" value="Reset"/></td></tr>
+            <tr><td>Base Reflectance</td><td><input id="Debug_F0" type="range" min="0" max="1" value="0.04" step="0.01"/> <input type="button" onClick="document.getElementById('Debug_F0').value=0.04;" value="Reset"/></td></tr>
             <tr><td>Albedo R</td><td><input id="Debug_AlbedoR" type="range" min="0" max="1" value="1.0" step="0.01"/></td></tr>
             <tr><td>Albedo G</td><td><input id="Debug_AlbedoG" type="range" min="0" max="1" value="1.0" step="0.01"/></td></tr>
             <tr><td>Albedo B</td><td><input id="Debug_AlbedoB" type="range" min="0" max="1" value="1.0" step="0.01"/></td></tr>
