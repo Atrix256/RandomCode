@@ -354,6 +354,9 @@ void GetFaceBasis (size_t faceIndex, TVector3& facePlane, TVector3& uAxis, TVect
             vAxis[1] = 1.0f;
         }
     }
+
+    if ((faceIndex % 3) == 2)
+        facePlane[2] *= -1.0f;
 }
 
 // ==================================================================================================================
