@@ -415,8 +415,10 @@ void main()
       // TODO: F0 could be a user slider value as well, defaulting to 0.04.
 
       vec3 F0 = vec3(0.04); 
+      F0      = mix(F0, objectAlbedo, objectMetallic);
       vec3 kS = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, objectRoughness); 
       vec3 kD = 1.0 - kS;
+      kD *= 1.0 - objectMetallic;
       vec3 irradiance = pow(texture(u_diffuseIBL, N).rgb, vec3(2.2));
       vec3 diffuse    = irradiance * objectAlbedo;
       vec3 ambient    = (kD * diffuse) * objectAO; 

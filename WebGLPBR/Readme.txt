@@ -1,18 +1,5 @@
-* bring ash canyon and mnight back into IBL diffuse program and reprocess them and bring them back!
-
-* fix png's on mnight and ash canyon to understand what needs to be done to the source.
- * then reprocess, and reconvert to png and retest.
-
-* mnight somehow has screwed up uv's!
- ? do others too?
-
-
-* bring all skyboxes in
 * make sure it's ok with no skybox selected
 
-* sort out the skybox file naming with both C++ program and skybox loading.  it sucks to have to rename it
-
-* move all the skyboxes over from IBL project
 * organize PBR material images into folders
 
 * blog post on diffuse IBL at this point, with screenshots?
