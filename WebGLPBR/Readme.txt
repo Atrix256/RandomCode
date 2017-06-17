@@ -1,3 +1,8 @@
+* bring ash canyon and mnight back into IBL diffuse program and reprocess them and bring them back!
+
+* fix png's on mnight and ash canyon to understand what needs to be done to the source.
+ * then reprocess, and reconvert to png and retest.
+
 * mnight somehow has screwed up uv's!
  ? do others too?
 
