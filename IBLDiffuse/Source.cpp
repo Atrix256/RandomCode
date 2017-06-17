@@ -610,10 +610,10 @@ void RunMultiThreaded (const char* label, const L& lambda, bool newline)
 int main (int argc, char **argv)
 {
     //const char* src = "Vasa\\Vasa";
-    const char* src = "ame_ash\\ashcanyon";
+    //const char* src = "ame_ash\\ashcanyon";
     //const char* src = "DallasW\\dallas";
     //const char* src = "MarriottMadisonWest\\Marriot";
-    //const char* src = "mnight\\mnight";
+    const char* src = "mnight\\mnight";
 
     const char* srcPatterns[6] = {
         "%sLeft.bmp",
