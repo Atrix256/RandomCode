@@ -47,6 +47,13 @@ var g_pointerLocked = false;
 
 var g_ambientLight = [0.01, 0.01, 0.01];
 
+// a tone mapped and sRGB corrected version of the ambient light, that we can clear the screen with
+var g_clearColor = [
+  Math.pow(g_ambientLight[0] / (g_ambientLight[0] + 1.0), 1.0 / 2.2),
+  Math.pow(g_ambientLight[1] / (g_ambientLight[1] + 1.0), 1.0 / 2.2),
+  Math.pow(g_ambientLight[2] / (g_ambientLight[2] + 1.0), 1.0 / 2.2),
+];
+
 // a dictionary of file names to textures
 var g_images = {};
 var g_skyboxImages = {};
@@ -317,7 +324,7 @@ vec3 fresnelSchlick(float cosTheta, vec3 F0)
     return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
 }  
 
-vec3 PositionalLight (vec3 worldPos, vec3 N, vec3 V, vec3 lightPos, vec3 lightColor, vec3 albedo, float metallic, float roughness, float F0)
+vec3 PositionalLight (vec3 worldPos, vec3 N, vec3 V, vec3 lightPos, vec3 lightColor, vec3 albedo, float metallic, float roughness, float scalarF0)
 {
   float distance    = length(lightPos - worldPos);
   float attenuation = 1.0 / (distance * distance);
@@ -327,7 +334,7 @@ vec3 PositionalLight (vec3 worldPos, vec3 N, vec3 V, vec3 lightPos, vec3 lightCo
 
   vec3 radiance     = lightColor * attenuation;     
 
-  vec3 F0 = vec3(F0); 
+  vec3 F0 = vec3(scalarF0); 
   F0      = mix(F0, albedo, metallic);
   vec3 F  = fresnelSchlick(max(dot(H, V), 0.0), F0);    
 
@@ -347,9 +354,9 @@ vec3 PositionalLight (vec3 worldPos, vec3 N, vec3 V, vec3 lightPos, vec3 lightCo
   return (kD * albedo / PI + specular) * radiance * NdotL;  
 }
 
-vec3 IBL (vec3 N, vec3 V, vec3 albedo, float metallic, float roughness, float F0)
+vec3 IBL (vec3 N, vec3 V, vec3 albedo, float metallic, float roughness, float scalarF0)
 {
-  vec3 F0 = vec3(F0); 
+  vec3 F0 = vec3(scalarF0); 
   F0      = mix(F0, albedo, metallic);
   vec3 kS = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, roughness); 
   vec3 kD = 1.0 - kS;
@@ -1105,14 +1112,8 @@ function DrawScene (thisFrameTimeStamp)
     Resize(gl.canvas);
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 
-    // TODO: make the clear color a global and only calculate it once!
-    // calculate the tone mapped srgb corrected ambient light, to use as the clear color
-    var clearColor = [];
-    for (var index = 0; index < 3; ++index)
-      clearColor[index] = Math.pow(g_ambientLight[index] / (g_ambientLight[index] + 1.0), 1.0 / 2.2);
-
     // Clear the canvas
-    gl.clearColor(clearColor[0], clearColor[1], clearColor[2], 1);
+    gl.clearColor(g_clearColor[0], g_clearColor[1], g_clearColor[2], 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);    
 
     // animate object by rotating it over time if we should

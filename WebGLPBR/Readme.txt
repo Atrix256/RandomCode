@@ -1,19 +1,5 @@
-* make sure it's ok with no skybox selected
- * untextured doesn't look right, right now, due to this
 
-* organize PBR material images into folders? like material folders?
-
-* blog post on diffuse IBL at this point, with screenshots?
-
-* Diffuse IBL
- * make a C++ program (and blog post) on pre-integrating skybox textures
- * make webgl program load skybox / pre-integrated skybox texture.
- * have an intensity multiplier for the skybox?
-
-? is it normal for colors to show up on metal when it shouldn't? ask SE. like red metal showing a green light.
-
-* the PBR images you have are gigantic, at 9MB a pop.  Can you find some smaller ones? Or do they need to be this huge? Could be affecting perf.
- * maybe shrink em down to whatever you can get away with
+* check todos
 
 * then move to specular IBL!
 
@@ -38,6 +24,8 @@
 
 ! upload what you have so far to demofox.org?
 
+? add an emissive texture? or get rid of emissive display maybe?
+
 * after IBL, get rid of ambient light? or have a mode to turn off IBL and use ambient in that case?
 
 * bezier rectangle later? (ray marched)
@@ -58,6 +46,14 @@
 * drop down menu for texture slots, with one main drop down for "presets" for the materials.
  * Yes get rid of untextured shader permutations after this and just use white textures etc?
   * or allow untextured still
+
+* blog post on diffuse IBL at this point, with screenshots?
+ * maybe save it for later when you understand the whole picture better.
+
+? is it normal for colors to show up on metal when it shouldn't? ask SE. like red metal showing a green light.
+
+* the PBR images you have are gigantic, at 9MB a pop.  Can you find some smaller ones? Or do they need to be this huge? Could be affecting perf.
+ * maybe shrink em down to whatever you can get away with
 
 ===== LATER =====
 
