@@ -317,7 +317,7 @@ vec3 fresnelSchlick(float cosTheta, vec3 F0)
     return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
 }  
 
-vec3 PositionalLight (vec3 worldPos, vec3 N, vec3 V, vec3 lightPos, vec3 lightColor, vec3 albedo, float metallic, float roughness)
+vec3 PositionalLight (vec3 worldPos, vec3 N, vec3 V, vec3 lightPos, vec3 lightColor, vec3 albedo, float metallic, float roughness, float F0)
 {
   float distance    = length(lightPos - worldPos);
   float attenuation = 1.0 / (distance * distance);
@@ -327,7 +327,7 @@ vec3 PositionalLight (vec3 worldPos, vec3 N, vec3 V, vec3 lightPos, vec3 lightCo
 
   vec3 radiance     = lightColor * attenuation;     
 
-  vec3 F0 = vec3(u_objectF0); 
+  vec3 F0 = vec3(F0); 
   F0      = mix(F0, albedo, metallic);
   vec3 F  = fresnelSchlick(max(dot(H, V), 0.0), F0);    
 
@@ -345,6 +345,19 @@ vec3 PositionalLight (vec3 worldPos, vec3 N, vec3 V, vec3 lightPos, vec3 lightCo
 
   float NdotL = max(dot(N, L), 0.0);        
   return (kD * albedo / PI + specular) * radiance * NdotL;  
+}
+
+vec3 IBL (vec3 N, vec3 V, vec3 albedo, float metallic, float roughness, float F0)
+{
+  vec3 F0 = vec3(F0); 
+  F0      = mix(F0, albedo, metallic);
+  vec3 kS = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, roughness); 
+  vec3 kD = 1.0 - kS;
+  kD *= 1.0 - metallic;
+  vec3 irradiance = pow(texture(u_diffuseIBL, N).rgb, vec3(2.2));
+  vec3 diffuse    = irradiance * albedo;
+  vec3 ambient    = (kD * diffuse);
+  return ambient;
 }
  
 void main()
@@ -400,25 +413,15 @@ void main()
   else
     objectRoughness = mix(texRoughness, 1.0, objectRoughness - 1.0);
 
-  col += PositionalLight(v_worldPos, N, V, u_light0Pos, u_light0Color, objectAlbedo, objectMetallic, objectRoughness) * objectAO;
-  col += PositionalLight(v_worldPos, N, V, u_light1Pos, u_light1Color, objectAlbedo, objectMetallic, objectRoughness) * objectAO;
-  col += PositionalLight(v_worldPos, N, V, u_light2Pos, u_light2Color, objectAlbedo, objectMetallic, objectRoughness) * objectAO;
-  col += PositionalLight(v_worldPos, N, V, u_light3Pos, u_light3Color, objectAlbedo, objectMetallic, objectRoughness) * objectAO;
+  // positional lights
+  col += PositionalLight(v_worldPos, N, V, u_light0Pos, u_light0Color, objectAlbedo, objectMetallic, objectRoughness, u_objectF0) * objectAO;
+  col += PositionalLight(v_worldPos, N, V, u_light1Pos, u_light1Color, objectAlbedo, objectMetallic, objectRoughness, u_objectF0) * objectAO;
+  col += PositionalLight(v_worldPos, N, V, u_light2Pos, u_light2Color, objectAlbedo, objectMetallic, objectRoughness, u_objectF0) * objectAO;
+  col += PositionalLight(v_worldPos, N, V, u_light3Pos, u_light3Color, objectAlbedo, objectMetallic, objectRoughness, u_objectF0) * objectAO;
 
-  // TODO: make F0 be passed to functions that use it, instead of it being a hidden global parameter
-  // TODO: move this IBL code into it's own function!
+  // IBL or ambient light
   #if USE_IBL
-    {
-      vec3 F0 = vec3(u_objectF0); 
-      F0      = mix(F0, objectAlbedo, objectMetallic);
-      vec3 kS = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, objectRoughness); 
-      vec3 kD = 1.0 - kS;
-      kD *= 1.0 - objectMetallic;
-      vec3 irradiance = pow(texture(u_diffuseIBL, N).rgb, vec3(2.2));
-      vec3 diffuse    = irradiance * objectAlbedo;
-      vec3 ambient    = (kD * diffuse) * objectAO; 
-      col += ambient;
-    }
+    col += IBL(N, V, objectAlbedo, objectMetallic, objectRoughness, u_objectF0)  * objectAO;
   #else
     col += u_ambientLight * objectAlbedo * objectAO;
   #endif
@@ -426,6 +429,7 @@ void main()
   // HDR -> LDR
   col = col / (col + vec3(1.0));
 
+  // Debug mode outputs
   #if OUTPUT_MODE == OUTPUT_MODE_SHADED
     outColor.rgb = pow(col, vec3(1.0/2.2));
   #endif
@@ -1957,7 +1961,7 @@ function LoadImagesAndRender ()
                           images[imageIndex]);   
           }
 
-          // TODO: get mipmaps working on skybox after getting skyboxes working at all?
+          // TODO: get mipmaps working on skybox after getting skyboxes working at all? Maybe we don't want mipmaps though.
           //gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
           gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR);   
           gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, gl.LINEAR);      
