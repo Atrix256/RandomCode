@@ -1,21 +1,21 @@
 * make sure it's ok with no skybox selected
+ * untextured doesn't look right, right now, due to this
 
-* organize PBR material images into folders
+* organize PBR material images into folders? like material folders?
 
 * blog post on diffuse IBL at this point, with screenshots?
 
 * Diffuse IBL
  * make a C++ program (and blog post) on pre-integrating skybox textures
  * make webgl program load skybox / pre-integrated skybox texture.
- * have an intensity multiplier for the skybox
-
-* have a few skyboxes available for drop down to choose from.
+ * have an intensity multiplier for the skybox?
 
 ? is it normal for colors to show up on metal when it shouldn't? ask SE. like red metal showing a green light.
 
 * the PBR images you have are gigantic, at 9MB a pop.  Can you find some smaller ones? Or do they need to be this huge? Could be affecting perf.
+ * maybe shrink em down to whatever you can get away with
 
-* then move to IBL!
+* then move to specular IBL!
 
 * after IBL, make it so PBR grid can use roughness of 0, not the minimum value it has.
 
