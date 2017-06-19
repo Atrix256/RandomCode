@@ -201,10 +201,7 @@ out vec3 u_uvw;
 void main()
 {
     u_uvw = a_position.xyz;
-    vec4 adjustedPos;
-    adjustedPos.xyz = a_position.xyz * 10.0;
-    adjustedPos.w = a_position.w;
-    gl_Position = u_projectionMatrix * mat4(mat3(u_cameraMatrix)) * adjustedPos;
+    gl_Position = (u_projectionMatrix * mat4(mat3(u_cameraMatrix)) * a_position).xyww;
 }  
 `;
 
@@ -813,12 +810,19 @@ function MatrixToString (matrix)
   return ret;
 }
 
-// TODO: make general for any sized vector and rename to VectorNormalize
 //=========================================================================================
 function NormalizeVector (v)
 {
-  var length = Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]);
-  return [v[0]/length, v[1]/length, v[2]/length];
+  var length = 0;
+  for (var i = 0; i < v.length; ++i)
+    length += v[i]*v[i];
+  length = Math.sqrt(length);
+
+  var ret = [];
+  for (var i = 0; i < v.length; ++i)
+    ret[i] = v[i] / length;
+
+  return ret;
 }
 
 //=========================================================================================
@@ -1019,6 +1023,7 @@ function DrawSkyboxCube ()
   gl.bindVertexArray(g_skyboxShader.cubeMesh);    
 
   // draw
+  gl.depthFunc(gl.LEQUAL);
   gl.disable(gl.CULL_FACE);
   gl.depthMask(0);
   var primitiveType = gl.TRIANGLES;
@@ -1125,10 +1130,6 @@ function DrawScene (thisFrameTimeStamp)
       objectYawPitchRoll[1] = seconds * 0.3 * 2;
       objectYawPitchRoll[2] = seconds * 0.7 * 2;
     }    
-
-    // draw the skybox
-    // TODO: do other method where this is drawn last
-    DrawSkyboxCube();
 
     // enable depth test
     gl.enable(gl.DEPTH_TEST);
@@ -1376,6 +1377,9 @@ function DrawScene (thisFrameTimeStamp)
         null
       );  
     }
+
+    // draw the skybox last
+    DrawSkyboxCube();    
 
     // request another frame to be drawn
     requestAnimationFrame(DrawScene);
@@ -1963,7 +1967,7 @@ function LoadImagesAndRender ()
           }
 
           // TODO: get mipmaps working on skybox after getting skyboxes working at all? Maybe we don't want mipmaps though.
-          //gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+          gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
           gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR);   
           gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, gl.LINEAR);      
           gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -1971,7 +1975,7 @@ function LoadImagesAndRender ()
           gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE);
 
           // TODO: when doing mipmapping
-          //gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
+          gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
           g_skyboxImages[key][index] = texture;
           // TODO: see if you still get error about mips after getting this all setup
         }
