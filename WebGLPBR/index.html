@@ -8,6 +8,7 @@ span#DebugPanel {position: absolute; right: 0; top: 0; z-index: 1; color: #00FF0
 span#FPSDisplay {position: absolute; left: 0; bottom: 0; z-index: 1; color: #00FF00; background-color: rgba(255,255,255,0.0); padding: 10px;}
 span#LogDisplay {position: absolute; left: 0; top: 0; z-index: 1; color: #00FF00; background-color: rgba(128,128,128,0.75); padding: 10px;}
 span#CameraPosDisplay {position: absolute; right: 0; bottom: 0; z-index: 1; color: #00FF00; background-color: rgba(255,255,255,0.0); padding: 10px;}
+span#Loading { color: #00FF00; position: fixed; z-index: 2; top: 50%; left: 50%; background: rgba(0,0,0,1);}
 div#WholeWindow {position:relative; width:100%; height:100%;}
 a#DebugPanelCollapseIcon {color:#00FF00;text-decoration: none; font-weight: bold; text-align: right; display: block;}
 table {border-collapse: collapse; color: #00FF00;}
@@ -21,7 +22,7 @@ http://demofox.org
 http://blog.demofox.org
 https://twitter.com/Atrix256
 
-=========================================================================================*/
+=========================================================================================*/3
 
 var g_canvas = null;
 var gl = null;
@@ -1897,14 +1898,26 @@ function LoadImagesAndRender ()
   }
   var loadingImages = Array.from(loadingImagesSet);
   var imagesToLoad = loadingImages.length;
+  var totalImagesToLoad = imagesToLoad;
 
   var images = [];
+
+  document.getElementById("Loading").innerText="Loading Images: " + (totalImagesToLoad-imagesToLoad+1) + " / " + totalImagesToLoad;
+  document.getElementById("Loading").style.left = "50%";
 
   // Called each time an image finished loading.
   var onImageLoad = function() {
     --imagesToLoad;
+
+    // update the loading progress overlay
+    document.getElementById("Loading").innerText="Loading Images: " + (totalImagesToLoad-imagesToLoad+1) + " / " + totalImagesToLoad;
+    document.getElementById("Loading").style.left = "50%";
+
     // If all the images are loaded call the callback.
     if (imagesToLoad == 0) {
+
+      // hide the loading progress overlay
+      document.getElementById("Loading").style.visibility = "hidden";
 
       // create all the 2d images (even of skybox images, in case we want to use them for 2d stuff for some reason)
       for (var i = 0; i < images.length; ++i)
@@ -1966,7 +1979,6 @@ function LoadImagesAndRender ()
                           images[imageIndex]);   
           }
 
-          // TODO: get mipmaps working on skybox after getting skyboxes working at all? Maybe we don't want mipmaps though.
           gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
           gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR);   
           gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, gl.LINEAR);      
@@ -1974,10 +1986,8 @@ function LoadImagesAndRender ()
           gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
           gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE);
 
-          // TODO: when doing mipmapping
           gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
           g_skyboxImages[key][index] = texture;
-          // TODO: see if you still get error about mips after getting this all setup
         }
       }
       gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
@@ -2179,6 +2189,7 @@ function Initialize ()
     <!--span id="LogDisplay"></span-->
     <span id="FPSDisplay">(?x?) FPS: ---</span>    
     <span id="CameraPosDisplay">Camera: (0.00,0.00,0.00)</span>    
+    <span id="Loading">Loading</span>
     <span id="DebugPanel">
         <a href="#" id="DebugPanelCollapseIcon" onClick="ToggleDebugPanel(); return false;">[-] Debug Panel</a>
         <span id="DebugPanelControls">
