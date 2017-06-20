@@ -1,7 +1,7 @@
 #include <algorithm>
 #include <stdlib.h>
 
-size_t BinarySearch8 (size_t needle, size_t haystack[8])
+size_t BinarySearch8 (size_t needle, const size_t haystack[8])
 {
     // using trinary operator
     size_t ret = (haystack[4] <= needle) ? 4 : 0;
@@ -10,7 +10,7 @@ size_t BinarySearch8 (size_t needle, size_t haystack[8])
     return ret;
 }
 
-size_t BinarySearch8b (size_t needle, size_t haystack[8])
+size_t BinarySearch8b (size_t needle, const size_t haystack[8])
 {
     // using multiplication
     size_t ret = (haystack[4] <= needle) * 4;
@@ -19,7 +19,7 @@ size_t BinarySearch8b (size_t needle, size_t haystack[8])
     return ret;
 }
 
-size_t BinarySearch7 (size_t needle, size_t haystack[7])
+size_t BinarySearch7 (size_t needle, const size_t haystack[7])
 {
     // non perfect power of 2.  use min() to keep it from going out of bounds.
     size_t ret = 0;
@@ -41,29 +41,78 @@ size_t BinarySearch7 (size_t needle, size_t haystack[7])
     return ret;
 }
 
-
 int main (int argc, char **argv)
 {
-    size_t array8[] = { 1, 3, 5, 6, 9, 11, 15, 21 };
-    //size_t array7[] = { 1, 3, 5, 6, 9, 11, 15 };
+    // search a list of size 8
+    {
+        // show the data
+        printf("Seaching through a list with 8 items:\n");
+        size_t data[8] = { 1, 3, 5, 6, 9, 11, 15, 21 };
+        printf("data = [");
+        for (size_t i = 0; i < sizeof(data)/sizeof(data[0]); ++i)
+        {
+            if (i > 0)
+                printf(", ");
+            printf("%zu", data[i]);
+        }
+        printf("]\n");
 
-    size_t indexA = BinarySearch8(2, array8);
-    size_t indexB = BinarySearch8(3, array8);
-    /*
-    size_t indexC = BinarySearch8(4, array8);
-    size_t indexD = BinarySearch8(0, array8);
-    size_t indexE = BinarySearch8(22, array8);
-    size_t indexF = BinarySearch8(7, array8);
-    size_t indexG = BinarySearch8(10, array8);
-    size_t indexH = BinarySearch8(14, array8);
-    size_t indexI = BinarySearch8(18, array8);
+        // do some searches on it using trinary operation based function
+        printf("\nTrinary based searches:\n");
+        #define FIND(needle) printf("Find " #needle ": index = %zu, value = %zu, found = %s\n", BinarySearch8(needle, data), data[BinarySearch8(needle, data)], data[BinarySearch8(needle, data)] == needle ? "true" : "false");
+        FIND(2);
+        FIND(3);
+        FIND(0);
+        FIND(22);
+        FIND(16);
+        FIND(15);
+        FIND(21);
+        #undef FIND
 
-    size_t indexA2 = BinarySearch7(2, array7);
-    size_t indexB2 = BinarySearch7(16, array7);
-    */
+        // do some searches on it using multiplication based function
+        printf("\nMultiplication based searches:\n");
+        #define FIND(needle) printf("Find " #needle ": index = %zu, value = %zu, found = %s\n", BinarySearch8b(needle, data), data[BinarySearch8b(needle, data)], data[BinarySearch8b(needle, data)] == needle ? "true" : "false");
+        FIND(2);
+        FIND(3);
+        FIND(0);
+        FIND(22);
+        FIND(16);
+        FIND(15);
+        FIND(21);
+        #undef FIND
 
-    printf("%zu\n", indexA);
-    printf("%zu\n", indexB);
+        printf("\n\n\n\n");
+    }
+
+    // search a list of size 7
+    {
+        // show the data
+        printf("Seaching through a list with 7 items:\n");
+        size_t data[7] = { 1, 3, 5, 6, 9, 11, 15};
+        printf("data = [");
+        for (size_t i = 0; i < sizeof(data)/sizeof(data[0]); ++i)
+        {
+            if (i > 0)
+                printf(", ");
+            printf("%zu", data[i]);
+        }
+        printf("]\n");
+
+        // do some searches on it using trinary operation based function
+        printf("\nTrinary based searches:\n");
+        #define FIND(needle) printf("Find " #needle ": index = %zu, value = %zu, found = %s\n", BinarySearch7(needle, data), data[BinarySearch7(needle, data)], data[BinarySearch7(needle, data)] == needle ? "true" : "false");
+        FIND(2);
+        FIND(3);
+        FIND(0);
+        FIND(22);
+        FIND(16);
+        FIND(15);
+        FIND(21);
+        #undef FIND
+
+        printf("\n\n\n\n");
+    }
+
     system("pause");
     return 0;
 }
@@ -74,14 +123,6 @@ TODO:
 * look at assembly?
 
 BLOG:
-1) Binary search perfect power of 2
-1b) show without trinary operator usage
-2) Binary search non perfect power of 2 (std::min to keep in range)
-3) As is, it finds the beginning of the range of where the value falls, except for the case of it being less than all. Could also another comparison to check to see if it's there.
-* SIMD / GPU efficient because there are no if statements or variable number of loops.
-* mention that binary search isn't the most cache efficient.
- * maybe could be combined with this: http://bannalia.blogspot.com/2015/06/cache-friendly-binary-search.html
 * post assembly?
-
 
 */
