@@ -10,8 +10,9 @@
 
 #define SPLIT_SUM_SIZE() 256 // size in width and height of the split sum texture
 
-// TODO: see how adjusting this affects things
 #define BRDF_INTEGRATION_SAMPLE_COUNT() 1024
+
+#define FORCE_SINGLETHREADED() 0
 
 // ==================================================================================================================
 const float c_pi = 3.14159265359f;
@@ -302,29 +303,57 @@ TVector2 IntegrateBRDF (float NdotV, float roughness)
         }
     }
 
-    // TODO: does it make sense to divide by 1024 if we didn't get data for all 1024 samples due to NdotL check?
-
     A /= float(BRDF_INTEGRATION_SAMPLE_COUNT());
     B /= float(BRDF_INTEGRATION_SAMPLE_COUNT());
     return TVector2{ A, B };
 }
 
 // ==================================================================================================================
-void GenerateSplitSumTexture ()
+template <typename L>
+void RunMultiThreaded (const char* label, const L& lambda, bool newline)
 {
-    SImageData splitSumTexture;
+    SBlockTimer timer(label);
+    size_t numThreads = FORCE_SINGLETHREADED() ? 1 : std::thread::hardware_concurrency();
+    printf("Doing %s with %zu threads.\n", label, numThreads);
+    if (numThreads > 1)
+    {
+        std::vector<std::thread> threads;
+        threads.resize(numThreads);
+        size_t faceIndex = 0;
+        for (std::thread& t : threads)
+            t = std::thread(lambda);
+        for (std::thread& t : threads)
+            t.join();
+    }
+    else
+    {
+        lambda();
+    }
+    if (newline)
+        printf("\n");
+}
 
-    splitSumTexture.m_width = SPLIT_SUM_SIZE();
-    splitSumTexture.m_height = SPLIT_SUM_SIZE();
-    splitSumTexture.m_pitch = 4 * ((splitSumTexture.m_width * 24 + 31) / 32);
-    splitSumTexture.m_pixels.resize(splitSumTexture.m_height * splitSumTexture.m_pitch);
+// ==================================================================================================================
+void OnRowComplete (size_t rowIndex, size_t numRows)
+{
+    // report progress
+    int oldPercent = rowIndex > 0 ? (int)(100.0f * float(rowIndex - 1) / float(numRows)) : 0;
+    int newPercent = (int)(100.0f * float(rowIndex) / float(numRows));
+    if (oldPercent != newPercent)
+        printf("\r               \rProgress: %i%%", newPercent);
+}
 
-    for (size_t iy = 0; iy < SPLIT_SUM_SIZE(); ++iy)
+// ==================================================================================================================
+void GenerateSplitSumTextureThreadFunc (SImageData& splitSumTexture)
+{
+    static std::atomic<size_t> s_rowIndex(0);
+    size_t rowIndex = s_rowIndex.fetch_add(1);
+    while (rowIndex < SPLIT_SUM_SIZE())
     {
         // get the pixel at the start of this row
-        uint8* pixel = &splitSumTexture.m_pixels[iy * splitSumTexture.m_pitch];
+        uint8* pixel = &splitSumTexture.m_pixels[rowIndex * splitSumTexture.m_pitch];
 
-        float roughness = float(iy) / float(SPLIT_SUM_SIZE() - 1);
+        float roughness = float(rowIndex) / float(SPLIT_SUM_SIZE() - 1);
 
         for (size_t ix = 0; ix < SPLIT_SUM_SIZE(); ++ix)
         {
@@ -339,10 +368,27 @@ void GenerateSplitSumTexture ()
             pixel += 3;
         }
 
-        // TODO: print some (better) progress!
-        printf("\r                   \r%zu / %zu", iy + 1, (size_t)SPLIT_SUM_SIZE());
+        OnRowComplete(rowIndex, (size_t)SPLIT_SUM_SIZE());
+
+        // get the next row to process
+        rowIndex = s_rowIndex.fetch_add(1);
     }
-    printf("\n");
+}
+
+// ==================================================================================================================
+void GenerateSplitSumTexture ()
+{
+    SImageData splitSumTexture;
+    splitSumTexture.m_width = SPLIT_SUM_SIZE();
+    splitSumTexture.m_height = SPLIT_SUM_SIZE();
+    splitSumTexture.m_pitch = 4 * ((splitSumTexture.m_width * 24 + 31) / 32);
+    splitSumTexture.m_pixels.resize(splitSumTexture.m_height * splitSumTexture.m_pitch);
+
+    RunMultiThreaded(
+        "Generating Split Sum Texture",
+        [&splitSumTexture] () { GenerateSplitSumTextureThreadFunc(splitSumTexture); },
+        true
+    );
 
     if (SaveImage("SplitSum.bmp", splitSumTexture))
         printf("Saved: SplitSum.bmp\n");
@@ -355,24 +401,24 @@ int main (int argc, char **argcv)
 {
     GenerateSplitSumTexture();
 
+    system("pause");
+
     return 0;
 }
 
 /*
 
 TODO:
-* make splitsum texture
+? why does split sum have black at x = 0?
 * pre-integrate cube maps for specular
-
 * profile!
-* make splitsum multithreaded. one row per thread i guess, or maybe divide the image into equal parts or something?
 
 * TODO's in code
 
 * #define's for image sizes and processing sizes
-* SRGB correction
-* multithreaded with a define to make it single threaded
+* SRGB correction (only for cube map, not split sum)
 
 BLOG:
+* Show split sum texture with fewer samples, as well as uniform sampling and random sampling?
 
 */
