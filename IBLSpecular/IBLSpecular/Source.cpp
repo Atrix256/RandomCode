@@ -14,6 +14,9 @@
 #define BRDF_INTEGRATION_SAMPLE_COUNT() 1024
 
 // ==================================================================================================================
+const float c_pi = 3.14159265359f;
+
+// ==================================================================================================================
 typedef uint8_t uint8;
 
 template <size_t N>
@@ -22,9 +25,76 @@ using TVector = std::array<float, N>;
 typedef TVector<3> TVector3;
 typedef TVector<2> TVector2;
 
-// ============================================================================================
+// ==================================================================================================================
+TVector3 Cross (const TVector3&a, const TVector3& b)
+{
+  return {
+    a[1] * b[2] - a[2] * b[1],
+    a[2] * b[0] - a[0] * b[2],
+    a[0] * b[1] - a[1] * b[0]
+  };
+}
+
+// ==================================================================================================================
+float Dot (const TVector3& a, const TVector3& b)
+{
+    return
+        a[0] * b[0] +
+        a[1] * b[1] + 
+        a[2] * b[2];
+}
+
+// ==================================================================================================================
+TVector3 Normalize (const TVector3& v)
+{
+  float length = 0.0f;
+  for (size_t i = 0; i < 3; ++i)
+    length += v[i]*v[i];
+  length = std::sqrt(length);
+
+  TVector3 ret;
+  for (size_t i = 0; i < 3; ++i)
+    ret[i] = v[i] / length;
+
+  return ret;
+}
+
+// ==================================================================================================================
+TVector3 operator * (const TVector3& a, float b)
+{
+    return
+    {
+        a[0] * b,
+        a[1] * b,
+        a[2] * b
+    };
+}
+
+// ==================================================================================================================
+TVector3 operator + (const TVector3& a, const TVector3& b)
+{
+    return
+    {
+        a[0] + b[0],
+        a[1] + b[1],
+        a[2] + b[2]
+    };
+}
+
+// ==================================================================================================================
+TVector3 operator - (const TVector3& a, const TVector3& b)
+{
+    return
+    {
+        a[0] - b[0],
+        a[1] - b[1],
+        a[2] - b[2]
+    };
+}
+
+// ==================================================================================================================
 //                                     SBlockTimer
-// ============================================================================================
+// ==================================================================================================================
 struct SBlockTimer
 {
     SBlockTimer (const char* label)
@@ -135,13 +205,76 @@ bool SaveImage (const char *fileName, const SImageData &image)
 }
 
 // ==================================================================================================================
-TVector2 IntegrateBRDF (float ndotv, float roughness)
+float RadicalInverse_VdC (size_t bits)
+{
+    bits = (bits << 16u) | (bits >> 16u);
+    bits = ((bits & 0x55555555u) << 1u) | ((bits & 0xAAAAAAAAu) >> 1u);
+    bits = ((bits & 0x33333333u) << 2u) | ((bits & 0xCCCCCCCCu) >> 2u);
+    bits = ((bits & 0x0F0F0F0Fu) << 4u) | ((bits & 0xF0F0F0F0u) >> 4u);
+    bits = ((bits & 0x00FF00FFu) << 8u) | ((bits & 0xFF00FF00u) >> 8u);
+    return float(float(bits) * 2.3283064365386963e-10); // / 0x100000000
+}
+// ==================================================================================================================
+TVector2 Hammersley (size_t i, size_t N)
+{
+    return TVector2{ float(i) / float(N), RadicalInverse_VdC(i) };
+}
+
+// ==================================================================================================================
+TVector3 ImportanceSampleGGX (TVector2 Xi, TVector3 N, float roughness)
+{
+    float a = roughness*roughness;
+
+    float phi = 2.0f * c_pi * Xi[0];
+    float cosTheta = (float)std::sqrt((1.0 - Xi[1]) / (1.0 + (a*a - 1.0) * Xi[1]));
+    float sinTheta = (float)std::sqrt(1.0 - cosTheta*cosTheta);
+
+    // from spherical coordinates to cartesian coordinates
+    TVector3 H;
+    H[0] = cos(phi) * sinTheta;
+    H[1] = sin(phi) * sinTheta;
+    H[2] = cosTheta;
+
+    // from tangent-space vector to world-space sample vector
+    TVector3 up = abs(N[2]) < 0.999f ? TVector3{ 0.0f, 0.0f, 1.0f } : TVector3{ 1.0f, 0.0f, 0.0f };
+    TVector3 tangent = Normalize(Cross(up, N));
+    TVector3 bitangent = Cross(N, tangent);
+
+    TVector3 sampleVec = tangent * H[0] + bitangent * H[1] + N * H[2];
+    return Normalize(sampleVec);
+}
+
+// ==================================================================================================================
+float GeometrySchlickGGX (float NdotV, float roughness)
+{
+    float a = roughness;
+    float k = (a * a) / 2.0f;
+
+    float nom   = NdotV;
+    float denom = NdotV * (1.0f - k) + k;
+
+    return nom / denom;
+}
+
+// ==================================================================================================================
+float GeometrySmith (const TVector3& N, const TVector3& V, const TVector3& L, float roughness)
+{
+    float NdotV = max(Dot(N, V), 0.0f);
+    float NdotL = max(Dot(N, L), 0.0f);
+    float ggx2 = GeometrySchlickGGX(NdotV, roughness);
+    float ggx1 = GeometrySchlickGGX(NdotL, roughness);
+
+    return ggx1 * ggx2;
+}  
+
+// ==================================================================================================================
+TVector2 IntegrateBRDF (float NdotV, float roughness)
 {
     // from https://learnopengl.com/#!PBR/IBL/Specular-IBL
     TVector3 V;
-    V[0] = std::sqrt(1.0f - ndotv*ndotv);
+    V[0] = std::sqrt(1.0f - NdotV*NdotV);
     V[1] = 0.0f;
-    V[2] = ndotv;
+    V[2] = NdotV;
 
     float A = 0.0f;
     float B = 0.0f;
@@ -150,10 +283,30 @@ TVector2 IntegrateBRDF (float ndotv, float roughness)
 
     for (size_t i = 0; i < BRDF_INTEGRATION_SAMPLE_COUNT(); ++i)
     {
+        TVector2 Xi = Hammersley(i, BRDF_INTEGRATION_SAMPLE_COUNT());
+        TVector3 H = ImportanceSampleGGX(Xi, N, roughness);
+        TVector3 L = Normalize(H * 2.0 * Dot(V, H) - V);
 
+        float NdotL = max(L[2], 0.0f);
+        float NdotH = max(H[2], 0.0f);
+        float VdotH = max(Dot(V, H), 0.0f);
+
+        if (NdotL > 0.0)
+        {
+            float G = GeometrySmith(N, V, L, roughness);
+            float G_Vis = (G * VdotH) / (NdotH * NdotV);
+            float Fc = pow(1.0f - VdotH, 5.0f);
+
+            A += (1.0f - Fc) * G_Vis;
+            B += Fc * G_Vis;
+        }
     }
 
-    return{ 0.0f, 1.0f };
+    // TODO: does it make sense to divide by 1024 if we didn't get data for all 1024 samples due to NdotL check?
+
+    A /= float(BRDF_INTEGRATION_SAMPLE_COUNT());
+    B /= float(BRDF_INTEGRATION_SAMPLE_COUNT());
+    return TVector2{ A, B };
 }
 
 // ==================================================================================================================
@@ -171,21 +324,25 @@ void GenerateSplitSumTexture ()
         // get the pixel at the start of this row
         uint8* pixel = &splitSumTexture.m_pixels[iy * splitSumTexture.m_pitch];
 
-        float ndotv = float(iy) / float(SPLIT_SUM_SIZE() - 1);
+        float roughness = float(iy) / float(SPLIT_SUM_SIZE() - 1);
 
         for (size_t ix = 0; ix < SPLIT_SUM_SIZE(); ++ix)
         {
-            float roughness = float(ix) / float(SPLIT_SUM_SIZE() - 1);
+            float NdotV = float(ix) / float(SPLIT_SUM_SIZE() - 1);
 
-            TVector2 integratedBRDF = IntegrateBRDF(ndotv, roughness);
-            pixel[0] = uint8(integratedBRDF[0] * 255.0f);
+            TVector2 integratedBRDF = IntegrateBRDF(NdotV, roughness);
+            pixel[2] = uint8(integratedBRDF[0] * 255.0f);
             pixel[1] = uint8(integratedBRDF[1] * 255.0f);
-            pixel[2] = 0;
+            pixel[0] = 0;
 
             // move to the next pixel
             pixel += 3;
         }
+
+        // TODO: print some (better) progress!
+        printf("\r                   \r%zu / %zu", iy + 1, (size_t)SPLIT_SUM_SIZE());
     }
+    printf("\n");
 
     if (SaveImage("SplitSum.bmp", splitSumTexture))
         printf("Saved: SplitSum.bmp\n");
@@ -206,6 +363,11 @@ int main (int argc, char **argcv)
 TODO:
 * make splitsum texture
 * pre-integrate cube maps for specular
+
+* profile!
+* make splitsum multithreaded. one row per thread i guess, or maybe divide the image into equal parts or something?
+
+* TODO's in code
 
 * #define's for image sizes and processing sizes
 * SRGB correction
