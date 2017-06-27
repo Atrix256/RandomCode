@@ -8,11 +8,20 @@
 #include <thread>
 #include <atomic>
 
-#define SPLIT_SUM_SIZE() 256 // size in width and height of the split sum texture
+// for debugging. Set to 1 to make it all run on the main thread.
+#define FORCE_SINGLETHREADED() 0
 
+// size in width and height of the split sum texture
+#define SPLIT_SUM_SIZE() 256 
+
+// number of samples per pixel for split sum texture
 #define BRDF_INTEGRATION_SAMPLE_COUNT() 1024
 
-#define FORCE_SINGLETHREADED() 0
+// number of cube map mips to generate
+#define MAX_MIP_LEVELS() 5
+
+// Source images will be resized to this width and height in memory if they are larger than this
+#define MAX_SOURCE_IMAGE_SIZE() 128
 
 // ==================================================================================================================
 const float c_pi = 3.14159265359f;
@@ -94,7 +103,17 @@ TVector3 operator - (const TVector3& a, const TVector3& b)
 }
 
 // ==================================================================================================================
-//                                     SBlockTimer
+template <typename T>
+inline T Clamp (T value, T min, T max)
+{
+    if (value < min)
+        return min;
+    else if (value > max)
+        return max;
+    else
+        return value;
+}
+
 // ==================================================================================================================
 struct SBlockTimer
 {
@@ -127,6 +146,81 @@ struct SBlockTimer
     size_t m_pitch;
     std::vector<uint8> m_pixels;
 };
+
+ // ==================================================================================================================
+// t is a value that goes from 0 to 1 to interpolate in a C1 continuous way across uniformly sampled data points.
+// when t is 0, this will return B.  When t is 1, this will return C.  Inbetween values will return an interpolation
+// between B and C.  A and B are used to calculate slopes at the edges.
+// More info at: https://blog.demofox.org/2015/08/15/resizing-images-with-bicubic-interpolation/
+float CubicHermite (float A, float B, float C, float D, float t)
+{
+    float a = -A / 2.0f + (3.0f*B) / 2.0f - (3.0f*C) / 2.0f + D / 2.0f;
+    float b = A - (5.0f*B) / 2.0f + 2.0f*C - D / 2.0f;
+    float c = -A / 2.0f + C / 2.0f;
+    float d = B;
+
+    return a*t*t*t + b*t*t + c*t + d;
+}
+
+// ==================================================================================================================
+const uint8* GetPixelClamped (const SImageData& image, int x, int y)
+{
+    x = Clamp<int>(x, 0, (int)image.m_width - 1);
+    y = Clamp<int>(y, 0, (int)image.m_height - 1);
+    return &image.m_pixels[(y * image.m_pitch) + x * 3];
+}
+
+// ==================================================================================================================
+std::array<uint8, 3> SampleBicubic (const SImageData& image, float u, float v)
+{
+    // calculate coordinates -> also need to offset by half a pixel to keep image from shifting down and left half a pixel
+    float x = (u * image.m_width) - 0.5f;
+    int xint = int(x);
+    float xfract = x - floor(x);
+
+    float y = (v * image.m_height) - 0.5f;
+    int yint = int(y);
+    float yfract = y - floor(y);
+
+    // 1st row
+    auto p00 = GetPixelClamped(image, xint - 1, yint - 1);
+    auto p10 = GetPixelClamped(image, xint + 0, yint - 1);
+    auto p20 = GetPixelClamped(image, xint + 1, yint - 1);
+    auto p30 = GetPixelClamped(image, xint + 2, yint - 1);
+
+    // 2nd row
+    auto p01 = GetPixelClamped(image, xint - 1, yint + 0);
+    auto p11 = GetPixelClamped(image, xint + 0, yint + 0);
+    auto p21 = GetPixelClamped(image, xint + 1, yint + 0);
+    auto p31 = GetPixelClamped(image, xint + 2, yint + 0);
+
+    // 3rd row
+    auto p02 = GetPixelClamped(image, xint - 1, yint + 1);
+    auto p12 = GetPixelClamped(image, xint + 0, yint + 1);
+    auto p22 = GetPixelClamped(image, xint + 1, yint + 1);
+    auto p32 = GetPixelClamped(image, xint + 2, yint + 1);
+
+    // 4th row
+    auto p03 = GetPixelClamped(image, xint - 1, yint + 2);
+    auto p13 = GetPixelClamped(image, xint + 0, yint + 2);
+    auto p23 = GetPixelClamped(image, xint + 1, yint + 2);
+    auto p33 = GetPixelClamped(image, xint + 2, yint + 2);
+
+    // interpolate bi-cubically!
+    // Clamp the values since the curve can put the value below 0 or above 255
+    std::array<uint8, 3> ret;
+    for (int i = 0; i < 3; ++i)
+    {
+        float col0 = CubicHermite(p00[i], p10[i], p20[i], p30[i], xfract);
+        float col1 = CubicHermite(p01[i], p11[i], p21[i], p31[i], xfract);
+        float col2 = CubicHermite(p02[i], p12[i], p22[i], p32[i], xfract);
+        float col3 = CubicHermite(p03[i], p13[i], p23[i], p33[i], xfract);
+        float value = CubicHermite(col0, col1, col2, col3, yfract);
+        value = Clamp(value, 0.0f, 255.0f);
+        ret[i] = uint8(value);
+    }
+    return ret;
+}
 
  // ==================================================================================================================
 bool LoadImage (const char *fileName, SImageData& imageData)
@@ -203,6 +297,49 @@ bool SaveImage (const char *fileName, const SImageData &image)
     fwrite(&image.m_pixels[0], infoHeader.biSizeImage, 1, file);
     fclose(file);
     return true;
+}
+
+// ==================================================================================================================
+void DownsizeImage (SImageData& image, size_t imageSize)
+{
+    // repeatedly cut image in half (at max) until we reach the desired size.
+    // done this way to avoid aliasing.
+    while (image.m_width > imageSize)
+    {
+        // calculate new image size
+        size_t newImageSize = image.m_width / 2;
+        if (newImageSize < imageSize)
+            newImageSize = imageSize;
+
+        // allocate new image
+        SImageData newImage;
+        newImage.m_width = newImageSize;
+        newImage.m_height = newImageSize;
+        newImage.m_pitch = 4 * ((newImage.m_width * 24 + 31) / 32);
+        newImage.m_pixels.resize(newImage.m_height * newImage.m_pitch);
+
+        // sample pixels
+        for (size_t iy = 0, iyc = newImage.m_height; iy < iyc; ++iy)
+        {
+            float percentY = float(iy) / float(iyc);
+
+            uint8* destPixel = &newImage.m_pixels[iy * newImage.m_pitch];
+            for (size_t ix = 0, ixc = newImage.m_width; ix < ixc; ++ix)
+            {
+                float percentX = float(ix) / float(ixc);
+
+                std::array<uint8, 3> srcSample = SampleBicubic(image, percentX, percentY);
+                destPixel[0] = srcSample[0];
+                destPixel[1] = srcSample[1];
+                destPixel[2] = srcSample[2];
+
+                destPixel += 3;
+            }
+        }
+
+        // set the image to the new image to possibly go through the loop again
+        image = newImage;
+    }
 }
 
 // ==================================================================================================================
@@ -397,9 +534,102 @@ void GenerateSplitSumTexture ()
 }
 
 // ==================================================================================================================
+void DownsizeSourceThreadFunc (SImageData srcImages[6])
+{
+    static std::atomic<size_t> s_imageIndex(0);
+    size_t imageIndex = s_imageIndex.fetch_add(1);
+    while (imageIndex < 6)
+    {
+        // downsize
+        DownsizeImage(srcImages[imageIndex], MAX_SOURCE_IMAGE_SIZE());
+
+        // get next image to process
+        imageIndex = s_imageIndex.fetch_add(1);
+    }
+}
+
+// ==================================================================================================================
+void GenerateCubeMap (const char* src)
+{
+    const char* srcPatterns[6] = {
+        "%sLeft.bmp",
+        "%sDown.bmp",
+        "%sBack.bmp",
+        "%sRight.bmp",
+        "%sUp.bmp",
+        "%sFront.bmp",
+    };
+
+    const char* destPatterns[6] = {
+        "%sDiffuseLeft.bmp",
+        "%sDiffuseDown.bmp",
+        "%sDiffuseBack.bmp",
+        "%sDiffuseRight.bmp",
+        "%sDiffuseUp.bmp",
+        "%sDiffuseFront.bmp",
+    };
+
+    // load the source images
+    SImageData srcImages[6];
+    for (size_t i = 0; i < 6; ++i)
+    {
+        char fileName[256];
+        sprintf(fileName, srcPatterns[i], src);
+
+        if (LoadImage(fileName, srcImages[i]))
+        {
+            printf("Loaded: %s (%zu x %zu)\n", fileName, srcImages[i].m_width, srcImages[i].m_height);
+
+            if (srcImages[i].m_width != srcImages[i].m_height)
+            {
+                printf("image is not square!\n");
+                return;
+            }
+        }
+        else
+        {
+            printf("Could not load image: %s\n", fileName);
+            return;
+        }
+    }
+
+    // verify that the images are all the same size
+    for (size_t i = 1; i < 6; ++i)
+    {
+        if (srcImages[i].m_width != srcImages[0].m_width || srcImages[i].m_height != srcImages[0].m_height)
+        {
+            printf("images are not all the same size!\n");
+            return;
+        }
+    }
+
+    // Resize source images in memory
+    if (srcImages[0].m_width > MAX_SOURCE_IMAGE_SIZE())
+    {
+        printf("\nDownsizing source images in memory to %i x %i\n", MAX_SOURCE_IMAGE_SIZE(), MAX_SOURCE_IMAGE_SIZE());
+        RunMultiThreaded(
+            "Downsize source image",
+            [&srcImages] () {DownsizeSourceThreadFunc(srcImages); },
+            false
+        );
+    }
+
+    // TODO: continue
+    int ijkl = 0;
+}
+
+// ==================================================================================================================
 int main (int argc, char **argcv)
 {
+    //const char* src = "Vasa\\Vasa";
+    //const char* src = "ame_ash\\ashcanyon";
+    //const char* src = "DallasW\\dallas";
+    //const char* src = "MarriottMadisonWest\\Marriot";
+    const char* src = "mnight\\mnight";
+
     GenerateSplitSumTexture();
+
+    GenerateCubeMap(src);
 
     system("pause");
 
@@ -409,6 +639,9 @@ int main (int argc, char **argcv)
 /*
 
 TODO:
+! it looks like the website starts with images that are 128x128
+
+? what size should images be before processing and after?
 ? why does split sum have black at x = 0?
 * pre-integrate cube maps for specular
 * profile!
@@ -417,6 +650,8 @@ TODO:
 
 * #define's for image sizes and processing sizes
 * SRGB correction (only for cube map, not split sum)
+
+* the other one has "WaitForEnter" calls and this one uses pause (maybe the other does too?) standardize it!
 
 BLOG:
 * Show split sum texture with fewer samples, as well as uniform sampling and random sampling?

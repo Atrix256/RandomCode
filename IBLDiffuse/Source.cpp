@@ -12,10 +12,10 @@
 #define FORCE_SINGLETHREADED() 0
 
 // Source images will be resized to this width and height in memory if they are larger than this, before convolution
-#define MAX_SOURCE_IMAGE_SIZE 64
+#define MAX_SOURCE_IMAGE_SIZE() 64
 
 // Destination images will be resized to this width and height in memory if they are larger than this, after convolution
-#define MAX_OUTPUT_IMAGE_SIZE 32
+#define MAX_OUTPUT_IMAGE_SIZE() 32
 
 // If true, assumes source images are sRGB, and while write results as sRGB as well. If 0, assumes source is linear and also writes out linear results.
 #define DO_SRGB_CORRECTIONS() 1
@@ -553,7 +553,7 @@ void DownsizeSourceThreadFunc ()
     while (imageIndex < 6)
     {
         // downsize
-        DownsizeImage(g_srcImages[imageIndex], MAX_SOURCE_IMAGE_SIZE);
+        DownsizeImage(g_srcImages[imageIndex], MAX_SOURCE_IMAGE_SIZE());
 
         // initialize destination image
         g_destImages[imageIndex].m_width = g_srcImages[imageIndex].m_width;
@@ -574,7 +574,7 @@ void DownsizeOutputThreadFunc ()
     while (imageIndex < 6)
     {
         // downsize
-        DownsizeImage(g_destImages[imageIndex], MAX_OUTPUT_IMAGE_SIZE);
+        DownsizeImage(g_destImages[imageIndex], MAX_OUTPUT_IMAGE_SIZE());
 
         // get next image to process
         imageIndex = s_imageIndex.fetch_add(1);
@@ -670,9 +670,9 @@ int main (int argc, char **argv)
     }
 
     // Resize source images in memory
-    if (g_srcImages[0].m_width > MAX_SOURCE_IMAGE_SIZE)
+    if (g_srcImages[0].m_width > MAX_SOURCE_IMAGE_SIZE())
     {
-        printf("\nDownsizing source images in memory to %i x %i\n", MAX_SOURCE_IMAGE_SIZE, MAX_SOURCE_IMAGE_SIZE);
+        printf("\nDownsizing source images in memory to %i x %i\n", MAX_SOURCE_IMAGE_SIZE(), MAX_SOURCE_IMAGE_SIZE());
         RunMultiThreaded("Downsize source image", DownsizeSourceThreadFunc, false);
     }
 
@@ -681,9 +681,9 @@ int main (int argc, char **argv)
     RunMultiThreaded("convolution", ConvolutionThreadFunc, true);
 
     // Resize destination images in memory
-    if (g_srcImages[0].m_width > MAX_OUTPUT_IMAGE_SIZE)
+    if (g_srcImages[0].m_width > MAX_OUTPUT_IMAGE_SIZE())
     {
-        printf("\nDownsizing output images in memory to %i x %i\n", MAX_OUTPUT_IMAGE_SIZE, MAX_OUTPUT_IMAGE_SIZE);
+        printf("\nDownsizing output images in memory to %i x %i\n", MAX_OUTPUT_IMAGE_SIZE(), MAX_OUTPUT_IMAGE_SIZE());
         RunMultiThreaded("Downsize output image", DownsizeOutputThreadFunc, false);
     }
 
