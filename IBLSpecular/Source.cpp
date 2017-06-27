@@ -528,9 +528,9 @@ void GenerateSplitSumTexture ()
     );
 
     if (SaveImage("SplitSum.bmp", splitSumTexture))
-        printf("Saved: SplitSum.bmp\n");
+        printf("Saved: SplitSum.bmp\n\n");
     else
-        printf("Could not save image: SplitSum.bmp\n");
+        printf("Could not save image: SplitSum.bmp\n\n");
 }
 
 // ==================================================================================================================
