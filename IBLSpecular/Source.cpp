@@ -314,7 +314,7 @@ void RunMultiThreaded (const char* label, const L& lambda, bool newline)
 {
     SBlockTimer timer(label);
     size_t numThreads = FORCE_SINGLETHREADED() ? 1 : std::thread::hardware_concurrency();
-    printf("Doing %s with %zu threads.\n", label, numThreads);
+    printf("%s with %zu threads.\n", label, numThreads);
     if (numThreads > 1)
     {
         std::vector<std::thread> threads;
