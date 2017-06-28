@@ -534,7 +534,7 @@ void GenerateSplitSumTexture ()
 }
 
 // ==================================================================================================================
-void DownsizeSourceThreadFunc (SImageData srcImages[6])
+void DownsizeSourceThreadFunc (std::array<SImageData, 6>& srcImages)
 {
     static std::atomic<size_t> s_imageIndex(0);
     size_t imageIndex = s_imageIndex.fetch_add(1);
@@ -545,6 +545,24 @@ void DownsizeSourceThreadFunc (SImageData srcImages[6])
 
         // get next image to process
         imageIndex = s_imageIndex.fetch_add(1);
+    }
+}
+
+// ==================================================================================================================
+void ConvolutionThreadFunc (std::array<SImageData, 6>& srcImages, std::array<SImageData, 6 * MAX_MIP_LEVELS()>& destImages)
+{
+    static std::atomic<size_t> s_rowIndex(0);
+
+    size_t numRows = 0;
+    for (const SImageData& image : destImages)
+        numRows += image.m_height;
+
+    size_t rowIndex = s_rowIndex.fetch_add(1);
+    while (rowIndex < numRows)
+    {
+        //ProcessRow(rowIndex);
+        OnRowComplete(rowIndex, numRows);
+        rowIndex = s_rowIndex.fetch_add(1);
     }
 }
 
@@ -561,16 +579,16 @@ void GenerateCubeMap (const char* src)
     };
 
     const char* destPatterns[6] = {
-        "%sDiffuseLeft.bmp",
-        "%sDiffuseDown.bmp",
-        "%sDiffuseBack.bmp",
-        "%sDiffuseRight.bmp",
-        "%sDiffuseUp.bmp",
-        "%sDiffuseFront.bmp",
+        "%sSpecularLeft.bmp",
+        "%sSpecularDown.bmp",
+        "%sSpecularBack.bmp",
+        "%sSpecularRight.bmp",
+        "%sSpecularUp.bmp",
+        "%sSpecularFront.bmp",
     };
 
     // load the source images
-    SImageData srcImages[6];
+    std::array<SImageData, 6> srcImages;
     for (size_t i = 0; i < 6; ++i)
     {
         char fileName[256];
@@ -613,9 +631,31 @@ void GenerateCubeMap (const char* src)
             false
         );
     }
+    printf("\n");
 
-    // TODO: continue
-    int ijkl = 0;
+    // Allocate destination images
+    std::array<SImageData, 6 * MAX_MIP_LEVELS()> destImages;
+    size_t imageSize = srcImages[0].m_width;
+    for (size_t mipIndex = 0; mipIndex < MAX_MIP_LEVELS(); ++mipIndex)
+    {
+        for (size_t faceIndex = 0; faceIndex < 6; ++faceIndex)
+        {
+            SImageData& destImage = destImages[mipIndex * 6 + faceIndex];
+
+            destImage.m_width = imageSize;
+            destImage.m_height = imageSize;
+            destImage.m_pitch = 4 * ((destImage.m_width * 24 + 31) / 32);
+            destImage.m_pixels.resize(destImage.m_height * destImage.m_pitch);
+        }
+        imageSize /= 2;
+    }
+
+    // Do the convolution
+    RunMultiThreaded(
+        "Doing convolution",
+        [&srcImages, &destImages] () { ConvolutionThreadFunc(srcImages, destImages); },
+        true
+    );
 }
 
 // ==================================================================================================================
@@ -639,7 +679,10 @@ int main (int argc, char **argcv)
 /*
 
 TODO:
+* use std::array instead of real arrays so you can loop over it more cleanly
 ! it looks like the website starts with images that are 128x128
+
+? in diffuse, should ConvolutionThreadFunc loop through dest images instead of source to get a row count?
 
 ? what size should images be before processing and after?
 ? why does split sum have black at x = 0?
