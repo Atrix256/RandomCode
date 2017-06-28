@@ -8,6 +8,10 @@
 #include <thread>
 #include <atomic>
 
+// TODO: make sure this is 1 before checkin!
+// Whether to make the splitsum texture or not (speeds it up if you don't need it)
+#define MAKE_SPLITSUM() 0
+
 // for debugging. Set to 1 to make it all run on the main thread.
 #define FORCE_SINGLETHREADED() 0
 
@@ -549,6 +553,25 @@ void DownsizeSourceThreadFunc (std::array<SImageData, 6>& srcImages)
 }
 
 // ==================================================================================================================
+void ProcessRow (std::array<SImageData, 6>& srcImages, std::array<SImageData, 6 * MAX_MIP_LEVELS()>& destImages, size_t rowIndex)
+{
+    // calculate which image we are on, while also making sure our row index is correct within that image.
+    size_t imageIndex = 0;
+    while (rowIndex >= destImages[imageIndex].m_height)
+    {
+        rowIndex -= destImages[imageIndex].m_height;
+        ++imageIndex;
+    }
+
+    // calculate the face index and mip level from our image index
+    size_t faceIndex = imageIndex % 6;
+    size_t mipIndex = imageIndex / 6;
+
+    // TODO: continue!
+    int ijkl = 0;
+}
+
+// ==================================================================================================================
 void ConvolutionThreadFunc (std::array<SImageData, 6>& srcImages, std::array<SImageData, 6 * MAX_MIP_LEVELS()>& destImages)
 {
     static std::atomic<size_t> s_rowIndex(0);
@@ -560,7 +583,7 @@ void ConvolutionThreadFunc (std::array<SImageData, 6>& srcImages, std::array<SIm
     size_t rowIndex = s_rowIndex.fetch_add(1);
     while (rowIndex < numRows)
     {
-        //ProcessRow(rowIndex);
+        ProcessRow(srcImages, destImages, rowIndex);
         OnRowComplete(rowIndex, numRows);
         rowIndex = s_rowIndex.fetch_add(1);
     }
@@ -667,7 +690,9 @@ int main (int argc, char **argcv)
     //const char* src = "MarriottMadisonWest\\Marriot";
     const char* src = "mnight\\mnight";
 
-    GenerateSplitSumTexture();
+    #if MAKE_SPLITSUM()
+        GenerateSplitSumTexture();
+    #endif
 
     GenerateCubeMap(src);
 
@@ -679,10 +704,10 @@ int main (int argc, char **argcv)
 /*
 
 TODO:
-* use std::array instead of real arrays so you can loop over it more cleanly
 ! it looks like the website starts with images that are 128x128
 
 ? in diffuse, should ConvolutionThreadFunc loop through dest images instead of source to get a row count?
+ * same in ProcessRow()
 
 ? what size should images be before processing and after?
 ? why does split sum have black at x = 0?
