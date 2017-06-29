@@ -27,6 +27,9 @@
 // Source images will be resized to this width and height in memory if they are larger than this
 #define MAX_SOURCE_IMAGE_SIZE() 128
 
+// If true, assumes skybox source images are sRGB, and will write results as sRGB as well. If 0, assumes source is linear and also writes out linear results.
+#define DO_SRGB_CORRECTIONS() 1
+
 // ==================================================================================================================
 const float c_pi = 3.14159265359f;
 
@@ -85,6 +88,16 @@ TVector3 operator * (const TVector3& a, float b)
 }
 
 // ==================================================================================================================
+template <size_t N>
+inline TVector<N> operator / (const TVector<N>& a, float b)
+{
+    TVector<N> result;
+    for (size_t i = 0; i < N; ++i)
+        result[i] = a[i] / b;
+    return result;
+}
+
+// ==================================================================================================================
 TVector3 operator + (const TVector3& a, const TVector3& b)
 {
     return
@@ -116,6 +129,13 @@ inline T Clamp (T value, T min, T max)
         return max;
     else
         return value;
+}
+
+// ============================================================================================
+// from http://www.rorydriscoll.com/2012/01/15/cubemap-texel-solid-angle/
+inline float AreaElement(float x, float y)
+{
+    return std::atan2(x * y, std::sqrt(x * x + y * y + 1));
 }
 
 // ==================================================================================================================
@@ -553,6 +573,115 @@ void DownsizeSourceThreadFunc (std::array<SImageData, 6>& srcImages)
 }
 
 // ==================================================================================================================
+void GetFaceBasis (size_t faceIndex, TVector3& facePlane, TVector3& uAxis, TVector3& vAxis)
+{
+    facePlane = { 0, 0, 0 };
+    facePlane[faceIndex % 3] = (faceIndex / 3) ? 1.0f : -1.0f;
+    uAxis = { 0, 0, 0 };
+    vAxis = { 0, 0, 0 };
+    switch (faceIndex % 3)
+    {
+        case 0:
+        {
+            uAxis[2] = (faceIndex / 3) ? 1.0f : -1.0f;
+            vAxis[1] = 1.0f;
+            break;
+        }
+        case 1:
+        {
+            uAxis[0] = 1.0f;
+            vAxis[2] = (faceIndex / 3) ? 1.0f : -1.0f;
+            break;
+        }
+        case 2:
+        {
+            uAxis[0] = (faceIndex / 3) ? 1.0f : -1.0f;
+            vAxis[1] = 1.0f;
+        }
+    }
+
+    if ((faceIndex % 3) == 2)
+        facePlane[2] *= -1.0f;
+}
+
+// ==================================================================================================================
+TVector3 SpecularIrradianceForNormal (std::array<SImageData, 6>& srcImages, const TVector3& normal)
+{
+    // TODO: convert this to specular calculations!
+    // loop through every pixel in the source cube map and add that pixel's contribution to the diffuse irradiance
+    float totalWeight = 0.0f;
+    TVector3 irradiance = { 0.0f, 0.0f, 0.0f };
+    for (size_t faceIndex = 0; faceIndex < 6; ++faceIndex)
+    {
+        const SImageData& src = srcImages[faceIndex];
+        TVector3 facePlane, uAxis, vAxis;
+        GetFaceBasis(faceIndex, facePlane, uAxis, vAxis);
+
+        float invResolution = 1.0f / src.m_width;
+
+        for (size_t iy = 0, iyc = src.m_height; iy < iyc; ++iy)
+        {
+            TVector2 uv;
+            uv[1] = (float(iy) / float(iyc - 1)) * 2.0f - 1.0f;
+
+            const uint8* pixel = &src.m_pixels[iy * src.m_pitch];
+            for (size_t ix = 0, ixc = src.m_width; ix < ixc; ++ix)
+            {
+                uv[0] = (float(ix) / float(ixc - 1)) * 2.0f - 1.0f;
+
+                // only accept directions where dot product greater than 0
+                TVector3 sampleDir =
+                    facePlane +
+                    uAxis * uv[0] +
+                    vAxis * uv[1];
+                Normalize(sampleDir);
+                float cosTheta = Dot(normal, sampleDir);
+                if (cosTheta <= 0.0f)
+                    continue;
+
+                // get the pixel color and move to the next pixel
+                TVector3 pixelColor =
+                {
+                    float(pixel[0]) / 255.0f,
+                    float(pixel[1]) / 255.0f,
+                    float(pixel[2]) / 255.0f,
+                };
+                pixel += 3;
+
+                #if DO_SRGB_CORRECTIONS()
+                    pixelColor[0] = std::pow(pixelColor[0], 2.2f);
+                    pixelColor[1] = std::pow(pixelColor[1], 2.2f);
+                    pixelColor[2] = std::pow(pixelColor[2], 2.2f);
+                #endif
+
+                // calculate solid angle (size) of the pixel
+                float x0 = uv[0] - invResolution;
+                float y0 = uv[1] - invResolution;
+                float x1 = uv[0] + invResolution;
+                float y1 = uv[1] + invResolution;
+                float solidAngle = AreaElement(x0, y0) - AreaElement(x0, y1) - AreaElement(x1, y0) + AreaElement(x1, y1);
+
+                // add this pixel's contribution into the radiance
+                irradiance = irradiance + pixelColor * solidAngle * cosTheta;
+
+                // keep track of the total weight so we can normalize later
+                totalWeight += solidAngle;                
+            }
+        }
+    }
+    
+    irradiance = irradiance * 4.0f / totalWeight;
+
+    #if DO_SRGB_CORRECTIONS()
+        irradiance[0] = std::pow(irradiance[0], 1.0f / 2.2f);
+        irradiance[1] = std::pow(irradiance[1], 1.0f / 2.2f);
+        irradiance[2] = std::pow(irradiance[2], 1.0f / 2.2f);
+    #endif
+
+    return irradiance;
+}
+
+// ==================================================================================================================
 void ProcessRow (std::array<SImageData, 6>& srcImages, std::array<SImageData, 6 * MAX_MIP_LEVELS()>& destImages, size_t rowIndex)
 {
     // calculate which image we are on, while also making sure our row index is correct within that image.
@@ -567,8 +696,33 @@ void ProcessRow (std::array<SImageData, 6>& srcImages, std::array<SImageData, 6 
     size_t faceIndex = imageIndex % 6;
     size_t mipIndex = imageIndex / 6;
 
-    // TODO: continue!
-    int ijkl = 0;
+    TVector3 facePlane, uAxis, vAxis;
+    GetFaceBasis(faceIndex, facePlane, uAxis, vAxis);
+
+    SImageData &destData = destImages[mipIndex * 6 + faceIndex];
+    uint8* pixel = &destData.m_pixels[rowIndex * destData.m_pitch];
+    TVector2 uv;
+    uv[1] = (float(rowIndex) / float(destData.m_height - 1));
+    for (size_t ix = 0; ix < destData.m_width; ++ix)
+    {
+        uv[0] = (float(ix) / float(destData.m_width - 1));
+
+        // calculate the position of the pixel on the cube
+        TVector3 normalDir =
+            facePlane +
+            uAxis * (uv[0] * 2.0f - 1.0f) +
+            vAxis * (uv[1] * 2.0f - 1.0f);
+        Normalize(normalDir);
+
+        // get the specular irradiance for this direction
+        TVector3 specularIrradiance = SpecularIrradianceForNormal(srcImages, normalDir);
+
+        // store the resulting color
+        pixel[0] = (uint8)Clamp(specularIrradiance[0] * 255.0f, 0.0f, 255.0f);
+        pixel[1] = (uint8)Clamp(specularIrradiance[1] * 255.0f, 0.0f, 255.0f);
+        pixel[2] = (uint8)Clamp(specularIrradiance[2] * 255.0f, 0.0f, 255.0f);
+        pixel += 3;
+    }
 }
 
 // ==================================================================================================================
@@ -602,12 +756,12 @@ void GenerateCubeMap (const char* src)
     };
 
     const char* destPatterns[6] = {
-        "%sSpecularLeft.bmp",
-        "%sSpecularDown.bmp",
-        "%sSpecularBack.bmp",
-        "%sSpecularRight.bmp",
-        "%sSpecularUp.bmp",
-        "%sSpecularFront.bmp",
+        "%s%iSpecularLeft.bmp",
+        "%s%iSpecularDown.bmp",
+        "%s%iSpecularBack.bmp",
+        "%s%iSpecularRight.bmp",
+        "%s%iSpecularUp.bmp",
+        "%s%iSpecularFront.bmp",
     };
 
     // load the source images
@@ -679,6 +833,25 @@ void GenerateCubeMap (const char* src)
         [&srcImages, &destImages] () { ConvolutionThreadFunc(srcImages, destImages); },
         true
     );
+
+    // save output images
+    for (size_t mipIndex = 0; mipIndex < MAX_MIP_LEVELS(); ++mipIndex)
+    {
+        for (size_t faceIndex = 0; faceIndex < 6; ++faceIndex)
+        {
+            char destFileName[256];
+            sprintf(destFileName, destPatterns[faceIndex], src, mipIndex);
+            if (SaveImage(destFileName, destImages[mipIndex*6+faceIndex]))
+            {
+                printf("Saved: %s\n", destFileName);
+            }
+            else
+            {
+                printf("Could not save image: %s\n", destFileName);
+                return;
+            }
+        }
+    }
 }
 
 // ==================================================================================================================

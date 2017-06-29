@@ -17,7 +17,7 @@
 // Destination images will be resized to this width and height in memory if they are larger than this, after convolution
 #define MAX_OUTPUT_IMAGE_SIZE() 32
 
-// If true, assumes source images are sRGB, and while write results as sRGB as well. If 0, assumes source is linear and also writes out linear results.
+// If true, assumes source images are sRGB, and will write results as sRGB as well. If 0, assumes source is linear and also writes out linear results.
 #define DO_SRGB_CORRECTIONS() 1
 
 // ==================================================================================================================
