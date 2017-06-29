@@ -605,9 +605,71 @@ void GetFaceBasis (size_t faceIndex, TVector3& facePlane, TVector3& uAxis, TVect
 }
 
 // ==================================================================================================================
-TVector3 SpecularIrradianceForNormal (std::array<SImageData, 6>& srcImages, const TVector3& normal)
+float DistributionGGX (TVector3 N, TVector3 H, float roughness)
 {
+    float a = roughness*roughness;
+    float a2 = a*a;
+    float NdotH = max(Dot(N, H), 0.0f);
+    float NdotH2 = NdotH*NdotH;
+
+    float nom = a2;
+    float denom = (NdotH2 * (a2 - 1.0f) + 1.0f);
+    denom = c_pi * denom * denom;
+
+    return nom / denom;
+}
+
+// ==================================================================================================================
+TVector3 SpecularIrradianceForNormal (std::array<SImageData, 6>& srcImages, const TVector3& normal, float roughness)
+{
+    // TODO: should we loop through all source pixels and use solid angle like we do with diffuse? i say yes, if we can!
     // TODO: convert this to specular calculations!
+    // TODO: sRGB!
+    // TODO: clean this up
+    // TODO: it had source image resolution as 512x512. what? maybe i need to process full sized images? i dunno.
+
+
+    // make the simplyfying assumption that V equals R equals the normal 
+    TVector3 R = normal;
+    TVector3 V = R;
+
+    const size_t SAMPLE_COUNT = 1024u;
+    TVector3 prefilteredColor = { 0.0f, 0.0f, 0.0f };
+    float totalWeight = 0.0f;
+
+    for (size_t i = 0; i < SAMPLE_COUNT; ++i)
+    {
+        // generates a sample vector that's biased towards the preferred alignment direction (importance sampling).
+        TVector2 Xi = Hammersley(i, SAMPLE_COUNT);
+        TVector3 H = ImportanceSampleGGX(Xi, normal, roughness);
+        TVector3 L = Normalize(H * Dot(V, H) * 2.0f - V);
+
+        float NdotL = max(Dot(normal, L), 0.0f);
+        if (NdotL > 0.0)
+        {
+            // sample from the environment's mip level based on roughness/pdf
+            float D = DistributionGGX(normal, H, roughness);
+            float NdotH = max(Dot(normal, H), 0.0f);
+            float HdotV = max(Dot(H, V), 0.0f);
+            float pdf = D * NdotH / (4.0f * HdotV) + 0.0001f;
+
+            float resolution = float(srcImages[0].m_width); // resolution of source cubemap (per face)
+            float saTexel = 4.0f * c_pi / (6.0f * resolution * resolution);
+            float saSample = 1.0f / (float(SAMPLE_COUNT) * pdf + 0.0001f);
+
+            float mipLevel = roughness == 0.0f ? 0.0f : 0.5f * log2(saSample / saTexel);
+
+            // TODO: sample the cube map!
+            //prefilteredColor += textureLod(environmentMap, L, mipLevel).rgb * NdotL;
+            totalWeight += NdotL;
+        }
+    }
+
+    prefilteredColor = prefilteredColor / totalWeight;
+
+    return prefilteredColor;
+
+#if 0
     // loop through every pixel in the source cube map and add that pixel's contribution to the diffuse irradiance
     float totalWeight = 0.0f;
     TVector3 irradiance = { 0.0f, 0.0f, 0.0f };
@@ -664,6 +726,23 @@ TVector3 SpecularIrradianceForNormal (std::array<SImageData, 6>& srcImages, cons
                 // add this pixel's contribution into the radiance
                 irradiance = irradiance + pixelColor * solidAngle * cosTheta;
 
+                /*
+                // sample from the environment's mip level based on roughness/pdf
+                float D = DistributionGGX(N, H, roughness);
+                float NdotH = max(dot(N, H), 0.0);
+                float HdotV = max(dot(H, V), 0.0);
+                float pdf = D * NdotH / (4.0 * HdotV) + 0.0001;
+
+                float resolution = 512.0; // resolution of source cubemap (per face)
+                float saTexel = 4.0 * PI / (6.0 * resolution * resolution);
+                float saSample = 1.0 / (float(SAMPLE_COUNT) * pdf + 0.0001);
+
+                float mipLevel = roughness == 0.0 ? 0.0 : 0.5 * log2(saSample / saTexel);
+
+                prefilteredColor += textureLod(environmentMap, L, mipLevel).rgb * NdotL;
+                totalWeight += NdotL;
+                */
+
                 // keep track of the total weight so we can normalize later
                 totalWeight += solidAngle;                
             }
@@ -679,6 +758,7 @@ TVector3 SpecularIrradianceForNormal (std::array<SImageData, 6>& srcImages, cons
     #endif
 
     return irradiance;
+#endif
 }
 
 // ==================================================================================================================
@@ -695,6 +775,9 @@ void ProcessRow (std::array<SImageData, 6>& srcImages, std::array<SImageData, 6 
     // calculate the face index and mip level from our image index
     size_t faceIndex = imageIndex % 6;
     size_t mipIndex = imageIndex / 6;
+
+    // calculate roughness
+    float roughness = (float)mipIndex / (float)(MAX_MIP_LEVELS() - 1);
 
     TVector3 facePlane, uAxis, vAxis;
     GetFaceBasis(faceIndex, facePlane, uAxis, vAxis);
@@ -715,7 +798,7 @@ void ProcessRow (std::array<SImageData, 6>& srcImages, std::array<SImageData, 6 
         Normalize(normalDir);
 
         // get the specular irradiance for this direction
-        TVector3 specularIrradiance = SpecularIrradianceForNormal(srcImages, normalDir);
+        TVector3 specularIrradiance = SpecularIrradianceForNormal(srcImages, normalDir, roughness);
 
         // store the resulting color
         pixel[0] = (uint8)Clamp(specularIrradiance[0] * 255.0f, 0.0f, 255.0f);
