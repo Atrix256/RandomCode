@@ -13,6 +13,7 @@
 #define MAKE_SPLITSUM() 0
 
 // for debugging. Set to 1 to make it all run on the main thread.
+// TODO: make sure this is set to 0 before checkin
 #define FORCE_SINGLETHREADED() 0
 
 // size in width and height of the split sum texture
@@ -77,23 +78,32 @@ TVector3 Normalize (const TVector3& v)
 }
 
 // ==================================================================================================================
-TVector3 operator * (const TVector3& a, float b)
+template <size_t N>
+inline TVector<N> operator * (const TVector<N>& a, float b)
 {
-    return
-    {
-        a[0] * b,
-        a[1] * b,
-        a[2] * b
-    };
+    TVector<N> ret;
+    for (size_t i = 0; i < N; ++i)
+        ret[i] = a[i] * b;
+    return ret;
 }
 
 // ==================================================================================================================
 template <size_t N>
 inline TVector<N> operator / (const TVector<N>& a, float b)
 {
+    TVector<N> ret;
+    for (size_t i = 0; i < N; ++i)
+        ret[i] = a[i] / b;
+    return ret;
+}
+
+// ==================================================================================================================
+template <size_t N>
+inline TVector<N> operator + (const TVector<N>& a, float b)
+{
     TVector<N> result;
     for (size_t i = 0; i < N; ++i)
-        result[i] = a[i] / b;
+        result[i] = a[i] + b;
     return result;
 }
 
@@ -620,10 +630,72 @@ float DistributionGGX (TVector3 N, TVector3 H, float roughness)
 }
 
 // ==================================================================================================================
-TVector3 SpecularIrradianceForNormal (std::array<SImageData, 6>& srcImages, const TVector3& normal, float roughness)
+TVector3 SampleCubeMap (const std::array<SImageData, 6>& srcImages, const TVector3& dir)
+{
+    float maxAbs = abs(dir[0]);
+    size_t maxComponent = 0;
+    for (size_t i = 1; i < 3; ++i)
+    {
+        if (abs(dir[i]) >= maxAbs)
+        {
+            maxAbs = abs(dir[i]);
+            maxComponent = i;
+        }
+    }
+
+    size_t face = maxComponent;
+    if (dir[maxComponent] > 0.0f)
+        face += 3;
+
+    // TODO: why is this code so special case. Is handedness different somewhere? A bug somewhere maybe?
+    TVector2 uv;
+    switch (maxComponent)
+    {
+        case 0:
+        {
+            uv[0] = dir[2];
+            uv[1] = dir[1];
+
+            if (dir[maxComponent] < 0.0f)
+                uv[1] *= -1.0f;
+
+            break;
+        }
+        case 1:
+        {
+            uv[0] = dir[0];
+            uv[1] = dir[2];
+
+            if (dir[maxComponent] < 0.0f)
+                uv[0] *= -1.0f;
+
+            break;
+        }
+        case 2:
+        {
+            face = (face + 3) % 6;
+            uv[0] = -dir[0];
+            uv[1] = dir[1];
+
+            if (dir[maxComponent] < 0.0f)
+                uv[1] *= -1.0f;
+
+            break;
+        }
+    }
+
+    uv = uv / dir[maxComponent];
+    uv = uv * 0.5f + 0.5f;
+
+    std::array<uint8, 3> sample = SampleBicubic(srcImages[face], uv[0], uv[1]);
+
+    return{ float(sample[0]) / 255.0f, float(sample[1]) / 255.0f, float(sample[2]) / 255.0f };
+}
+
+// ==================================================================================================================
+TVector3 SpecularIrradianceForNormal (const std::array<SImageData, 6>& srcImages, const TVector3& normal, float roughness)
 {
     // TODO: should we loop through all source pixels and use solid angle like we do with diffuse? i say yes, if we can!
-    // TODO: convert this to specular calculations!
     // TODO: sRGB!
     // TODO: clean this up
     // TODO: it had source image resolution as 512x512. what? maybe i need to process full sized images? i dunno.
@@ -659,8 +731,10 @@ TVector3 SpecularIrradianceForNormal (std::array<SImageData, 6>& srcImages, cons
 
             float mipLevel = roughness == 0.0f ? 0.0f : 0.5f * log2(saSample / saTexel);
 
-            // TODO: sample the cube map!
+            // TODO: sample the cube map at a specific mip level
             //prefilteredColor += textureLod(environmentMap, L, mipLevel).rgb * NdotL;
+
+            prefilteredColor = prefilteredColor + SampleCubeMap(srcImages, L) * NdotL;
             totalWeight += NdotL;
         }
     }
@@ -762,7 +836,7 @@ TVector3 SpecularIrradianceForNormal (std::array<SImageData, 6>& srcImages, cons
 }
 
 // ==================================================================================================================
-void ProcessRow (std::array<SImageData, 6>& srcImages, std::array<SImageData, 6 * MAX_MIP_LEVELS()>& destImages, size_t rowIndex)
+void ProcessRow (const std::array<SImageData, 6>& srcImages, std::array<SImageData, 6 * MAX_MIP_LEVELS()>& destImages, size_t rowIndex)
 {
     // calculate which image we are on, while also making sure our row index is correct within that image.
     size_t imageIndex = 0;
@@ -809,7 +883,7 @@ void ProcessRow (std::array<SImageData, 6>& srcImages, std::array<SImageData, 6 
 }
 
 // ==================================================================================================================
-void ConvolutionThreadFunc (std::array<SImageData, 6>& srcImages, std::array<SImageData, 6 * MAX_MIP_LEVELS()>& destImages)
+void ConvolutionThreadFunc (const std::array<SImageData, 6>& srcImages, std::array<SImageData, 6 * MAX_MIP_LEVELS()>& destImages)
 {
     static std::atomic<size_t> s_rowIndex(0);
 
@@ -940,11 +1014,11 @@ void GenerateCubeMap (const char* src)
 // ==================================================================================================================
 int main (int argc, char **argcv)
 {
-    //const char* src = "Vasa\\Vasa";
+    const char* src = "Vasa\\Vasa";
     //const char* src = "ame_ash\\ashcanyon";
     //const char* src = "DallasW\\dallas";
     //const char* src = "MarriottMadisonWest\\Marriot";
-    const char* src = "mnight\\mnight";
+    //const char* src = "mnight\\mnight";
 
     #if MAKE_SPLITSUM()
         GenerateSplitSumTexture();
@@ -962,11 +1036,11 @@ int main (int argc, char **argcv)
 TODO:
 ! it looks like the website starts with images that are 128x128
 
-? in diffuse, should ConvolutionThreadFunc loop through dest images instead of source to get a row count?
+? in diffuse project, should ConvolutionThreadFunc loop through dest images instead of source to get a row count?
  * same in ProcessRow()
 
 ? what size should images be before processing and after?
-? why does split sum have black at x = 0?
+? why does split sum have black at x = 0? i think cause it needs to be plus half a pixel. in reality, we'd be doing center of pixel so wouldn't be at zero.
 * pre-integrate cube maps for specular
 * profile!
 
