@@ -519,16 +519,19 @@ void GenerateSplitSumTextureThreadFunc (SImageData& splitSumTexture)
 {
     static std::atomic<size_t> s_rowIndex(0);
     size_t rowIndex = s_rowIndex.fetch_add(1);
+
+    const float c_halfAPixel = 0.5f / SPLIT_SUM_SIZE();
+
     while (rowIndex < SPLIT_SUM_SIZE())
     {
         // get the pixel at the start of this row
         uint8* pixel = &splitSumTexture.m_pixels[rowIndex * splitSumTexture.m_pitch];
 
-        float roughness = float(rowIndex) / float(SPLIT_SUM_SIZE() - 1);
+        float roughness = float(rowIndex) / float(SPLIT_SUM_SIZE()) + c_halfAPixel;
 
         for (size_t ix = 0; ix < SPLIT_SUM_SIZE(); ++ix)
         {
-            float NdotV = float(ix) / float(SPLIT_SUM_SIZE() - 1);
+            float NdotV = float(ix) / float(SPLIT_SUM_SIZE()) + c_halfAPixel;
 
             TVector2 integratedBRDF = IntegrateBRDF(NdotV, roughness);
             pixel[2] = uint8(integratedBRDF[0] * 255.0f);
