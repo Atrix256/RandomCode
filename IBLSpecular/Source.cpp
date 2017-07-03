@@ -1039,6 +1039,10 @@ int main (int argc, char **argcv)
 TODO:
 ! it looks like the website starts with images that are 128x128
 
+* cube map sampling function is awefully suspect.
+
+* may need to offset uv by half a pixel when sampling cube maps. I think this may be why we sometimes get a single "wrong" row or column, with pixels from the other face.
+
 ? in diffuse project, should ConvolutionThreadFunc loop through dest images instead of source to get a row count?
  * same in ProcessRow()
 
