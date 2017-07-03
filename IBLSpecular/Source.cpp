@@ -8,12 +8,10 @@
 #include <thread>
 #include <atomic>
 
-// TODO: make sure this is 1 before checkin!
 // Whether to make the splitsum texture or not (speeds it up if you don't need it)
-#define MAKE_SPLITSUM() 0
+#define MAKE_SPLITSUM() 1
 
 // for debugging. Set to 1 to make it all run on the main thread.
-// TODO: make sure this is set to 0 before checkin
 #define FORCE_SINGLETHREADED() 0
 
 // size in width and height of the split sum texture
@@ -692,14 +690,26 @@ TVector3 SampleCubeMap (const std::array<SImageData, 6>& srcImages, const TVecto
 
     std::array<uint8, 3> sample = SampleBicubic(srcImages[face], uv[0], uv[1]);
 
-    return{ float(sample[0]) / 255.0f, float(sample[1]) / 255.0f, float(sample[2]) / 255.0f };
+    TVector3 pixelColor =
+    {
+        float(sample[0]) / 255.0f,
+        float(sample[1]) / 255.0f,
+        float(sample[2]) / 255.0f,
+    };
+
+    #if DO_SRGB_CORRECTIONS()
+        pixelColor[0] = std::pow(pixelColor[0], 2.2f);
+        pixelColor[1] = std::pow(pixelColor[1], 2.2f);
+        pixelColor[2] = std::pow(pixelColor[2], 2.2f);
+    #endif
+
+    return pixelColor;
 }
 
 // ==================================================================================================================
 TVector3 SpecularIrradianceForNormal (const std::array<SImageData, 6>& srcImages, const TVector3& normal, float roughness)
 {
     // TODO: should we loop through all source pixels and use solid angle like we do with diffuse? i say yes, if we can!
-    // TODO: sRGB!
     // TODO: clean this up
     // TODO: it had source image resolution as 512x512. what? maybe i need to process full sized images? i dunno.
 
@@ -743,6 +753,12 @@ TVector3 SpecularIrradianceForNormal (const std::array<SImageData, 6>& srcImages
     }
 
     prefilteredColor = prefilteredColor / totalWeight;
+
+    #if DO_SRGB_CORRECTIONS()
+        prefilteredColor[0] = std::pow(prefilteredColor[0], 1.0f / 2.2f);
+        prefilteredColor[1] = std::pow(prefilteredColor[1], 1.0f / 2.2f);
+        prefilteredColor[2] = std::pow(prefilteredColor[2], 1.0f / 2.2f);
+    #endif
 
     return prefilteredColor;
 
@@ -1017,11 +1033,11 @@ void GenerateCubeMap (const char* src)
 // ==================================================================================================================
 int main (int argc, char **argcv)
 {
-    const char* src = "Vasa\\Vasa";
+    //const char* src = "Vasa\\Vasa";
     //const char* src = "ame_ash\\ashcanyon";
     //const char* src = "DallasW\\dallas";
     //const char* src = "MarriottMadisonWest\\Marriot";
-    //const char* src = "mnight\\mnight";
+    const char* src = "mnight\\mnight";
 
     #if MAKE_SPLITSUM()
         GenerateSplitSumTexture();
