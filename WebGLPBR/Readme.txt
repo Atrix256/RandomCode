@@ -1,3 +1,10 @@
+* make specular IBL work.
+ * load in the custom mips.
+ * make it use them in the specular stuff.
+ * make it so you can see them, by choosing a skybox that shows them, like we can with diffuse
+
+
+
 * make an instructional window that goes away when clicked. "click on the screen to enter mouse look mode.  WASD to move around, mouse to look.  escape to leave mouse look mode.  click on [-] to open the debug panel. Best viewed in chrome (?)"
  * test on other browsers.  See if escape is the way to exit for others too.
 
