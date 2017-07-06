@@ -378,7 +378,7 @@ vec3 IBL (vec3 N, vec3 V, vec3 R, vec3 albedo, float metallic, float roughness, 
   // TODO: temp!
   //roughness = 1.0f;
 
-  vec3 prefilteredColor = textureLod(u_specularIBL, R, roughness * MAX_REFLECTION_LOD).rgb;    
+  vec3 prefilteredColor = pow(textureLod(u_specularIBL, R, roughness * MAX_REFLECTION_LOD).rgb, vec3(2.2));    
   vec2 brdf  = texture(u_splitSum, vec2(max(dot(N, V), 0.0), roughness)).rg;
   vec3 specular = prefilteredColor * (F * brdf.x + brdf.y);
 
