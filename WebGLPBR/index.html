@@ -2004,7 +2004,6 @@ function LoadImagesAndRender ()
           var texture = gl.createTexture();          
           gl.bindTexture(gl.TEXTURE_CUBE_MAP, texture);    
 
-          var found = [];
           for (var imageIndex = 0; imageIndex < images.length; ++imageIndex)
           {
             var side = null;
@@ -2032,30 +2031,61 @@ function LoadImagesAndRender ()
                           images[imageIndex]);   
           }
 
-          gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
           gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR);   
           gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, gl.LINEAR);      
           gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
           gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
           gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE);
 
-          gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
           g_skyboxImages[key][type] = texture;
         }
 
         // create the custom mip mapped sky boxes (pre-integrated roughness)
         var texture = gl.createTexture();          
         gl.bindTexture(gl.TEXTURE_CUBE_MAP, texture);    
-
-        // TODO: do i need to do this?
-        //gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
-
-        var found = [];
+        
+        // first we have to fill in mip zero with data
         for (var imageIndex = 0; imageIndex < images.length; ++imageIndex)
         {
           var side = null;
 
-          for (var type = 2; type <= 6; ++type)
+          {
+            var type = 2;
+            var mip = type - 2;
+
+            if (images[imageIndex].rawSrc == MakeSkyboxImagePath(type, g_skyboxes[key], "Back.png"))
+              side = gl.TEXTURE_CUBE_MAP_NEGATIVE_Z;
+            else if (images[imageIndex].rawSrc == MakeSkyboxImagePath(type, g_skyboxes[key], "Down.png"))
+              side = gl.TEXTURE_CUBE_MAP_NEGATIVE_Y;            
+            else if (images[imageIndex].rawSrc == MakeSkyboxImagePath(type, g_skyboxes[key], "Front.png"))
+              side = gl.TEXTURE_CUBE_MAP_POSITIVE_Z;            
+            else if (images[imageIndex].rawSrc == MakeSkyboxImagePath(type, g_skyboxes[key], "Left.png"))
+              side = gl.TEXTURE_CUBE_MAP_NEGATIVE_X;            
+            else if (images[imageIndex].rawSrc == MakeSkyboxImagePath(type, g_skyboxes[key], "Right.png"))
+              side = gl.TEXTURE_CUBE_MAP_POSITIVE_X;            
+            else if (images[imageIndex].rawSrc == MakeSkyboxImagePath(type, g_skyboxes[key], "Up.png"))
+              side = gl.TEXTURE_CUBE_MAP_POSITIVE_Y;
+            else
+              continue;
+
+            gl.texImage2D(side,
+                          mip,
+                          gl.RGBA,
+                          gl.RGBA,
+                          gl.UNSIGNED_BYTE,
+                          images[imageIndex]);   
+          }
+        }
+
+        // then we can generate mipmaps from that data
+        gl.generateMipmap(gl.TEXTURE_CUBE_MAP);        
+
+        // then we can fill in the mips with our custom images
+        for (var imageIndex = 0; imageIndex < images.length; ++imageIndex)
+        {
+          var side = null;
+
+          for (var type = 3; type <= 6; ++type)
           {
             var mip = type - 2;
 
@@ -2084,11 +2114,10 @@ function LoadImagesAndRender ()
         }
 
         gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-        gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR);   
         gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, gl.LINEAR);      
         gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE);        
 
         g_skyboxImages[key][7] = texture;        
       }

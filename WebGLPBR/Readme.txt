@@ -1,70 +1,17 @@
-* specular IBL seems too strong maybe..
- * Shader code to use the stuff: https://learnopengl.com/code_viewer_gh.php?code=src/6.pbr/2.2.2.ibl_specular_textured/2.2.2.pbr.fs
-
-? does roughness slider etc work like you'd expect?
- * allow roughness to go to zero now?
- 
-
+* there is a strange white spot in the center of the spheres. Need to check that out.  May be that something is being allowed to go over 1.0 somehow?
+* the cube maps are speckly at lower mips. i think you could sample the source data at lower mips to help that. OR use more samples.
 * the cube maps aren't seamless. probably bad source data. need to look into it. maybe we are improperly bicubically interpolating across face edges, or we aren't adding half a pixel or something
+* get rid of emissive display, since it isn't used.
+* make sure ambient term goes away when IBL is on.
 
+? maybe have debug panel open by default?
 
+? what of the below is actually important?
+ * cull as much as possible
+ * blog post with demo, links to IBL specular / diffuse, learnopengl (https://learnopengl.com/#!PBR/Theory)
+ * upload new version to demofox.org
 
-* make an instructional window that goes away when clicked. "click on the screen to enter mouse look mode.  WASD to move around, mouse to look.  escape to leave mouse look mode.  click on [-] to open the debug panel. Best viewed in chrome (?)"
- * test on other browsers.  See if escape is the way to exit for others too.
-
-* check todos
-
-* then move to specular IBL!
-
-* after IBL, make it so PBR grid can use roughness of 0, not the minimum value it has.
-
-* Make a PBR renderer in WebGL:
- * https://learnopengl.com/#!PBR/Theory
-
-* upload new version to demofox.org and share? see what of the below actually needs to be done for this.
- * could put up a simple blog post: link to diffuse / specular IBL code, the learnopengl website and the demo itself.
-
-* add a model to the shape drop down list
-
-* profile code to see where time is going so far
-
-* TODO's!
-
-* make shader compiler do non blocking thing with webgl2 render fences
-
-* a starting image that says "click to begin. mouse look, WASD controls"
-* an image that says "loading..." for image loading (and later, shader compilations)
-
-* ambient occlusion of meshes, if using more complex meshes.
- * a program that does it, with a blog post about it!
-
-! upload what you have so far to demofox.org?
-
-? add an emissive texture? or get rid of emissive display maybe?
-
-* after IBL, get rid of ambient light? or have a mode to turn off IBL and use ambient in that case?
-
-* bezier rectangle later? (ray marched)
-
-? orbit camera mode?
-
-? is there a better way to get barycentrics in webgl?
-
-? use the #define's to change the vertex format to be leaner when it can be?
- * or can we share the buffers better?
-
-? load images on demand instead of in the beginning?
-
-* try running webgl in renderdoc (launch chrome from renderdoc)
- * "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe" --allow-file-access-from-files
- * first attempt didn't work
-
-* drop down menu for texture slots, with one main drop down for "presets" for the materials.
- * Yes get rid of untextured shader permutations after this and just use white textures etc?
-  * or allow untextured still
-
-* blog post on diffuse IBL at this point, with screenshots?
- * maybe save it for later when you understand the whole picture better.
+* check todos in C++ and webgl
 
 ? is it normal for colors to show up on metal when it shouldn't? ask SE. like red metal showing a green light.
 
@@ -73,6 +20,13 @@
 
 ===== LATER =====
 
+* model loading
+* ray march bezier rectangle
+
+* ambient occlusion of meshes, if using more complex meshes.
+ * a program that does it, with a blog post about it!
+
+* make shader compiler do non blocking thing with webgl2 render fences
 * blog post with links to resources, basic shell webgl pbr program, any programs you made or used.
 * SSR
 * shadow maps (temporal soft shadow maps from gpu pro 2?)
