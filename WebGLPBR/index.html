@@ -62,11 +62,11 @@ var g_skyboxImages = {};
 // skyboxes
 var g_skyboxes = 
 {
-  "Vasa"              : ["Skyboxes\\Vasa\\Vasa", "Skyboxes\\Vasa\\VasaDiffuse"],
-  "Marriot"           : ["Skyboxes\\Marriot\\Marriot", "Skyboxes\\Marriot\\MarriotDiffuse"],
-  "Dallas"            : ["Skyboxes\\Dallas\\Dallas", "Skyboxes\\Dallas\\DallasDiffuse"],
-  "mnight"            : ["Skyboxes\\mnight\\mnight", "Skyboxes\\mnight\\mnightDiffuse"],  
-  "ashcanyon"         : ["Skyboxes\\ashcanyon\\ashcanyon", "Skyboxes\\ashcanyon\\ashcanyonDiffuse"],
+  "Vasa"              : "Skyboxes\\Vasa\\Vasa",
+  "Marriot"           : "Skyboxes\\Marriot\\Marriot",
+  "Dallas"            : "Skyboxes\\Dallas\\Dallas",
+  "mnight"            : "Skyboxes\\mnight\\mnight",  
+  "ashcanyon"         : "Skyboxes\\ashcanyon\\ashcanyon",
 };
 
 // materials
@@ -169,7 +169,10 @@ var g_uniforms = {
   "u_textureNormal"         : ["sampler2D",   (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 3);}],  
   "u_textureAO"             : ["sampler2D",   (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 4);}],  
 
-  "u_diffuseIBL"            : ["samplerCube", (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE5); gl.bindTexture(gl.TEXTURE_CUBE_MAP, GetObjectValue(objectValues, key)); gl.uniform1i(location, 5);}], 
+  "u_splitSum"              : ["sampler2D",   (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE5); gl.bindTexture(gl.TEXTURE_2D, GetObjectValue(objectValues, key)); gl.uniform1i(location, 5);}],  
+
+  "u_diffuseIBL"            : ["samplerCube", (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE6); gl.bindTexture(gl.TEXTURE_CUBE_MAP, GetObjectValue(objectValues, key)); gl.uniform1i(location, 6);}],
+  "u_specularIBL"           : ["samplerCube", (key, location, objectValues) => {gl.activeTexture(gl.TEXTURE7); gl.bindTexture(gl.TEXTURE_CUBE_MAP, GetObjectValue(objectValues, key)); gl.uniform1i(location, 7);}],
 };
 
 EOutputMode = {
@@ -1906,12 +1909,12 @@ function LoadImagesAndRender ()
   {
     for (var type = 0; type <= 6; ++type)
     {
-      loadingImagesSet.add(MakeSkyboxImagePath(type, g_skyboxes[key][0], "Back.png"));
-      loadingImagesSet.add(MakeSkyboxImagePath(type, g_skyboxes[key][0], "Down.png"));
-      loadingImagesSet.add(MakeSkyboxImagePath(type, g_skyboxes[key][0], "Front.png"));
-      loadingImagesSet.add(MakeSkyboxImagePath(type, g_skyboxes[key][0], "Left.png"));
-      loadingImagesSet.add(MakeSkyboxImagePath(type, g_skyboxes[key][0], "Right.png"));
-      loadingImagesSet.add(MakeSkyboxImagePath(type, g_skyboxes[key][0], "Up.png"));
+      loadingImagesSet.add(MakeSkyboxImagePath(type, g_skyboxes[key], "Back.png"));
+      loadingImagesSet.add(MakeSkyboxImagePath(type, g_skyboxes[key], "Down.png"));
+      loadingImagesSet.add(MakeSkyboxImagePath(type, g_skyboxes[key], "Front.png"));
+      loadingImagesSet.add(MakeSkyboxImagePath(type, g_skyboxes[key], "Left.png"));
+      loadingImagesSet.add(MakeSkyboxImagePath(type, g_skyboxes[key], "Right.png"));
+      loadingImagesSet.add(MakeSkyboxImagePath(type, g_skyboxes[key], "Up.png"));
     }
   }
   var loadingImages = Array.from(loadingImagesSet);
@@ -1974,17 +1977,17 @@ function LoadImagesAndRender ()
           {
             var side = null;
 
-            if (images[imageIndex].rawSrc == MakeSkyboxImagePath(type, g_skyboxes[key][0], "Back.png"))
+            if (images[imageIndex].rawSrc == MakeSkyboxImagePath(type, g_skyboxes[key], "Back.png"))
               side = gl.TEXTURE_CUBE_MAP_NEGATIVE_Z;
-            else if (images[imageIndex].rawSrc == MakeSkyboxImagePath(type, g_skyboxes[key][0], "Down.png"))
+            else if (images[imageIndex].rawSrc == MakeSkyboxImagePath(type, g_skyboxes[key], "Down.png"))
               side = gl.TEXTURE_CUBE_MAP_NEGATIVE_Y;            
-            else if (images[imageIndex].rawSrc == MakeSkyboxImagePath(type, g_skyboxes[key][0], "Front.png"))
+            else if (images[imageIndex].rawSrc == MakeSkyboxImagePath(type, g_skyboxes[key], "Front.png"))
               side = gl.TEXTURE_CUBE_MAP_POSITIVE_Z;            
-            else if (images[imageIndex].rawSrc == MakeSkyboxImagePath(type, g_skyboxes[key][0], "Left.png"))
+            else if (images[imageIndex].rawSrc == MakeSkyboxImagePath(type, g_skyboxes[key], "Left.png"))
               side = gl.TEXTURE_CUBE_MAP_NEGATIVE_X;            
-            else if (images[imageIndex].rawSrc == MakeSkyboxImagePath(type, g_skyboxes[key][0], "Right.png"))
+            else if (images[imageIndex].rawSrc == MakeSkyboxImagePath(type, g_skyboxes[key], "Right.png"))
               side = gl.TEXTURE_CUBE_MAP_POSITIVE_X;            
-            else if (images[imageIndex].rawSrc == MakeSkyboxImagePath(type, g_skyboxes[key][0], "Up.png"))
+            else if (images[imageIndex].rawSrc == MakeSkyboxImagePath(type, g_skyboxes[key], "Up.png"))
               side = gl.TEXTURE_CUBE_MAP_POSITIVE_Y;
             else
               continue;

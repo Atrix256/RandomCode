@@ -1,9 +1,8 @@
-* make there be one key for skyboxes, so we can make specular mips programatically too.
-
 * make specular IBL work.
- * load in the custom mips.
- * make it use them in the specular stuff.
- * make it so you can see them, by choosing a skybox that shows them, like we can with diffuse
+ * load in the custom mips into a single cube map.
+ * pass the skybox to the shader
+ * actually pass split sum texture to the shader
+ * make it use the mips of the cube map them in the specular stuff.
 
 * the cube maps aren't seamless. probably bad source data. need to look into it. maybe we are improperly bicubically interpolating across face edges, or we aren't adding half a pixel or something
 
