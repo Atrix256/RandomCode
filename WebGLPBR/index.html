@@ -59,6 +59,12 @@ var g_clearColor = [
 var g_images = {};
 var g_skyboxImages = {};
 
+// other images to load
+var g_loadImages =
+[
+  "splitsum.png",
+];
+
 // skyboxes
 var g_skyboxes = 
 {
@@ -114,16 +120,19 @@ var g_skyboxShader = null;
 
 var g_lastShaderUsed = null;
 
+// light positions
 var g_light0Pos = [-5,-5, 5];
 var g_light1Pos = [-5, 5, 5];
 var g_light2Pos = [ 5,-5, 5];
 var g_light3Pos = [ 5, 5, 5];
 
+//lights
 var g_light0ColorA = [300.0, 300.0, 300.0];
 var g_light1ColorA = [300.0, 300.0, 300.0];
 var g_light2ColorA = [300.0, 300.0, 300.0];
 var g_light3ColorA = [300.0, 300.0, 300.0];
 
+// colorful lights
 var g_light0ColorB = [300.0,   0.0,   0.0];
 var g_light1ColorB = [  0.0, 300.0,   0.0];
 var g_light2ColorB = [  0.0,   0.0, 300.0];
@@ -350,16 +359,30 @@ vec3 PositionalLight (vec3 worldPos, vec3 N, vec3 V, vec3 lightPos, vec3 lightCo
   return (kD * albedo / PI + specular) * radiance * NdotL;  
 }
 
-vec3 IBL (vec3 N, vec3 V, vec3 albedo, float metallic, float roughness, float scalarF0)
+vec3 IBL (vec3 N, vec3 V, vec3 R, vec3 albedo, float metallic, float roughness, float scalarF0)
 {
   vec3 F0 = vec3(scalarF0); 
   F0      = mix(F0, albedo, metallic);
-  vec3 kS = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, roughness); 
+  vec3 F = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, roughness); 
+  vec3 kS = F;
   vec3 kD = 1.0 - kS;
   kD *= 1.0 - metallic;
+
+  // diffuse IBL
   vec3 irradiance = pow(texture(u_diffuseIBL, N).rgb, vec3(2.2));
   vec3 diffuse    = irradiance * albedo;
-  vec3 ambient    = (kD * diffuse);
+
+  // specular IBL
+  const float MAX_REFLECTION_LOD = 4.0;
+
+  // TODO: temp!
+  //roughness = 1.0f;
+
+  vec3 prefilteredColor = textureLod(u_specularIBL, R, roughness * MAX_REFLECTION_LOD).rgb;    
+  vec2 brdf  = texture(u_splitSum, vec2(max(dot(N, V), 0.0), roughness)).rg;
+  vec3 specular = prefilteredColor * (F * brdf.x + brdf.y);
+
+  vec3 ambient    = (kD * diffuse + specular);
   return ambient;
 }
  
@@ -404,6 +427,7 @@ void main()
   objectAO = mix(1.0, objectAO, u_AO);
   texN = mix(vec3(0.0, 0.0, 1.0), texN, u_normalMapping);
   vec3 N = normalize(v_tbn * texN);
+  vec3 R = reflect(-V, N); 
 
   // TODO: do these branchlessly
   if (objectMetallic <= 1.0)
@@ -422,9 +446,10 @@ void main()
   col += PositionalLight(v_worldPos, N, V, u_light2Pos, u_light2Color, objectAlbedo, objectMetallic, objectRoughness, u_objectF0) * objectAO;
   col += PositionalLight(v_worldPos, N, V, u_light3Pos, u_light3Color, objectAlbedo, objectMetallic, objectRoughness, u_objectF0) * objectAO;
 
-  // IBL or ambient light
+  // IBL diffuse and specular
   #if USE_IBL
-    col += IBL(N, V, objectAlbedo, objectMetallic, objectRoughness, u_objectF0)  * objectAO;
+    col += IBL(N, V, R, objectAlbedo, objectMetallic, objectRoughness, u_objectF0)  * objectAO;
+  // else, ambient light 
   #else
     col += u_ambientLight * objectAlbedo * objectAO;
   #endif
@@ -940,7 +965,11 @@ function PrepareToDrawMesh (translation, yawPitchRoll, scale, albedo, emissive, 
   }
 
   if (skybox)  
+  {
+    objectValues.u_splitSum = g_images["splitsum.png"];
     objectValues.u_diffuseIBL = skybox[1];
+    objectValues.u_specularIBL = skybox[7];
+  }
 
   objectValues.u_normalMapping = document.getElementById("Debug_NormalMapping").checked ? 1.0 : 0.0;
   objectValues.u_AO = document.getElementById("Debug_AO").checked ? 1.0 : 0.0;
@@ -1174,7 +1203,7 @@ function DrawScene (thisFrameTimeStamp)
               objectAlebdo,
               [0, 0, 0],
               iy * 2 / 8,
-              (ix / 8) * 1.9 + 0.1,
+              (ix / 8) * 2.0,
               objectF0,
               objectMaterialTextures);
           }
@@ -1187,7 +1216,7 @@ function DrawScene (thisFrameTimeStamp)
               objectAlebdo,
               [0, 0, 0],
               iy * 2 / 8,
-              (ix / 8) * 1.9 + 0.1,
+              (ix / 8) * 2.0,
               objectF0,
               objectMaterialTextures);
           }
@@ -1200,7 +1229,7 @@ function DrawScene (thisFrameTimeStamp)
               objectAlebdo,
               [0, 0, 0],
               iy / 8 * 2,
-              (ix / 8) * 1.9 + 0.1,
+              (ix / 8) * 2.0,
               objectF0,
               objectMaterialTextures);            
           }
@@ -1898,6 +1927,8 @@ function LoadImagesAndRender ()
 {
   // get the unique list of images to load
   var loadingImagesSet = new Set();
+  for (var index = 0; index < g_loadImages.length; ++index)
+    loadingImagesSet.add(g_loadImages[index]);  
   for (var key in g_materials)
   {
     for (var index = 0; index < g_materials[key].length; ++index)
@@ -1966,6 +1997,7 @@ function LoadImagesAndRender ()
       // create all the skyboxes
       for (var key in g_skyboxes)
       {       
+        // create the individual skyboxes
         g_skyboxImages[key] = [];
         for (var type = 0; type <= 6; ++type)
         {
@@ -2010,6 +2042,55 @@ function LoadImagesAndRender ()
           gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
           g_skyboxImages[key][type] = texture;
         }
+
+        // create the custom mip mapped sky boxes (pre-integrated roughness)
+        var texture = gl.createTexture();          
+        gl.bindTexture(gl.TEXTURE_CUBE_MAP, texture);    
+
+        // TODO: do i need to do this?
+        //gl.generateMipmap(gl.TEXTURE_CUBE_MAP);
+
+        var found = [];
+        for (var imageIndex = 0; imageIndex < images.length; ++imageIndex)
+        {
+          var side = null;
+
+          for (var type = 2; type <= 6; ++type)
+          {
+            var mip = type - 2;
+
+            if (images[imageIndex].rawSrc == MakeSkyboxImagePath(type, g_skyboxes[key], "Back.png"))
+              side = gl.TEXTURE_CUBE_MAP_NEGATIVE_Z;
+            else if (images[imageIndex].rawSrc == MakeSkyboxImagePath(type, g_skyboxes[key], "Down.png"))
+              side = gl.TEXTURE_CUBE_MAP_NEGATIVE_Y;            
+            else if (images[imageIndex].rawSrc == MakeSkyboxImagePath(type, g_skyboxes[key], "Front.png"))
+              side = gl.TEXTURE_CUBE_MAP_POSITIVE_Z;            
+            else if (images[imageIndex].rawSrc == MakeSkyboxImagePath(type, g_skyboxes[key], "Left.png"))
+              side = gl.TEXTURE_CUBE_MAP_NEGATIVE_X;            
+            else if (images[imageIndex].rawSrc == MakeSkyboxImagePath(type, g_skyboxes[key], "Right.png"))
+              side = gl.TEXTURE_CUBE_MAP_POSITIVE_X;            
+            else if (images[imageIndex].rawSrc == MakeSkyboxImagePath(type, g_skyboxes[key], "Up.png"))
+              side = gl.TEXTURE_CUBE_MAP_POSITIVE_Y;
+            else
+              continue;
+
+            gl.texImage2D(side,
+                          mip,
+                          gl.RGBA,
+                          gl.RGBA,
+                          gl.UNSIGNED_BYTE,
+                          images[imageIndex]);   
+          }
+        }
+
+        gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+        gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR);   
+        gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, gl.LINEAR);      
+        gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE);
+
+        g_skyboxImages[key][7] = texture;        
       }
       gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
 

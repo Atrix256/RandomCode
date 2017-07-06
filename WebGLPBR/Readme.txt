@@ -1,8 +1,9 @@
-* make specular IBL work.
- * load in the custom mips into a single cube map.
- * pass the skybox to the shader
- * actually pass split sum texture to the shader
- * make it use the mips of the cube map them in the specular stuff.
+* specular IBL seems too strong maybe..
+ * Shader code to use the stuff: https://learnopengl.com/code_viewer_gh.php?code=src/6.pbr/2.2.2.ibl_specular_textured/2.2.2.pbr.fs
+
+? does roughness slider etc work like you'd expect?
+ * allow roughness to go to zero now?
+ 
 
 * the cube maps aren't seamless. probably bad source data. need to look into it. maybe we are improperly bicubically interpolating across face edges, or we aren't adding half a pixel or something
 
@@ -19,6 +20,9 @@
 
 * Make a PBR renderer in WebGL:
  * https://learnopengl.com/#!PBR/Theory
+
+* upload new version to demofox.org and share? see what of the below actually needs to be done for this.
+ * could put up a simple blog post: link to diffuse / specular IBL code, the learnopengl website and the demo itself.
 
 * add a model to the shape drop down list
 
