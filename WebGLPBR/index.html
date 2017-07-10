@@ -1426,13 +1426,13 @@ function ToggleDebugPanel ()
     {
         document.getElementById("DebugPanelControls").style.visibility = "visible";
         document.getElementById("DebugPanelControls").style.display = "";        
-        document.getElementById("DebugPanelCollapseIcon").innerText="[-] Debug Panel";
+        document.getElementById("DebugPanelCollapseIcon").innerText="[close] Debug Panel";
     }
     else
     {
         document.getElementById("DebugPanelControls").style.visibility = "hidden";
         document.getElementById("DebugPanelControls").style.display = "none";        
-        document.getElementById("DebugPanelCollapseIcon").innerText="[+] Debug Panel";
+        document.getElementById("DebugPanelCollapseIcon").innerText="[open] Debug Panel";
     }
 }
 
@@ -2322,7 +2322,7 @@ function Initialize ()
     <span id="CameraPosDisplay">Camera: (0.00,0.00,0.00)</span>    
     <span id="Loading">Loading</span>
     <span id="DebugPanel">
-        <a href="#" id="DebugPanelCollapseIcon" onClick="ToggleDebugPanel(); return false;">[-] Debug Panel</a>
+        <a href="#" id="DebugPanelCollapseIcon" onClick="ToggleDebugPanel(); return false;">[close] Debug Panel</a>
         <span id="DebugPanelControls">
             <hr>
             <table>
@@ -2384,6 +2384,9 @@ function Initialize ()
             </select>
             </td></tr>
             </table>
+            <br><br>
+            Written by Alan Wolfe (<a target="_blank" href="https://twitter.com/Atrix256">@Atrix256</a>)<br>
+            Details: <a target="_blank" href="https://blog.demofox.org/2017/07/10/webgl-pbr-implementation/"/>https://blog.demofox.org/2017/07/10/webgl-pbr-implementation/</a>
         </span>
     </span>
 </div>
