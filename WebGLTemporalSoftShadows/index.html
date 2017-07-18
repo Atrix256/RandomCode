@@ -1,0 +1,251 @@
+<html>
+<head>
+<title>WebGL Temporal Soft Shadows</title>
+<style>
+body {background-color: black; color: #00FF00;}
+canvas#RenderWindow {background-color: black; border:1px solid #00FF00; width: 500px; height: 500px;}
+</style>
+<script>
+/*=========================================================================================
+Created by Alan Wolfe
+http://demofox.org
+http://blog.demofox.org
+https://twitter.com/Atrix256
+=========================================================================================*/
+
+var g_canvas = null;
+var gl = null;
+
+var g_projectionMatrix;
+var g_cameraMatrix;
+
+var g_cameraPosition = [0,0,15];
+
+var g_cameraYawPitchRoll = [0, 0, 0];
+
+var g_lastFrameTimeStamp = 0;
+var g_frameCount = 0;
+var g_frameCountTime = 0;
+
+var g_clearColor = [0.5, 0.5, 0.5];
+
+//=========================================================================================
+function VectorMultiply(a, b)
+{
+	var ret = [];
+	for (var i = 0; i < a.length; ++i)
+		ret[i] = a[i] * b;
+	return ret;
+}
+
+//=========================================================================================
+function UpdateCameraMatrix ()
+{
+    g_cameraMatrix = CameraMatrix(g_cameraYawPitchRoll, VectorMultiply(g_cameraPosition, -1));
+}
+
+//=========================================================================================
+function UpdateProjectionMatrix ()
+{
+    g_projectionMatrix = Perspective(45.0 * 3.14 / 180.0, gl.canvas.width / gl.canvas.height, 1.0, 2000.0);
+}
+
+//=========================================================================================
+function Resize (canvas) {
+  // Lookup the size the browser is displaying the canvas.
+  var displayWidth  = canvas.clientWidth;
+  var displayHeight = canvas.clientHeight;
+ 
+  // Check if the canvas is not the same size.
+  if (canvas.width  !== displayWidth ||
+      canvas.height !== displayHeight) {
+ 
+      // Make the canvas the same size
+      canvas.width  = displayWidth;
+      canvas.height = displayHeight;
+
+      UpdateProjectionMatrix();
+  }
+}
+
+//=========================================================================================
+function Perspective (fieldOfViewInRadians, aspect, near, far) {
+    var f = Math.tan(Math.PI * 0.5 - 0.5 * fieldOfViewInRadians);
+    var rangeInv = 1.0 / (near - far);
+ 
+    return [
+      f / aspect, 0, 0, 0,
+      0, f, 0, 0,
+      0, 0, (near + far) * rangeInv, -1,
+      0, 0, near * far * rangeInv * 2, 0
+    ];
+}
+
+//=========================================================================================
+function MultiplyMatrix4x4 (A, B)
+{
+  var ret = [];
+
+  for (var i = 0; i < 4; ++i)
+  {
+    for (var j = 0; j < 4; ++j)
+    {
+      ret[i*4+j] = 
+        A[i*4+0] * B[0*4+j] + 
+        A[i*4+1] * B[1*4+j] + 
+        A[i*4+2] * B[2*4+j] + 
+        A[i*4+3] * B[3*4+j];
+    }
+  }
+
+  return ret;
+}
+
+//=========================================================================================
+function CameraMatrix (yawPitchRoll, translation) {
+
+  var cosAlpha = Math.cos(yawPitchRoll[2]);
+  var sinAlpha = Math.sin(yawPitchRoll[2]);
+
+  var cosBeta = Math.cos(yawPitchRoll[0]);
+  var sinBeta = Math.sin(yawPitchRoll[0]);
+
+  var cosGamma = Math.cos(yawPitchRoll[1]);
+  var sinGamma = Math.sin(yawPitchRoll[1]);
+
+  var rot = [
+    cosAlpha * cosBeta, cosAlpha * sinBeta * sinGamma - sinAlpha * cosGamma, cosAlpha * sinBeta * cosGamma + sinAlpha * sinGamma, 0,
+    sinAlpha * cosBeta, sinAlpha * sinBeta * sinGamma + cosAlpha * cosGamma, sinAlpha * sinBeta * cosGamma - cosAlpha * sinGamma, 0,
+    -sinBeta, cosBeta * sinGamma, cosBeta * cosGamma, 0,
+    0, 0, 0, 1
+  ];
+
+  var trans = [
+    1, 0, 0, 0,
+    0, 1, 0, 0,
+    0, 0, 1, 0,
+    translation[0], translation[1], translation[2], 1
+  ];
+
+  return MultiplyMatrix4x4(trans, rot);
+}
+
+//=========================================================================================
+function DrawScene (thisFrameTimeStamp)
+{
+    // calculate a delta time for our frame
+    var deltaTime = 0.0;
+    if (typeof thisFrameTimeStamp != 'undefined')
+    {
+      thisFrameTimeStamp *= 0.001;
+      deltaTime = thisFrameTimeStamp - g_lastFrameTimeStamp;
+      g_lastFrameTimeStamp = thisFrameTimeStamp;
+    }
+
+    // handle FPS calculation
+    g_frameCount++;
+    g_frameCountTime+=deltaTime;
+    if (g_frameCountTime > 0.5)
+    {
+      var fps = g_frameCount / g_frameCountTime;
+      //document.getElementById("FPSDisplay").innerText = "(" + gl.canvas.width + "x" + gl.canvas.height + ") FPS: " + fps.toFixed(2) + " (" + (1000/fps).toFixed(2)+ " ms)";
+      g_frameCount = 0;
+      g_frameCountTime = 0;
+    }
+
+    // Draw
+    Resize(gl.canvas);
+    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+
+    // Clear the canvas
+    gl.clearColor(g_clearColor[0], g_clearColor[1], g_clearColor[2], 1);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);    
+
+    // enable depth test
+    gl.enable(gl.DEPTH_TEST);
+    gl.depthFunc(gl.LESS);    
+
+    /*
+	  DrawSphere(
+	    GetLightPos(0), 
+	    [0,0,0],
+	    [0.1, 0.1, 0.1],
+	    [0, 0, 0],
+	    color,
+	    0,0,0,
+	    null
+	  );*/
+
+    // request another frame to be drawn
+    requestAnimationFrame(DrawScene);
+}
+
+//=========================================================================================
+function Initialize ()
+{
+    // initialize webgl2
+    g_canvas = document.getElementById("RenderWindow");
+    gl = g_canvas.getContext("webgl2");
+    if (!gl)
+    {
+        alert("could not get webgl2 context!");
+        return;
+    }
+
+/*
+    // make the meshes
+    var sphereMesh = GenerateSphereMesh(20, 20);    
+    var cubeMesh = GenerateCubeMesh();
+    var tetrahedronMesh = GenerateTetrahedronMesh();
+    */
+
+    /*
+    // make the uniform definitions for the shaders
+    g_uniformsShaderSource = "// uniform constants\n";
+    for (var key in g_uniforms)
+      g_uniformsShaderSource += "uniform " + g_uniforms[key][0] + " " + key + ";\n";    
+
+    // make each shader permutation
+    for (var i = 0; i < GetNumShaderPermutations(); ++i)
+    {
+      // make permutation specific defines
+      var permutationSource = GetShaderPermutationSourceString(i);
+
+      // make the shader
+      var shader = MakeShader(vertexShaderSource, fragmentShaderSource, permutationSource);
+
+      // make the sphere mesh buffers
+      shader.sphereMeshVertCount = sphereMesh.pos.length;
+      shader.sphereMesh = gl.createVertexArray();
+      gl.bindVertexArray(shader.sphereMesh);    
+      MakeMeshBuffers(sphereMesh, shader.program);
+
+      // make the cube mesh buffers
+      shader.cubeMeshVertCount = cubeMesh.pos.length;
+      shader.cubeMesh = gl.createVertexArray();
+      gl.bindVertexArray(shader.cubeMesh);    
+      MakeMeshBuffers(cubeMesh, shader.program);     
+
+      // make the tetrahedron mesh buffers
+      shader.tetrahedronMeshVertCount = tetrahedronMesh.pos.length;
+      shader.tetrahedronMesh = gl.createVertexArray();
+      gl.bindVertexArray(shader.tetrahedronMesh);    
+      MakeMeshBuffers(tetrahedronMesh, shader.program);           
+
+      g_shaders[i] = shader;
+    }
+    */
+
+    // calculate initial camera matrix
+    UpdateCameraMatrix();
+
+	// start rendering
+    DrawScene();    
+}
+
+</script>
+</head>
+<body onLoad="Initialize();">
+	<canvas id="RenderWindow"></canvas>
+</body>
+</html>
