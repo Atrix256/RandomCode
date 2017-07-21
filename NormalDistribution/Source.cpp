@@ -4,12 +4,13 @@
 #include <random>
 #include <stdint.h>
 #include <stdio.h>
+#include <limits>
 
-const size_t c_numTests = 1000000;
+const size_t c_maxNumSamples = 1000000;
 const char* c_fileName = "results.csv";
 
 template <size_t Numbers, size_t NumSamples, size_t NumBuckets>
-void DumpBucketCounts (size_t numSamples, const std::array<size_t, NumBuckets>& bucketCounts)
+void DumpBucketCountsAddRandomNumbers (size_t numSamples, const std::array<size_t, NumBuckets>& bucketCounts)
 {
     // open file for append if we can
     FILE* file = fopen(c_fileName, "a+t");
@@ -18,20 +19,15 @@ void DumpBucketCounts (size_t numSamples, const std::array<size_t, NumBuckets>& 
 
     // write the info
     if (numSamples == 1)
-        fprintf(file, "%zu random numbers [0,%zu) added together. %zu buckets.\n", NumSamples, Numbers, NumBuckets);
-    
+        fprintf(file, "\"%zu random numbers [0,%zu) added together. %zu buckets.\"\n", NumSamples, Numbers, NumBuckets);
     fprintf(file, "\"%zu samples\",", numSamples);
 
-    size_t maxBucket = 0;
+    // report the samples such that they integrate to 1.0
     for (size_t count : bucketCounts)
-        maxBucket = std::max(maxBucket, count);
-
-    for (size_t count : bucketCounts)
-        fprintf(file, "\"%f\",", float(count) / float(maxBucket));
+        fprintf(file, "\"%f\",", float(count) / float(numSamples));
 
     fprintf(file, "\"\"\n");
-
-    if (numSamples == c_numTests)
+    if (numSamples == c_maxNumSamples)
         fprintf(file, "\n");
 
     // close file
@@ -48,17 +44,73 @@ void AddRandomNumbersTest ()
     std::array<size_t, (Numbers-1) * NumSamples + 1> bucketCounts = { 0 };
 
     size_t nextDump = 1;
-    for (size_t i = 0; i < c_numTests; ++i)
+    for (size_t i = 0; i < c_maxNumSamples; ++i)
     {
-        size_t number = 0;
+        size_t sum = 0;
         for (size_t j = 0; j < NumSamples; ++j)
-            number += dist(rng);
+            sum += dist(rng);
 
-        bucketCounts[number]++;
+        bucketCounts[sum]++;
 
         if (i + 1 == nextDump)
         {
-            DumpBucketCounts<Numbers, NumSamples>(nextDump, bucketCounts);
+            DumpBucketCountsAddRandomNumbers<Numbers, NumSamples>(nextDump, bucketCounts);
+            nextDump *= 10;
+        }
+    }
+}
+
+template <size_t NumBuckets>
+void DumpBucketCountsCountBits (size_t numSamples, const std::array<size_t, NumBuckets>& bucketCounts)
+{
+    // open file for append if we can
+    FILE* file = fopen(c_fileName, "a+t");
+    if (!file)
+        return;
+
+    // write the info
+    if (numSamples == 1)
+        fprintf(file, "\"%zu random bits added together. %zu buckets.\"\n", NumBuckets - 1, NumBuckets);
+    fprintf(file, "\"%zu samples\",", numSamples);
+
+    // report the samples such that they integrate to 1.0
+    for (size_t count : bucketCounts)
+        fprintf(file, "\"%f\",", float(count) / float(numSamples));
+
+    fprintf(file, "\"\"\n");
+    if (numSamples == c_maxNumSamples)
+        fprintf(file, "\n");
+
+    // close file
+    fclose(file);
+}
+
+template <typename TIntType>
+void CountBitsTest ()
+{
+    std::mt19937 rng;
+    rng.seed(std::random_device()());
+    std::uniform_int_distribution<size_t> dist(size_t(0), size_t(std::numeric_limits<TIntType>::max()));
+
+    std::array<size_t, sizeof(TIntType) * 8 + 1> bucketCounts = { 0 };
+
+    size_t nextDump = 1;
+    for (size_t i = 0; i < c_maxNumSamples; ++i)
+    {
+        size_t sum = 0;
+        size_t number = dist(rng);
+        while (number)
+        {
+            if (number & 1)
+                ++sum;
+            number = number >> 1;
+        }
+
+        bucketCounts[sum]++;
+
+        if (i + 1 == nextDump)
+        {
+            DumpBucketCountsCountBits(nextDump, bucketCounts);
             nextDump *= 10;
         }
     }
@@ -72,8 +124,14 @@ int main (int argc, char **argv)
         fclose(file);
 
     // Do some tests
-    AddRandomNumbersTest<2, 2>();
-    AddRandomNumbersTest<4, 4>();
+    AddRandomNumbersTest<3, 2>();
+    AddRandomNumbersTest<5, 5>();
+    AddRandomNumbersTest<10, 10>();
+
+    CountBitsTest<uint8_t>();
+    CountBitsTest<uint16_t>();
+    CountBitsTest<uint32_t>();
+    CountBitsTest<uint64_t>();
 
 
     return 0;
@@ -82,15 +140,16 @@ int main (int argc, char **argv)
 
 /*
 
-* i think your normalization is wrong.  Need all data points to add to 1.0, so get the sum and divide everything by that!
+? which tests specifically would be good to do and show for blog post?
+ 
+* i think your normalization is still wrong. wikipedia shows regular old std dev with a peak of 0.4.  Yours isn't / doesn't. Why?
+ * you aren't taking into account the width of your bins when normalizing it to integrate it to 1.0?
+ * https://math.stackexchange.com/questions/468541/normalizing-a-gaussian-distribution
+ * +/- 3 stddeviations is 99.7%.  Does it ever reach 100%? If not, maybe saying the graph has width 6 overall is enough to make it normalize (to integrate to 1.0) correctly?
+ * you need to understand this and explain it in the blog post
 
-* make there be a heading row, and then just the various number of sample rows, and then a few newlines.
 
-* print a floating point value, normalized to be between 0 and 1?
-
-? better name for columns that Numbers, NumSamples, SampleCount?
-
-* Add a bunch of random numbers, bucket counts for each possible value.
+? better name for variables than Numbers, NumSamples, SampleCount?
 
 * Also the thing about counting number of bits in a random number to make gaussian distribution.
  * They are related because you are adding random 1 bit numbers!
@@ -99,7 +158,8 @@ int main (int argc, char **argv)
 
 * Can we generate log normal distribution?
 
-* two dimensional?
+* two dimensional distribution, like gaussian kernel?
+ * could do with a tensor product but explain how it relates to "there are that manyt ways to make that total"?
 
 BLOG:
 * two names: normal / gaussian distribution
