@@ -9,7 +9,7 @@
 const size_t c_maxNumSamples = 1000000;
 const char* c_fileName = "results.csv";
 
-template <size_t Numbers, size_t NumSamples, size_t NumBuckets>
+template <size_t DiceRange, size_t DiceCount, size_t NumBuckets>
 void DumpBucketCountsAddRandomNumbers (size_t numSamples, const std::array<size_t, NumBuckets>& bucketCounts)
 {
     // open file for append if we can
@@ -19,7 +19,7 @@ void DumpBucketCountsAddRandomNumbers (size_t numSamples, const std::array<size_
 
     // write the info
     if (numSamples == 1)
-        fprintf(file, "\"%zu random numbers [0,%zu) added together. %zu buckets.\"\n", NumSamples, Numbers, NumBuckets);
+        fprintf(file, "\"%zu random numbers [0,%zu) added together (sum %zud%zu). %zu buckets.\"\n", DiceCount, DiceRange, DiceCount, DiceRange, NumBuckets);
     fprintf(file, "\"%zu samples\",", numSamples);
 
     // report the samples such that they integrate to 1.0
@@ -34,27 +34,27 @@ void DumpBucketCountsAddRandomNumbers (size_t numSamples, const std::array<size_
     fclose(file);
 }
 
-template <size_t Numbers, size_t NumSamples>
+template <size_t DiceSides, size_t DiceCount>
 void AddRandomNumbersTest ()
 {
     std::mt19937 rng;
     rng.seed(std::random_device()());
-    std::uniform_int_distribution<size_t> dist(size_t(0), Numbers-1);
+    std::uniform_int_distribution<size_t> dist(size_t(0), DiceSides - 1);
 
-    std::array<size_t, (Numbers-1) * NumSamples + 1> bucketCounts = { 0 };
+    std::array<size_t, (DiceSides - 1) * DiceCount + 1> bucketCounts = { 0 };
 
     size_t nextDump = 1;
     for (size_t i = 0; i < c_maxNumSamples; ++i)
     {
         size_t sum = 0;
-        for (size_t j = 0; j < NumSamples; ++j)
+        for (size_t j = 0; j < DiceCount; ++j)
             sum += dist(rng);
 
         bucketCounts[sum]++;
 
         if (i + 1 == nextDump)
         {
-            DumpBucketCountsAddRandomNumbers<Numbers, NumSamples>(nextDump, bucketCounts);
+            DumpBucketCountsAddRandomNumbers<DiceSides, DiceCount>(nextDump, bucketCounts);
             nextDump *= 10;
         }
     }
@@ -70,7 +70,7 @@ void DumpBucketCountsCountBits (size_t numSamples, const std::array<size_t, NumB
 
     // write the info
     if (numSamples == 1)
-        fprintf(file, "\"%zu random bits added together. %zu buckets.\"\n", NumBuckets - 1, NumBuckets);
+        fprintf(file, "\"%zu random bits (coin flips) added together. %zu buckets.\"\n", NumBuckets - 1, NumBuckets);
     fprintf(file, "\"%zu samples\",", numSamples);
 
     // report the samples such that they integrate to 1.0
@@ -85,14 +85,19 @@ void DumpBucketCountsCountBits (size_t numSamples, const std::array<size_t, NumB
     fclose(file);
 }
 
-template <typename TIntType>
+template <size_t NumBits> // aka NumCoinFlips!
 void CountBitsTest ()
 {
+
+    size_t maxValue = 0;
+    for (size_t i = 0; i < NumBits; ++i)
+        maxValue = (maxValue << 1) | 1;
+
     std::mt19937 rng;
     rng.seed(std::random_device()());
-    std::uniform_int_distribution<size_t> dist(size_t(0), size_t(std::numeric_limits<TIntType>::max()));
+    std::uniform_int_distribution<size_t> dist(0, maxValue);
 
-    std::array<size_t, sizeof(TIntType) * 8 + 1> bucketCounts = { 0 };
+    std::array<size_t, NumBits + 1> bucketCounts = { 0 };
 
     size_t nextDump = 1;
     for (size_t i = 0; i < c_maxNumSamples; ++i)
@@ -124,14 +129,19 @@ int main (int argc, char **argv)
         fclose(file);
 
     // Do some tests
-    AddRandomNumbersTest<3, 2>();
+    AddRandomNumbersTest<2, 1>();
+    AddRandomNumbersTest<2, 2>();
+    AddRandomNumbersTest<2, 5>();
+    AddRandomNumbersTest<2, 10>();
+    AddRandomNumbersTest<2, 100>();
+
     AddRandomNumbersTest<5, 5>();
     AddRandomNumbersTest<10, 10>();
 
-    CountBitsTest<uint8_t>();
-    CountBitsTest<uint16_t>();
-    CountBitsTest<uint32_t>();
-    CountBitsTest<uint64_t>();
+    CountBitsTest<8>();
+    CountBitsTest<16>();
+    CountBitsTest<32>();
+    CountBitsTest<64>();
 
 
     return 0;
@@ -139,6 +149,11 @@ int main (int argc, char **argv)
 
 
 /*
+
+* grab notes from email and put in here.
+
+! make a function for gaussian distribution. RNG a uint64, count bits, divide by 64?
+ * should you also prove it's right?
 
 ? which tests specifically would be good to do and show for blog post?
  
