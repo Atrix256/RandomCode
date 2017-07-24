@@ -144,10 +144,13 @@ float GenerateNormalRandomNumber (float mean, float variance)
 
     static bool seeded = false;
     if (!seeded)
+    {
+        seeded = true;
         rng.seed(std::random_device()());
+    }
 
     // generate our normal distributed random number from 0 to 65.
-    // mean = 32, variance = 16, stddev = 4
+    // 
     float sum = 0.0f;
     uint64_t number = dist(rng);
     while (number)
@@ -157,10 +160,13 @@ float GenerateNormalRandomNumber (float mean, float variance)
         number = number >> 1;
     }
 
-    // convert to the specified mean and variance
+    // convert from: mean 32, variance 16, stddev 4
+    // to: mean 0, variance 1, stddev 1
     float ret = sum;
     ret -= 32.0f;
     ret /= 4.0f;
+
+    // convert to the specified mean and variance
     ret *= std::sqrt(variance);
     ret += mean;
     return ret;
