@@ -172,6 +172,26 @@ float GenerateNormalRandomNumber (float mean, float variance)
     return ret;
 }
 
+void VerifyGenerateNormalRandomNumber (float mean, float variance)
+{
+    // open file for append if we can
+    FILE* file = fopen(c_fileName, "a+t");
+    if (!file)
+        return;
+
+    // write info
+    fprintf(file, "\"Normal Distributed Random Numbers. mean = %0.2f.  variance = %0.2f.  stddev = %0.2f\"\n", mean, variance, std::sqrt(variance));
+
+    // write some random numbers
+    fprintf(file, "\"100 numbers\"");
+    for (size_t i = 0; i < 100; ++i)
+        fprintf(file, ",\"%f\"", GenerateNormalRandomNumber(mean, variance));
+    fprintf(file, "\n\n");
+
+    // close file
+    fclose(file);
+}
+
 int main (int argc, char **argv)
 {
     // clear out the file
@@ -194,16 +214,21 @@ int main (int argc, char **argv)
     CountBitsTest<32>();
     CountBitsTest<64>();
 
+    VerifyGenerateNormalRandomNumber(0.0f, 20.0f);
+
+    VerifyGenerateNormalRandomNumber(0.0f, 10.0f);
+
+    VerifyGenerateNormalRandomNumber(5.0f, 10.0f);
 
     return 0;
 }
 
 
 /*
-* somehow show that the GenerateNormalRandomNumber function is right.  Not sure how.
- * maybe spit out a bunch of values and make a histogram that can be graphed, like the others?
 
 BLOG:
+
+* thank alan hickman
 
 ? which tests specifically would be good to do and show for blog post?
  ? show difference in increasing dice side vs dice count?
@@ -219,6 +244,8 @@ BLOG:
 * Also, make your code / explain how to make distributions with different means and variance squared
 
 * converting one distribution to another: https://stats.stackexchange.com/questions/43114/how-to-convert-to-gaussian-distribution-with-given-mean-and-standard-deviation/43117#43117
+
+! can verify GenerateNormalRandomNumber() function by having excel calculate average and stddeviation
 
 john cook links that inspired this:
 * https://www.johndcook.com/blog/2015/03/09/why-isnt-everything-normally-distributed/
