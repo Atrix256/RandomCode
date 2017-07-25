@@ -199,15 +199,38 @@ int main (int argc, char **argv)
     if (file)
         fclose(file);
 
-    // Do some tests
-    AddRandomNumbersTest<2, 1>();
-    AddRandomNumbersTest<2, 2>();
-    AddRandomNumbersTest<2, 5>();
-    AddRandomNumbersTest<2, 10>();
-    AddRandomNumbersTest<2, 100>();
+    // coin flips
+    {
+        // flip a fair coin 
+        AddRandomNumbersTest<2, 1>();
 
-    AddRandomNumbersTest<5, 5>();
-    AddRandomNumbersTest<10, 10>();
+        // flip two coins and sum them
+        AddRandomNumbersTest<2, 2>();
+
+        // sum 3 coin flips
+        AddRandomNumbersTest<2, 3>();
+
+        // sum 100 coin flips
+        AddRandomNumbersTest<2, 100>();
+    }
+
+    // dice rolls
+    {
+        // roll a 4 sided die
+        AddRandomNumbersTest<4, 1>();
+
+        // sum two 4 sided dice
+        AddRandomNumbersTest<4, 2>();
+
+        // sum three 4 sided dice
+        AddRandomNumbersTest<4, 3>();
+
+        // sum one hundred 4 sided dice
+        AddRandomNumbersTest<4, 100>();
+
+        // sum one hundred 6 sided dice
+        AddRandomNumbersTest<6, 100>();
+    }
 
     CountBitsTest<8>();
     CountBitsTest<16>();
