@@ -52,6 +52,13 @@ void Test (const char* fileName, const PDF_LAMBDA& PDF)
         PDFLookupTable[i] = PDF(x) / float(LOOKUP_TABLE_SIZE);
     }
 
+    // normalize the PDF lookup table to make it integrate to 1.0. It can be off since we are sampling it.
+    float sum = 0.0f;
+    for (float f : PDFLookupTable)
+        sum += f;
+    for (float& f : PDFLookupTable)
+        f /= sum;
+
     // make the CDF lookup table
     std::array<float, LOOKUP_TABLE_SIZE> CDFLookupTable;
     CDFLookupTable[0] = PDFLookupTable[0];
@@ -63,25 +70,27 @@ void Test (const char* fileName, const PDF_LAMBDA& PDF)
     // I'm sure there's a better & more clever lookup table setup for this situation but this should give you an idea of the technique
     auto inverseCDF = [&CDFLookupTable] (float y) {
 
-        // try to find the value in the LUT
-        auto it = std::lower_bound(CDFLookupTable.begin(), CDFLookupTable.end(), y);
+        // there is an implicit entry of "0%" at index -1
+        if (y < CDFLookupTable[0])
+        {
+            float t = y / CDFLookupTable[0];
+            return t / float(LOOKUP_TABLE_SIZE);
+        }
 
-        // if we got to the end, it's larger than any values we have, so return 1.0
-        if (it == CDFLookupTable.end())
-            return 1.0f;
+        // get the lower bound in the lut
+        auto it = std::lower_bound(CDFLookupTable.begin(), CDFLookupTable.end(), y);
 
         // figure out where we are at in the table
         size_t index = it - CDFLookupTable.begin();
 
-        // if we are at the beginning, it means the first number is greater than the number we are looking for, so return 0.0
-        if (index == 0)
-            return 0.0f;
+        // if we are past the end of the table, return 1.0
+        if (index == LOOKUP_TABLE_SIZE)
+            return 1.0f;
 
         // else linearly interpolate between the values
         // NOTE: could do other interpolation methods, like perhaps cubic (https://blog.demofox.org/2015/08/08/cubic-hermite-interpolation/)
         float t = (y - CDFLookupTable[index - 1]) / (CDFLookupTable[index] - CDFLookupTable[index - 1]);
-        //float x = (index - 1) * t + (index) * (1.0f - t); // Same as line below, but explicit lerp.
-        float fractionalIndex = float(index - 1) + t;
+        float fractionalIndex = float(index) + t;
         return fractionalIndex / float(LOOKUP_TABLE_SIZE);
     };
 
@@ -115,6 +124,7 @@ int main (int argc, char **argv)
     // Inverse CDF Numerically via a lookup table
     {
         auto PDF = [] (float x) {return (x*x*x - 10.0f*x*x + 5.0f*x + 11.0f) / (10.417f); };
+        Test<100000, 100, 3>("test3_100k_3.csv", PDF);
         Test<100000, 100, 50>("test3_100k_50.csv", PDF);
         Test<100000, 100, 100>("test3_100k_100.csv", PDF);
         Test<100000, 100, 1000>("test3_100k_1000.csv", PDF);
