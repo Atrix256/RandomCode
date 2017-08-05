@@ -42,28 +42,22 @@ void Test (const char* fileName, const PDF_LAMBDA& PDF, const INVERSE_CDF_LAMBDA
 }
 
 template <size_t NUM_TEST_SAMPLES, size_t NUM_HISTOGRAM_BUCKETS, size_t LOOKUP_TABLE_SIZE, typename PDF_LAMBDA>
-void Test (const char* fileName, const PDF_LAMBDA& PDF)
+void TestPDFOnly (const char* fileName, const PDF_LAMBDA& PDF)
 {
-    // make the PDF lookup table
-    std::array<float, LOOKUP_TABLE_SIZE> PDFLookupTable;
+    // make the CDF lookup table by sampling the PDF
+    // NOTE: we could integrate the buckets by averaging multiple samples instead of just the 1. This bucket integration is pretty low tech and low quality.
+    std::array<float, LOOKUP_TABLE_SIZE> CDFLookupTable;
+    float value = 0.0f;
     for (size_t i = 0; i < LOOKUP_TABLE_SIZE; ++i)
     {
         float x = float(i) / float(LOOKUP_TABLE_SIZE - 1); // The -1 is so we cover the full range from 0% to 100%
-        PDFLookupTable[i] = PDF(x) / float(LOOKUP_TABLE_SIZE);
+        value += PDF(x);
+        CDFLookupTable[i] = value;
     }
 
-    // normalize the PDF lookup table to make it integrate to 1.0. It can be off since we are sampling it.
-    float sum = 0.0f;
-    for (float f : PDFLookupTable)
-        sum += f;
-    for (float& f : PDFLookupTable)
-        f /= sum;
-
-    // make the CDF lookup table
-    std::array<float, LOOKUP_TABLE_SIZE> CDFLookupTable;
-    CDFLookupTable[0] = PDFLookupTable[0];
-    for (size_t i = 1; i < LOOKUP_TABLE_SIZE; ++i)
-        CDFLookupTable[i] = CDFLookupTable[i - 1] + PDFLookupTable[i];
+    // normalize the CDF - make sure we span the probability range 0 to 1.
+    for (float& f : CDFLookupTable)
+        f /= value;
 
     // make our LUT based inverse CDF
     // We will binary search over the y's (which are sorted smallest to largest) looking for the x, which is implied by the index.
@@ -77,17 +71,13 @@ void Test (const char* fileName, const PDF_LAMBDA& PDF)
             return t / float(LOOKUP_TABLE_SIZE);
         }
 
-        // get the lower bound in the lut
+        // get the lower bound in the lut using a binary search
         auto it = std::lower_bound(CDFLookupTable.begin(), CDFLookupTable.end(), y);
 
         // figure out where we are at in the table
         size_t index = it - CDFLookupTable.begin();
 
-        // if we are past the end of the table, return 1.0
-        if (index == LOOKUP_TABLE_SIZE)
-            return 1.0f;
-
-        // else linearly interpolate between the values
+        // Linearly interpolate between the values
         // NOTE: could do other interpolation methods, like perhaps cubic (https://blog.demofox.org/2015/08/08/cubic-hermite-interpolation/)
         float t = (y - CDFLookupTable[index - 1]) / (CDFLookupTable[index] - CDFLookupTable[index - 1]);
         float fractionalIndex = float(index) + t;
@@ -124,10 +114,11 @@ int main (int argc, char **argv)
     // Inverse CDF Numerically via a lookup table
     {
         auto PDF = [] (float x) {return (x*x*x - 10.0f*x*x + 5.0f*x + 11.0f) / (10.417f); };
-        Test<100000, 100, 3>("test3_100k_3.csv", PDF);
-        Test<100000, 100, 50>("test3_100k_50.csv", PDF);
-        Test<100000, 100, 100>("test3_100k_100.csv", PDF);
-        Test<100000, 100, 1000>("test3_100k_1000.csv", PDF);
+        TestPDFOnly<100000000, 100, 3>("test3_100m_3.csv", PDF);
+        TestPDFOnly<100000000, 100, 5>("test3_100m_5.csv", PDF);
+        TestPDFOnly<100000000, 100, 10>("test3_100m_10.csv", PDF);
+        TestPDFOnly<100000000, 100, 25>("test3_100m_25.csv", PDF);
+        TestPDFOnly<100000000, 100, 100>("test3_100m_100.csv", PDF);
     }
 
     return 0;
