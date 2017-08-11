@@ -197,6 +197,8 @@ EOutputMode = {
 
 var g_uniformsShaderSource = "";
 
+var g_normalAttributeLocation = null;
+
 //=========================================================================================
 var precisionSource = "precision mediump float;\n\n";
 
@@ -943,6 +945,68 @@ function PrepareToDrawMesh (translation, yawPitchRoll, scale, albedo, emissive, 
   {
     gl.useProgram(shader.program);    
     g_lastShaderUsed = shader.program;
+
+    // get the vertex attributes
+    // TODO: continue this!
+    g_normalAttributeLocation = gl.getAttribLocation(shaderProgram, "a_normal");
+
+    // TODO: remove this when done. Just for reference!
+    /*
+      // normals
+      var normalAttributeLocation = gl.getAttribLocation(program, "a_normal");
+      if (normalAttributeLocation != -1)
+      {
+        var normalBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+        gl.enableVertexAttribArray(normalAttributeLocation);
+        gl.vertexAttribPointer(normalAttributeLocation, 3, gl.FLOAT, false, 0, 0);   
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.norm), gl.STATIC_DRAW);     
+      }
+
+      // tangents
+      var tangentAttributeLocation = gl.getAttribLocation(program, "a_tangent");
+      if (tangentAttributeLocation != -1)
+      {
+        var tangentBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, tangentBuffer);
+        gl.enableVertexAttribArray(tangentAttributeLocation);
+        gl.vertexAttribPointer(tangentAttributeLocation, 3, gl.FLOAT, false, 0, 0);   
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.tangent), gl.STATIC_DRAW);      
+      }   
+
+      // positions
+      var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
+      if (positionAttributeLocation != -1)
+      {
+        var positionBuffer = gl.createBuffer(); 
+        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+        gl.enableVertexAttribArray(positionAttributeLocation);      
+        gl.vertexAttribPointer(positionAttributeLocation, 3, gl.FLOAT, false, 0, 0);        
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.pos), gl.STATIC_DRAW);
+      }
+
+      // uv
+      var uvAttributeLocation = gl.getAttribLocation(program, "a_uv");
+      if (uvAttributeLocation != -1)
+      {
+        var uvBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, uvBuffer);
+        gl.enableVertexAttribArray(uvAttributeLocation);
+        gl.vertexAttribPointer(uvAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.uv), gl.STATIC_DRAW);
+      }
+
+      // barycentric coordinates
+      var barycentricAttributeLocation = gl.getAttribLocation(program, "a_barycentric");
+      if (barycentricAttributeLocation != -1)
+      {
+        var barycentricBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, barycentricBuffer);
+        gl.enableVertexAttribArray(barycentricAttributeLocation);
+        gl.vertexAttribPointer(barycentricAttributeLocation, 3, gl.FLOAT, false, 0, 0);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.barycentric), gl.STATIC_DRAW); 
+      }        
+    */    
   }
 
   // make our object values
@@ -1576,11 +1640,23 @@ function GenerateTetrahedronMesh ()
 
   var pos = [];
   var uv = [];
+  var indices = [];
+  var vertices = [];
 
   var point0 = [-1, 0, -1 / Math.sqrt(2)];
   var point1 = [ 1, 0, -1 / Math.sqrt(2)];
   var point2 = [ 0,-1,  1 / Math.sqrt(2)];
   var point3 = [ 0, 1,  1 / Math.sqrt(2)];
+
+  // TODO: don't need to make a buffer per program! Fix if you want to.
+  // TODO: update the others to use index buffers too, as appropriate!
+  // TODO: remove old data when index buffer is working!
+  indices = new Uint16Array( [2,1,0, 0,1,3, 3,2,0, 1,2,3]);
+  vertices = vertices.concat(point0);
+  vertices = vertices.concat(point1);
+  vertices = vertices.concat(point2);
+  vertices = vertices.concat(point3);
+
 
   pos = pos.concat(point2);
   pos = pos.concat(point1);
@@ -1627,11 +1703,104 @@ function GenerateTetrahedronMesh ()
     barycentric = barycentric.concat([0,0,1]);   
   }
 
+  // TODO: may not need these if we make the buffers here!
   ret.pos = pos;
   ret.norm = norm;
   ret.uv = uv;
   ret.barycentric = barycentric;
   ret.tangent = tangent;
+  ret.indices = indices;
+  ret.vertices = vertices;
+
+  // make the vertex buffer
+  ret.vertexBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, ret.vertexBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+
+  // make the normal buffer
+  ret.normBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, ret.normBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(norm), gl.STATIC_DRAW);
+
+  // make the tangent buffer
+  ret.tangentBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, ret.tangentBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(tangent), gl.STATIC_DRAW);  
+
+  // make the uv buffer
+  ret.uvBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, ret.uvBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uv), gl.STATIC_DRAW);
+
+  // make the barycentric buffer
+  ret.barycentricBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, ret.barycentricBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(barycentric), gl.STATIC_DRAW);  
+
+  // make the index buffer
+  ret.indexBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ret.indexBuffer);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+
+
+
+  // TODO: remove this when done. Just for reference!
+  /*
+    // normals
+    var normalAttributeLocation = gl.getAttribLocation(program, "a_normal");
+    if (normalAttributeLocation != -1)
+    {
+      var normalBuffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+      gl.enableVertexAttribArray(normalAttributeLocation);
+      gl.vertexAttribPointer(normalAttributeLocation, 3, gl.FLOAT, false, 0, 0);   
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.norm), gl.STATIC_DRAW);     
+    }
+
+    // tangents
+    var tangentAttributeLocation = gl.getAttribLocation(program, "a_tangent");
+    if (tangentAttributeLocation != -1)
+    {
+      var tangentBuffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, tangentBuffer);
+      gl.enableVertexAttribArray(tangentAttributeLocation);
+      gl.vertexAttribPointer(tangentAttributeLocation, 3, gl.FLOAT, false, 0, 0);   
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.tangent), gl.STATIC_DRAW);      
+    }   
+
+    // positions
+    var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
+    if (positionAttributeLocation != -1)
+    {
+      var positionBuffer = gl.createBuffer(); 
+      gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+      gl.enableVertexAttribArray(positionAttributeLocation);      
+      gl.vertexAttribPointer(positionAttributeLocation, 3, gl.FLOAT, false, 0, 0);        
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.pos), gl.STATIC_DRAW);
+    }
+
+    // uv
+    var uvAttributeLocation = gl.getAttribLocation(program, "a_uv");
+    if (uvAttributeLocation != -1)
+    {
+      var uvBuffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, uvBuffer);
+      gl.enableVertexAttribArray(uvAttributeLocation);
+      gl.vertexAttribPointer(uvAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.uv), gl.STATIC_DRAW);
+    }
+
+    // barycentric coordinates
+    var barycentricAttributeLocation = gl.getAttribLocation(program, "a_barycentric");
+    if (barycentricAttributeLocation != -1)
+    {
+      var barycentricBuffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, barycentricBuffer);
+      gl.enableVertexAttribArray(barycentricAttributeLocation);
+      gl.vertexAttribPointer(barycentricAttributeLocation, 3, gl.FLOAT, false, 0, 0);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.barycentric), gl.STATIC_DRAW); 
+    }        
+  */
 
   return ret;    
 }
