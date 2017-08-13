@@ -197,7 +197,11 @@ EOutputMode = {
 
 var g_uniformsShaderSource = "";
 
-var g_normalAttributeLocation = null;
+var g_normalAttributeLocation = -1;
+var g_tangentAttributeLocation = -1;
+var g_positionAttributeLocation = -1;
+var g_uvAttributeLocation = -1;
+var g_barycentricAttributeLocation = -1;
 
 //=========================================================================================
 var precisionSource = "precision mediump float;\n\n";
@@ -947,66 +951,35 @@ function PrepareToDrawMesh (translation, yawPitchRoll, scale, albedo, emissive, 
     g_lastShaderUsed = shader.program;
 
     // get the vertex attributes
-    // TODO: continue this!
-    g_normalAttributeLocation = gl.getAttribLocation(shaderProgram, "a_normal");
+    g_normalAttributeLocation = gl.getAttribLocation(shader.program, "a_normal");
+    if (g_normalAttributeLocation != -1)
+      gl.enableVertexAttribArray(g_normalAttributeLocation);
+    else
+      gl.disableVertexAttribArray(g_normalAttributeLocation);
 
-    // TODO: remove this when done. Just for reference!
-    /*
-      // normals
-      var normalAttributeLocation = gl.getAttribLocation(program, "a_normal");
-      if (normalAttributeLocation != -1)
-      {
-        var normalBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
-        gl.enableVertexAttribArray(normalAttributeLocation);
-        gl.vertexAttribPointer(normalAttributeLocation, 3, gl.FLOAT, false, 0, 0);   
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.norm), gl.STATIC_DRAW);     
-      }
+    g_tangentAttributeLocation = gl.getAttribLocation(shader.program, "a_tangent");
+    if (g_tangentAttributeLocation != -1)
+      gl.enableVertexAttribArray(g_tangentAttributeLocation);
+    else
+      gl.disableVertexAttribArray(g_tangentAttributeLocation);
 
-      // tangents
-      var tangentAttributeLocation = gl.getAttribLocation(program, "a_tangent");
-      if (tangentAttributeLocation != -1)
-      {
-        var tangentBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, tangentBuffer);
-        gl.enableVertexAttribArray(tangentAttributeLocation);
-        gl.vertexAttribPointer(tangentAttributeLocation, 3, gl.FLOAT, false, 0, 0);   
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.tangent), gl.STATIC_DRAW);      
-      }   
+    g_positionAttributeLocation = gl.getAttribLocation(shader.program, "a_position");
+    if (g_positionAttributeLocation != -1)
+      gl.enableVertexAttribArray(g_positionAttributeLocation);
+    else
+      gl.disableVertexAttribArray(g_positionAttributeLocation);
 
-      // positions
-      var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
-      if (positionAttributeLocation != -1)
-      {
-        var positionBuffer = gl.createBuffer(); 
-        gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-        gl.enableVertexAttribArray(positionAttributeLocation);      
-        gl.vertexAttribPointer(positionAttributeLocation, 3, gl.FLOAT, false, 0, 0);        
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.pos), gl.STATIC_DRAW);
-      }
+    g_uvAttributeLocation = gl.getAttribLocation(shader.program, "a_uv");
+    if (g_uvAttributeLocation != -1)
+      gl.enableVertexAttribArray(g_uvAttributeLocation);
+    else
+      gl.disableVertexAttribArray(g_uvAttributeLocation);
 
-      // uv
-      var uvAttributeLocation = gl.getAttribLocation(program, "a_uv");
-      if (uvAttributeLocation != -1)
-      {
-        var uvBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, uvBuffer);
-        gl.enableVertexAttribArray(uvAttributeLocation);
-        gl.vertexAttribPointer(uvAttributeLocation, 2, gl.FLOAT, false, 0, 0);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.uv), gl.STATIC_DRAW);
-      }
-
-      // barycentric coordinates
-      var barycentricAttributeLocation = gl.getAttribLocation(program, "a_barycentric");
-      if (barycentricAttributeLocation != -1)
-      {
-        var barycentricBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, barycentricBuffer);
-        gl.enableVertexAttribArray(barycentricAttributeLocation);
-        gl.vertexAttribPointer(barycentricAttributeLocation, 3, gl.FLOAT, false, 0, 0);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.barycentric), gl.STATIC_DRAW); 
-      }        
-    */    
+    g_barycentricAttributeLocation = gl.getAttribLocation(shader.program, "a_barycentric");
+    if (g_barycentricAttributeLocation != -1)
+      gl.enableVertexAttribArray(g_barycentricAttributeLocation);
+    else
+      gl.disableVertexAttribArray(g_barycentricAttributeLocation);
   }
 
   // make our object values
@@ -1050,13 +1023,42 @@ function DrawTetrahedron (translation, yawPitchRoll, scale, albedo, emissive, me
 {
   var shader = PrepareToDrawMesh(translation, yawPitchRoll, scale, albedo, emissive, metallic, roughness, F0, materialTextures);
 
-  // Bind the attribute/buffer set we want.
-  gl.bindVertexArray(shader.tetrahedronMesh);    
 
-  var primitiveType = gl.TRIANGLES;
-  var offset = 0;
-  var count = shader.tetrahedronMeshVertCount / 3;
-  gl.drawArrays(primitiveType, offset, count);    
+  // Todo: "shader.tetrahedronMesh" or shader.tetrahedron isn't where the mesh should live. fix it!
+
+  if (g_positionAttributeLocation != -1)
+  {
+    gl.bindBuffer(gl.ARRAY_BUFFER, shader.tetrahedron.vertexBuffer);
+    gl.vertexAttribPointer(g_positionAttributeLocation, 3, gl.FLOAT, false, 0, 0);
+  }
+
+  if (g_normalAttributeLocation != -1)
+  {
+    gl.bindBuffer(gl.ARRAY_BUFFER, shader.tetrahedron.normBuffer);
+    gl.vertexAttribPointer(g_normalAttributeLocation, 3, gl.FLOAT, false, 0, 0);   
+  }
+
+  if (g_tangentAttributeLocation != -1)
+  {
+    gl.bindBuffer(gl.ARRAY_BUFFER, shader.tetrahedron.tangentBuffer);
+    gl.vertexAttribPointer(g_tangentAttributeLocation, 3, gl.FLOAT, false, 0, 0);
+  } 
+
+  if (g_uvAttributeLocation != -1)
+  {
+    gl.bindBuffer(gl.ARRAY_BUFFER, shader.tetrahedron.uvBuffer);
+    gl.vertexAttribPointer(g_uvAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+  }
+
+  if (g_barycentricAttributeLocation != -1)
+  {
+    gl.bindBuffer(gl.ARRAY_BUFFER, shader.tetrahedron.barycentricBuffer);
+    gl.vertexAttribPointer(g_barycentricAttributeLocation, 3, gl.FLOAT, false, 0, 0);
+  }
+
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, shader.tetrahedron.indexBuffer);
+
+  gl.drawElements(gl.TRIANGLES, shader.tetrahedron.elementCount, gl.UNSIGNED_SHORT, 0);
 }
 
 //=========================================================================================
@@ -1090,6 +1092,9 @@ function DrawSphere (translation, yawPitchRoll, scale, albedo, emissive, metalli
 //=========================================================================================
 function DrawSkyboxCube ()
 {
+  // TODO: temp!
+  return;
+
   // if no skybox selected, bail out
   var e = document.getElementById("Debug_SceneIBL");
   var skybox = e.options[e.selectedIndex].value;
@@ -1657,7 +1662,7 @@ function GenerateTetrahedronMesh ()
   vertices = vertices.concat(point2);
   vertices = vertices.concat(point3);
 
-
+  // TODO: need to fix up the rest of the arrays
   pos = pos.concat(point2);
   pos = pos.concat(point1);
   pos = pos.concat(point0);
@@ -1674,6 +1679,7 @@ function GenerateTetrahedronMesh ()
   pos = pos.concat(point2);
   pos = pos.concat(point3);    
 
+/*
   uv = uv.concat([0, 0]);
   uv = uv.concat([0.5, 1]);
   uv = uv.concat([1, 0]);
@@ -1689,6 +1695,7 @@ function GenerateTetrahedronMesh ()
   uv = uv.concat([0, 0]);
   uv = uv.concat([0.5, 1]);
   uv = uv.concat([1, 0]);  
+  */
 
   // make the normals and tangents
   var norm = CalculateNormals(pos);  
@@ -1743,64 +1750,7 @@ function GenerateTetrahedronMesh ()
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
 
 
-
-  // TODO: remove this when done. Just for reference!
-  /*
-    // normals
-    var normalAttributeLocation = gl.getAttribLocation(program, "a_normal");
-    if (normalAttributeLocation != -1)
-    {
-      var normalBuffer = gl.createBuffer();
-      gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
-      gl.enableVertexAttribArray(normalAttributeLocation);
-      gl.vertexAttribPointer(normalAttributeLocation, 3, gl.FLOAT, false, 0, 0);   
-      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.norm), gl.STATIC_DRAW);     
-    }
-
-    // tangents
-    var tangentAttributeLocation = gl.getAttribLocation(program, "a_tangent");
-    if (tangentAttributeLocation != -1)
-    {
-      var tangentBuffer = gl.createBuffer();
-      gl.bindBuffer(gl.ARRAY_BUFFER, tangentBuffer);
-      gl.enableVertexAttribArray(tangentAttributeLocation);
-      gl.vertexAttribPointer(tangentAttributeLocation, 3, gl.FLOAT, false, 0, 0);   
-      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.tangent), gl.STATIC_DRAW);      
-    }   
-
-    // positions
-    var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
-    if (positionAttributeLocation != -1)
-    {
-      var positionBuffer = gl.createBuffer(); 
-      gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-      gl.enableVertexAttribArray(positionAttributeLocation);      
-      gl.vertexAttribPointer(positionAttributeLocation, 3, gl.FLOAT, false, 0, 0);        
-      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.pos), gl.STATIC_DRAW);
-    }
-
-    // uv
-    var uvAttributeLocation = gl.getAttribLocation(program, "a_uv");
-    if (uvAttributeLocation != -1)
-    {
-      var uvBuffer = gl.createBuffer();
-      gl.bindBuffer(gl.ARRAY_BUFFER, uvBuffer);
-      gl.enableVertexAttribArray(uvAttributeLocation);
-      gl.vertexAttribPointer(uvAttributeLocation, 2, gl.FLOAT, false, 0, 0);
-      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.uv), gl.STATIC_DRAW);
-    }
-
-    // barycentric coordinates
-    var barycentricAttributeLocation = gl.getAttribLocation(program, "a_barycentric");
-    if (barycentricAttributeLocation != -1)
-    {
-      var barycentricBuffer = gl.createBuffer();
-      gl.bindBuffer(gl.ARRAY_BUFFER, barycentricBuffer);
-      gl.enableVertexAttribArray(barycentricAttributeLocation);
-      gl.vertexAttribPointer(barycentricAttributeLocation, 3, gl.FLOAT, false, 0, 0);
-      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.barycentric), gl.STATIC_DRAW); 
-    }        
-  */
+  ret.elementCount = 12;  // 3 * num triangles
 
   return ret;    
 }
@@ -2304,8 +2254,10 @@ function LoadImagesAndRender ()
 }
 
 //=========================================================================================
-function MakeMeshBuffers (mesh, program)
+function MakeMeshBuffers (mesh, program, destMeshData)
 {
+    // TODO: get rid of this function when no longer needed
+
     // normals
     var normalAttributeLocation = gl.getAttribLocation(program, "a_normal");
     if (normalAttributeLocation != -1)
@@ -2442,19 +2394,22 @@ function Initialize ()
       // make the sphere mesh buffers
       shader.sphereMeshVertCount = sphereMesh.pos.length;
       shader.sphereMesh = gl.createVertexArray();
-      gl.bindVertexArray(shader.sphereMesh);    
+      gl.bindVertexArray(shader.sphereMesh);   
+      shader.sphere = sphereMesh; 
       MakeMeshBuffers(sphereMesh, shader.program);
 
       // make the cube mesh buffers
       shader.cubeMeshVertCount = cubeMesh.pos.length;
       shader.cubeMesh = gl.createVertexArray();
       gl.bindVertexArray(shader.cubeMesh);    
+      shader.cube = cubeMesh;
       MakeMeshBuffers(cubeMesh, shader.program);     
 
       // make the tetrahedron mesh buffers
       shader.tetrahedronMeshVertCount = tetrahedronMesh.pos.length;
       shader.tetrahedronMesh = gl.createVertexArray();
       gl.bindVertexArray(shader.tetrahedronMesh);    
+      shader.tetrahedron = tetrahedronMesh;
       MakeMeshBuffers(tetrahedronMesh, shader.program);           
 
       g_shaders[i] = shader;
@@ -2469,6 +2424,7 @@ function Initialize ()
       shader.cubeMeshVertCount = cubeMesh.pos.length;
       shader.cubeMesh = gl.createVertexArray();
       gl.bindVertexArray(shader.cubeMesh);    
+      shader.cube = {};
       MakeMeshBuffers(cubeMesh, shader.program);           
 
       g_skyboxShader = shader;
