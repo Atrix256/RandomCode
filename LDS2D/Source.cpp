@@ -13,6 +13,10 @@ typedef uint8_t uint8;
 
 const float c_pi = 3.14159265359f;
 
+const float c_goldenRatioConjugate = 1.61803398875f;
+
+// settings to speed things up when iterating
+#define IMAGE_DOWNSIZE_FACTOR() 1
 #define DO_DFT() true
 
 //======================================================================================
@@ -311,34 +315,34 @@ void ImageClear (SImageData& image, const SColor& color)
 }
 
 //======================================================================================
-void MakeLDS2D (size_t imageSize, const char* fileName, size_t shuffleSizeX)
+// Idea 1: Do some shuffles on X axis(try different sizes).  Add golden ratio on y.
+void Idea1 (size_t imageSize, const char* fileName, size_t shuffleSize)
 {
+    // report the name of the image we are working on
+    printf("%s\n", fileName);
+
     // initialize the image
     SImageData image;
     ImageInit(image, imageSize, imageSize);
     ImageClear(image, SColor(255, 255, 255));
-
-    // TODO: replace explicit shuffle with FPE
-
-    // TODO: make shuffle shuffle floats that are a %. Work in floats until writing final pixel?
 
     // seed the random number generator
     std::random_device rd;
     std::mt19937 rng(rd());
 
     // make the shuffles for x axis
-    std::vector<uint8> shuffleItemsX;
+    std::vector<float> shuffleItemsX;
     shuffleItemsX.resize(imageSize);
     for (size_t i = 0; i < imageSize; ++i)
-        shuffleItemsX[i] = uint8(i % (shuffleSizeX + 1));
+        shuffleItemsX[i] = float(i % shuffleSize) / float(shuffleSize - 1);
     
-    // TODO: shuffle each section individually!
+    // shuffle each section individually
     size_t shuffleStart = 0;
     while (shuffleStart < imageSize)
     {
-        size_t shuffleEnd = min(shuffleStart + shuffleSizeX, imageSize);
+        size_t shuffleEnd = min(shuffleStart + shuffleSize, imageSize);
         std::shuffle(shuffleItemsX.begin() + shuffleStart, shuffleItemsX.begin() + shuffleEnd, rng);
-        shuffleStart += shuffleSizeX;
+        shuffleStart += shuffleSize;
     }
 
     // make the pixels
@@ -346,11 +350,13 @@ void MakeLDS2D (size_t imageSize, const char* fileName, size_t shuffleSizeX)
     {
         SColor* pixel = (SColor*)&image.m_pixels[y * image.m_pitch];
 
+        float goldenRatioAmount = std::fmod(y * c_goldenRatioConjugate, 1.0f);
+
         for (size_t x = 0; x < imageSize; ++x)
         {
-            // TODO: use y to add golden ratio, etc!
-            // TOOD: do multiple tests with different settings, DFT them etc
-            uint8 pixelColor = shuffleItemsX[x];
+            float pixelValue = shuffleItemsX[x] + goldenRatioAmount;
+            
+            uint8 pixelColor = uint8(pixelValue * 255.0f);
 
             pixel->Set(pixelColor, pixelColor, pixelColor);
             ++pixel;
@@ -361,32 +367,282 @@ void MakeLDS2D (size_t imageSize, const char* fileName, size_t shuffleSizeX)
     ImageSave(image, fileName);
 
     // save the DFT amplitude of the image
-    SImageDataComplex imageDFTData;
-    DFTImage(image, imageDFTData);
-    SImageData imageDFTMagnitude;
-    GetMagnitudeData(imageDFTData, imageDFTMagnitude);
-    char dftFileName[256];
-    strcpy(dftFileName, fileName);
-    strcat(dftFileName, ".mag.bmp");
-    ImageSave(imageDFTMagnitude, dftFileName);
+    if (DO_DFT())
+    {
+        SImageDataComplex imageDFTData;
+        DFTImage(image, imageDFTData);
+        SImageData imageDFTMagnitude;
+        GetMagnitudeData(imageDFTData, imageDFTMagnitude);
+        char dftFileName[256];
+        strcpy(dftFileName, fileName);
+        strcat(dftFileName, ".mag.bmp");
+        ImageSave(imageDFTMagnitude, dftFileName);
+    }
+    printf("\n");
 }
+
+//======================================================================================
+// Idea 2: Do some shuffles on X axis (try different sizes). Do modulus of shuffle size on y * golden ratio to make the y axis "repeat" as often as x axis?
+void Idea2 (size_t imageSize, const char* fileName, size_t shuffleSize)
+{
+    // report the name of the image we are working on
+    printf("%s\n", fileName);
+
+    // initialize the image
+    SImageData image;
+    ImageInit(image, imageSize, imageSize);
+    ImageClear(image, SColor(255, 255, 255));
+
+    // seed the random number generator
+    std::random_device rd;
+    std::mt19937 rng(rd());
+
+    // make the shuffles for x axis
+    std::vector<float> shuffleItemsX;
+    shuffleItemsX.resize(imageSize);
+    for (size_t i = 0; i < imageSize; ++i)
+        shuffleItemsX[i] = float(i % shuffleSize) / float(shuffleSize - 1);
+    
+    // shuffle each section individually
+    size_t shuffleStart = 0;
+    while (shuffleStart < imageSize)
+    {
+        size_t shuffleEnd = min(shuffleStart + shuffleSize, imageSize);
+        std::shuffle(shuffleItemsX.begin() + shuffleStart, shuffleItemsX.begin() + shuffleEnd, rng);
+        shuffleStart += shuffleSize;
+    }
+
+    // make the pixels
+    for (size_t y = 0; y < imageSize; ++y)
+    {
+        SColor* pixel = (SColor*)&image.m_pixels[y * image.m_pitch];
+
+        float goldenRatioAmount = std::fmod(float(y%shuffleSize) * c_goldenRatioConjugate, 1.0f);
+
+        for (size_t x = 0; x < imageSize; ++x)
+        {
+            float pixelValue = shuffleItemsX[x] + goldenRatioAmount;
+            
+            uint8 pixelColor = uint8(pixelValue * 255.0f);
+
+            pixel->Set(pixelColor, pixelColor, pixelColor);
+            ++pixel;
+        }
+    }
+
+    // save the image
+    ImageSave(image, fileName);
+
+    // save the DFT amplitude of the image
+    if (DO_DFT())
+    {
+        SImageDataComplex imageDFTData;
+        DFTImage(image, imageDFTData);
+        SImageData imageDFTMagnitude;
+        GetMagnitudeData(imageDFTData, imageDFTMagnitude);
+        char dftFileName[256];
+        strcpy(dftFileName, fileName);
+        strcat(dftFileName, ".mag.bmp");
+        ImageSave(imageDFTMagnitude, dftFileName);
+    }
+    printf("\n");
+}
+
+//======================================================================================
+// Idea 3: Make Shuffles for X and Y.  add the numbers together to figure out how much to multiply golden ratio by.
+void Idea3 (size_t imageSize, const char* fileName, size_t shuffleSize)
+{
+    // report the name of the image we are working on
+    printf("%s\n", fileName);
+
+    // initialize the image
+    SImageData image;
+    ImageInit(image, imageSize, imageSize);
+    ImageClear(image, SColor(255, 255, 255));
+
+    // seed the random number generator
+    std::random_device rd;
+    std::mt19937 rng(rd());
+
+    // make the shuffles for x and y axis
+    std::vector<float> shuffleItemsX;
+    std::vector<float> shuffleItemsY;
+    shuffleItemsX.resize(imageSize);
+    shuffleItemsY.resize(imageSize);
+    for (size_t i = 0; i < imageSize; ++i)
+    {
+        shuffleItemsX[i] = float(i % shuffleSize) / float(shuffleSize - 1);
+        shuffleItemsY[i] = float(i % shuffleSize) / float(shuffleSize - 1);
+    }
+    
+    // shuffle each section individually
+    size_t shuffleStart = 0;
+    while (shuffleStart < imageSize)
+    {
+        size_t shuffleEnd = min(shuffleStart + shuffleSize, imageSize);
+        std::shuffle(shuffleItemsX.begin() + shuffleStart, shuffleItemsX.begin() + shuffleEnd, rng);
+        std::shuffle(shuffleItemsY.begin() + shuffleStart, shuffleItemsY.begin() + shuffleEnd, rng);
+        shuffleStart += shuffleSize;
+    }
+
+    // make the pixels
+    for (size_t y = 0; y < imageSize; ++y)
+    {
+        SColor* pixel = (SColor*)&image.m_pixels[y * image.m_pitch];
+
+        for (size_t x = 0; x < imageSize; ++x)
+        {
+            float pixelValue = std::fmod(shuffleItemsX[x] + shuffleItemsY[y], 1.0f);
+            
+            uint8 pixelColor = uint8(pixelValue * 255.0f);
+
+            pixel->Set(pixelColor, pixelColor, pixelColor);
+            ++pixel;
+        }
+    }
+
+    // save the image
+    ImageSave(image, fileName);
+
+    // save the DFT amplitude of the image
+    if (DO_DFT())
+    {
+        SImageDataComplex imageDFTData;
+        DFTImage(image, imageDFTData);
+        SImageData imageDFTMagnitude;
+        GetMagnitudeData(imageDFTData, imageDFTMagnitude);
+        char dftFileName[256];
+        strcpy(dftFileName, fileName);
+        strcat(dftFileName, ".mag.bmp");
+        ImageSave(imageDFTMagnitude, dftFileName);
+    }
+    printf("\n");
+}
+
+//======================================================================================
+// Idea 3: Make Shuffles for X and Y.  multiply the numbers together to figure out how much to multiply golden ratio by.
+void Idea4 (size_t imageSize, const char* fileName, size_t shuffleSize)
+{
+    // report the name of the image we are working on
+    printf("%s\n", fileName);
+
+    // initialize the image
+    SImageData image;
+    ImageInit(image, imageSize, imageSize);
+    ImageClear(image, SColor(255, 255, 255));
+
+    // seed the random number generator
+    std::random_device rd;
+    std::mt19937 rng(rd());
+
+    // make the shuffles for x and y axis
+    std::vector<float> shuffleItemsX;
+    std::vector<float> shuffleItemsY;
+    shuffleItemsX.resize(imageSize);
+    shuffleItemsY.resize(imageSize);
+    for (size_t i = 0; i < imageSize; ++i)
+    {
+        shuffleItemsX[i] = float(i % shuffleSize) / float(shuffleSize - 1);
+        shuffleItemsY[i] = float(i % shuffleSize) / float(shuffleSize - 1);
+    }
+    
+    // shuffle each section individually
+    size_t shuffleStart = 0;
+    while (shuffleStart < imageSize)
+    {
+        size_t shuffleEnd = min(shuffleStart + shuffleSize, imageSize);
+        std::shuffle(shuffleItemsX.begin() + shuffleStart, shuffleItemsX.begin() + shuffleEnd, rng);
+        std::shuffle(shuffleItemsY.begin() + shuffleStart, shuffleItemsY.begin() + shuffleEnd, rng);
+        shuffleStart += shuffleSize;
+    }
+
+    // make the pixels
+    for (size_t y = 0; y < imageSize; ++y)
+    {
+        SColor* pixel = (SColor*)&image.m_pixels[y * image.m_pitch];
+
+        for (size_t x = 0; x < imageSize; ++x)
+        {
+            float pixelValue = std::fmod(shuffleItemsX[x] * shuffleItemsY[y], 1.0f);
+            
+            uint8 pixelColor = uint8(pixelValue * 255.0f);
+
+            pixel->Set(pixelColor, pixelColor, pixelColor);
+            ++pixel;
+        }
+    }
+
+    // save the image
+    ImageSave(image, fileName);
+
+    // save the DFT amplitude of the image
+    if (DO_DFT())
+    {
+        SImageDataComplex imageDFTData;
+        DFTImage(image, imageDFTData);
+        SImageData imageDFTMagnitude;
+        GetMagnitudeData(imageDFTData, imageDFTMagnitude);
+        char dftFileName[256];
+        strcpy(dftFileName, fileName);
+        strcat(dftFileName, ".mag.bmp");
+        ImageSave(imageDFTMagnitude, dftFileName);
+    }
+    printf("\n");
+}
+
 
 //======================================================================================
 int main (int argc, char** argv)
 {
-    MakeLDS2D(256, "images/LDS2D.bmp", 128);
+    Idea1(256 / IMAGE_DOWNSIZE_FACTOR(), "images/Idea1_4.bmp", 4 / IMAGE_DOWNSIZE_FACTOR());
+    Idea1(256 / IMAGE_DOWNSIZE_FACTOR(), "images/Idea1_16.bmp", 16 / IMAGE_DOWNSIZE_FACTOR());
+    Idea1(256 / IMAGE_DOWNSIZE_FACTOR(), "images/Idea1_128.bmp", 128 / IMAGE_DOWNSIZE_FACTOR());
+    Idea1(256 / IMAGE_DOWNSIZE_FACTOR(), "images/Idea1_256.bmp", 256 / IMAGE_DOWNSIZE_FACTOR());
 
+    Idea2(256 / IMAGE_DOWNSIZE_FACTOR(), "images/Idea2_4.bmp", 4 / IMAGE_DOWNSIZE_FACTOR());
+    Idea2(256 / IMAGE_DOWNSIZE_FACTOR(), "images/Idea2_16.bmp", 16 / IMAGE_DOWNSIZE_FACTOR());
+    Idea2(256 / IMAGE_DOWNSIZE_FACTOR(), "images/Idea2_128.bmp", 128 / IMAGE_DOWNSIZE_FACTOR());
+    Idea2(256 / IMAGE_DOWNSIZE_FACTOR(), "images/Idea2_256.bmp", 256 / IMAGE_DOWNSIZE_FACTOR());
 
+    Idea3(256 / IMAGE_DOWNSIZE_FACTOR(), "images/Idea3_4.bmp", 4 / IMAGE_DOWNSIZE_FACTOR());
+    Idea3(256 / IMAGE_DOWNSIZE_FACTOR(), "images/Idea3_16.bmp", 16 / IMAGE_DOWNSIZE_FACTOR());
+    Idea3(256 / IMAGE_DOWNSIZE_FACTOR(), "images/Idea3_128.bmp", 128 / IMAGE_DOWNSIZE_FACTOR());
+    Idea3(256 / IMAGE_DOWNSIZE_FACTOR(), "images/Idea3_256.bmp", 256 / IMAGE_DOWNSIZE_FACTOR());
+
+    Idea4(256 / IMAGE_DOWNSIZE_FACTOR(), "images/Idea4_4.bmp", 4 / IMAGE_DOWNSIZE_FACTOR());
+    Idea4(256 / IMAGE_DOWNSIZE_FACTOR(), "images/Idea4_16.bmp", 16 / IMAGE_DOWNSIZE_FACTOR());
+    Idea4(256 / IMAGE_DOWNSIZE_FACTOR(), "images/Idea4_128.bmp", 128 / IMAGE_DOWNSIZE_FACTOR());
+    Idea4(256 / IMAGE_DOWNSIZE_FACTOR(), "images/Idea4_256.bmp", 256 / IMAGE_DOWNSIZE_FACTOR());
 
     return 0;
 }
 /*
 
-* shuffle x axis, then add y * golden ratio for y axis
-* or better yet (?) shuffle x axis, and shuffle y axis, and add that shuffled value * golden ratio to y axis?
-* could also try shuffling both x and y and add golden ratio * each?
+Idea 1: Make Shuffles for X. Add golden ratio on y.
+ * Notes: visible structure
+Idea 2: Make Shuffles for X. Add golden ratio on y, but modulus by shuffle size.
+ * Notes: Seems worse than not modulusing. maybe not a big surprise.
+Idea 3: Make Shuffles for X and Y.  add the numbers together to figure out how much to multiply golden ratio by.
+ * Notes: there are a lot of frequencies...
+Idea 4: Make Shuffles for X and Y.  multiply the numbers together to figure out how much to multiply golden ratio by.
+ * Notes: The zeros suck and make streaks.  Since the numbers are < 1, they darken eachother too.
 
-* try the variations and DFT them perhaps?
- * maybe use them to dither something?
+
+Idea N: Make multiple rows and columns of shuffles.    add the numbers together to figure out how much to multiply golden ratio by.
+ ? could we make multiple rows and columns of shuffles and have it use whichever is immediately to the left or below?
+
+* maybe try gradient noise?
+
+
+
+? am i multithreading DFT correctly? do i really not need any protection when writing to different pixels?
+
+* BLOG
+ * basic idea: can i make some 2d low discrepancy sequences (different than "sample points") using shuffling (format preserving encryption) and golden ratio?
+ * start out with real shuffling and then replace with FPE if i see that regular shuffling works, since FPE approaches quality of real shuffling
+ * document ideas as you try them.  Code and images and DFT (magnitude)
+ * show blue noise and DFT of that as ideal goal to compare against
+ * also white noise
+ ? maybe also show using these images for dithering something?
 
 */
