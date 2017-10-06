@@ -6,6 +6,8 @@
 #include <random>
 #include <algorithm>
 #include <complex>
+#include <thread>
+#include <atomic>
 
 typedef uint8_t uint8;
 
@@ -58,7 +60,7 @@ struct SImageDataComplex
 };
 
 //======================================================================================
-std::complex<float> DFTPixel (const SImageData &srcImage, int K, int L)
+std::complex<float> DFTPixel (const SImageData &srcImage, size_t K, size_t L)
 {
     std::complex<float> ret(0.0f, 0.0f);
  
@@ -85,28 +87,61 @@ void DFTImage (const SImageData &srcImage, SImageDataComplex &destImage)
 {
     // NOTE: this function assumes srcImage is greyscale, so works on only the red component of srcImage.
     // ImageToGrey() will convert an image to greyscale.
- 
+
     // size the output dft data
     destImage.m_width = srcImage.m_width;
     destImage.m_height = srcImage.m_height;
     destImage.m_pixels.resize(destImage.m_width*destImage.m_height);
-  
-    // calculate 2d dft (brute force, not using fast fourier transform)
-    int lastPercent = -1;
-    for (size_t x = 0; x < srcImage.m_width; ++x)
+
+    size_t numThreads = std::thread::hardware_concurrency();
+    //if (numThreads > 0)
+        //numThreads = numThreads - 1;
+
+    std::vector<std::thread> threads;
+    threads.resize(numThreads);
+
+    printf("Doing DFT with %zu threads...\n", numThreads);
+
+    // calculate 2d dft (brute force, not using fast fourier transform) multithreadedly
+    std::atomic<size_t> nextRow(0);
+    for (std::thread& t : threads)
     {
-        for (size_t y = 0; y < srcImage.m_height; ++y)
-        {
-            // calculate DFT for that pixel / frequency
-            destImage.m_pixels[y * destImage.m_width + x] = DFTPixel(srcImage, x, y);
-        }
-        int percent = int(100.0f * float(x) / float(srcImage.m_height));
-        if (lastPercent != percent)
-        {
-            lastPercent = percent;
-            printf("            \rDFT: %i%%", lastPercent);
-        }
+        t = std::thread(
+            [&] ()
+            {
+                size_t row = nextRow.fetch_add(1);
+                bool reportProgress = (row == 0);
+                int lastPercent = -1;
+
+                while (row < srcImage.m_height)
+                {
+                    // calculate the DFT for every pixel / frequency in this row
+                    for (size_t x = 0; x < srcImage.m_width; ++x)
+                    {
+                        destImage.m_pixels[row * destImage.m_width + x] = DFTPixel(srcImage, x, row);
+                    }
+
+                    // report progress if we should
+                    if (reportProgress)
+                    {
+                        int percent = int(100.0f * float(row) / float(srcImage.m_height));
+                        if (lastPercent != percent)
+                        {
+                            lastPercent = percent;
+                            printf("            \rDFT: %i%%", lastPercent);
+                        }
+                    }
+
+                    // go to the next row
+                    row = nextRow.fetch_add(1);
+                }
+            }
+        );
     }
+
+    for (std::thread& t : threads)
+        t.join();
+
     printf("\n");
 }
 
@@ -326,7 +361,6 @@ void MakeLDS2D (size_t imageSize, const char* fileName, size_t shuffleSizeX)
     ImageSave(image, fileName);
 
     // save the DFT amplitude of the image
-    printf("Doing DFT...\n");
     SImageDataComplex imageDFTData;
     DFTImage(image, imageDFTData);
     SImageData imageDFTMagnitude;
@@ -347,8 +381,6 @@ int main (int argc, char** argv)
     return 0;
 }
 /*
-
-TODO: multithread DFT?
 
 * shuffle x axis, then add y * golden ratio for y axis
 * or better yet (?) shuffle x axis, and shuffle y axis, and add that shuffled value * golden ratio to y axis?
