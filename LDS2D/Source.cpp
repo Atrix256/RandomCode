@@ -1017,6 +1017,59 @@ void BlueNoise (const char* fileName)
 }
 
 //======================================================================================
+// Interleaved Gradient Noise: From Jorge Jiminez.  http://www.iryoku.com/next-generation-post-processing-in-call-of-duty-advanced-warfare
+void InterleavedGradientNoise (size_t imageSize, const char* fileName)
+{
+    // report the name of the image we are working on
+    printf("%s\n", fileName);
+
+    // initialize the image
+    SImageData image;
+    ImageInit(image, imageSize, imageSize);
+    ImageClear(image, SColor(255, 255, 255));
+
+    // make the pixels
+    for (size_t y = 0; y < imageSize; ++y)
+    {
+        SColor* pixel = (SColor*)&image.m_pixels[y * image.m_pitch];
+
+        float v = float(y);
+
+        for (size_t x = 0; x < imageSize; ++x)
+        {
+            float u = float(x);
+
+            float pixelValue = std::fmod(52.9829189f * std::fmod(0.06711056f*u + 0.00583715f*v, 1.0f), 1.0f);
+            
+            uint8 pixelColor = uint8(pixelValue * 255.0f);
+
+            pixel->Set(pixelColor, pixelColor, pixelColor);
+            ++pixel;
+        }
+    }
+
+    // save the image
+    ImageSave(image, fileName);
+
+    // do the stippling test
+    StippleTest(image, fileName);
+
+    // save the DFT amplitude of the image
+    if (DO_DFT())
+    {
+        SImageDataComplex imageDFTData;
+        DFTImage(image, imageDFTData);
+        SImageData imageDFTMagnitude;
+        GetMagnitudeData(imageDFTData, imageDFTMagnitude);
+        char dftFileName[256];
+        strcpy(dftFileName, fileName);
+        strcat(dftFileName, ".mag.bmp");
+        ImageSave(imageDFTMagnitude, dftFileName);
+    }
+    printf("\n");
+}
+
+//======================================================================================
 int main(int argc, char** argv)
 {
     // load the image used for stippling tests
@@ -1060,12 +1113,18 @@ int main(int argc, char** argv)
 
     BlueNoise("srcimages/BlueNoise470.bmp");
 
+    InterleavedGradientNoise(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/InterleavedGradient.bmp");
+
     return 0;
 }
 /*
 
 TODO:
 * Measure difference (error) of each image.
+ * absolute value sum
+ * net value sum
+ * mean and standard deviation
+ * print to a text file?
 * can you verify your DFT implementation is accurate somehow?
 * convert all these images to png so you can use on the web?
 
@@ -1099,7 +1158,8 @@ White Noise : random pixel color
  * document ideas as you try them.  Code and images and DFT (magnitude)
  * show blue noise and DFT of that as ideal goal to compare against
  * also white noise
- ? maybe also show using these images for dithering something?
+ ! Jorge Jiminez has a good solution
+  * ALAN: check presentation. it says something about a spiral pattern.
 
 
 * free blue noise textures / blue noise info
@@ -1107,5 +1167,10 @@ White Noise : random pixel color
 
 * stippling and blue noise
  * http://www.joesfer.com/?p=108
+
+* bart wronski: Dithering part three – real world 2D quantization dithering
+  * https://bartwronski.com/2016/10/30/dithering-part-three-real-world-2d-quantization-dithering/
+  * he links to jorge's Interleaved gradient noise
+   * http://www.iryoku.com/next-generation-post-processing-in-call-of-duty-advanced-warfare
 
 */
