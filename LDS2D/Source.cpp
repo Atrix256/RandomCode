@@ -17,7 +17,7 @@ const float c_goldenRatioConjugate = 1.61803398875f;
 
 // settings to speed things up when iterating
 #define IMAGE_DOWNSIZE_FACTOR() 1
-#define DO_DFT() true
+#define DO_DFT() true // TODO: set this to true before checking in
 
 //======================================================================================
 struct SImageData
@@ -32,6 +32,8 @@ struct SImageData
     size_t m_pitch;
     std::vector<uint8> m_pixels;
 };
+
+SImageData s_stippleImage;
  
 //======================================================================================
 struct SColor
@@ -155,12 +157,7 @@ void GetMagnitudeData (const SImageDataComplex& srcImage, SImageData& destImage)
     // size the output image
     destImage.m_width = srcImage.m_width;
     destImage.m_height = srcImage.m_height;
-    destImage.m_pitch = srcImage.m_width * 3;
-    if (destImage.m_pitch & 3)
-    {
-        destImage.m_pitch &= ~3;
-        destImage.m_pitch += 4;
-    }
+    destImage.m_pitch = 4 * ((srcImage.m_width * 24 + 31) / 32);
     destImage.m_pixels.resize(destImage.m_pitch*destImage.m_height);
  
     // get floating point magnitude data
@@ -212,12 +209,7 @@ void GetPhaseData (const SImageDataComplex& srcImage, SImageData& destImage)
     // size the output image
     destImage.m_width = srcImage.m_width;
     destImage.m_height = srcImage.m_height;
-    destImage.m_pitch = srcImage.m_width * 3;
-    if (destImage.m_pitch & 3)
-    {
-        destImage.m_pitch &= ~3;
-        destImage.m_pitch += 4;
-    }
+    destImage.m_pitch = 4 * ((srcImage.m_width * 24 + 31) / 32);
     destImage.m_pixels.resize(destImage.m_pitch*destImage.m_height);
  
     // get floating point phase data, and encode it in [0,255]
@@ -290,6 +282,42 @@ bool ImageSave (const SImageData &image, const char *fileName)
   
     return true;
 }
+
+bool ImageLoad (const char *fileName, SImageData& imageData)
+{
+    // open the file if we can
+    FILE *file;
+    file = fopen(fileName, "rb");
+    if (!file)
+        return false;
+ 
+    // read the headers if we can
+    BITMAPFILEHEADER header;
+    BITMAPINFOHEADER infoHeader;
+    if (fread(&header, sizeof(header), 1, file) != 1 ||
+        fread(&infoHeader, sizeof(infoHeader), 1, file) != 1 ||
+        header.bfType != 0x4D42 || infoHeader.biBitCount != 24)
+    {
+        fclose(file);
+        return false;
+    }
+ 
+    // read in our pixel data if we can. Note that it's in BGR order, and width is padded to the next power of 4
+    imageData.m_pixels.resize(infoHeader.biSizeImage);
+    fseek(file, header.bfOffBits, SEEK_SET);
+    if (fread(&imageData.m_pixels[0], imageData.m_pixels.size(), 1, file) != 1)
+    {
+        fclose(file);
+        return false;
+    }
+ 
+    imageData.m_width = infoHeader.biWidth;
+    imageData.m_height = infoHeader.biHeight;
+    imageData.m_pitch = 4 * ((imageData.m_width * 24 + 31) / 32);
+ 
+    fclose(file);
+    return true;
+}
  
 //======================================================================================
 void ImageInit (SImageData& image, size_t width, size_t height)
@@ -312,6 +340,38 @@ void ImageClear (SImageData& image, const SColor& color)
  
         row += image.m_pitch;
     }
+}
+
+//======================================================================================
+void StippleTest (SImageData& noiseImage, const char* fileName)
+{
+    SImageData outputImage;
+    ImageInit(outputImage, s_stippleImage.m_width, s_stippleImage.m_height);
+
+    for (size_t y = 0; y < s_stippleImage.m_height; ++y)
+    {
+        for (size_t x = 0; x < s_stippleImage.m_width; ++x)
+        {
+            SColor* srcPixel = (SColor*)&s_stippleImage.m_pixels[y * s_stippleImage.m_pitch + x * 3];
+            SColor* destPixel = (SColor*)&outputImage.m_pixels[y * outputImage.m_pitch + x * 3];
+
+            size_t noiseX = x % noiseImage.m_width;
+            size_t noiseY = y % noiseImage.m_height;
+
+            SColor* noisePixel = (SColor*)&noiseImage.m_pixels[noiseY * noiseImage.m_pitch + noiseX * 3];
+
+            if (noisePixel->R >= srcPixel->R)
+                destPixel->Set(0, 0, 0);
+            else
+                destPixel->Set(255, 255, 255);
+        }
+    }
+
+    // save the image
+    char outFileName[256];
+    strcpy(outFileName, fileName);
+    strcat(outFileName, ".stipple.bmp");
+    ImageSave(outputImage, outFileName);
 }
 
 //======================================================================================
@@ -365,6 +425,9 @@ void Idea1 (size_t imageSize, const char* fileName, size_t shuffleSize)
 
     // save the image
     ImageSave(image, fileName);
+
+    // do the stippling test
+    StippleTest(image, fileName);
 
     // save the DFT amplitude of the image
     if (DO_DFT())
@@ -433,6 +496,9 @@ void Idea2 (size_t imageSize, const char* fileName, size_t shuffleSize)
     // save the image
     ImageSave(image, fileName);
 
+    // do the stippling test
+    StippleTest(image, fileName);
+
     // save the DFT amplitude of the image
     if (DO_DFT())
     {
@@ -492,7 +558,7 @@ void Idea3 (size_t imageSize, const char* fileName, size_t shuffleSize)
 
         for (size_t x = 0; x < imageSize; ++x)
         {
-            float pixelValue = std::fmod(shuffleItemsX[x] + shuffleItemsY[y], 1.0f);
+            float pixelValue = std::fmod((shuffleItemsX[x] + shuffleItemsY[y])*c_goldenRatioConjugate, 1.0f);
             
             uint8 pixelColor = uint8(pixelValue * 255.0f);
 
@@ -503,6 +569,9 @@ void Idea3 (size_t imageSize, const char* fileName, size_t shuffleSize)
 
     // save the image
     ImageSave(image, fileName);
+
+    // do the stippling test
+    StippleTest(image, fileName);
 
     // save the DFT amplitude of the image
     if (DO_DFT())
@@ -520,7 +589,7 @@ void Idea3 (size_t imageSize, const char* fileName, size_t shuffleSize)
 }
 
 //======================================================================================
-// Idea 3: Make Shuffles for X and Y.  multiply the numbers together to figure out how much to multiply golden ratio by.
+// Idea 4: Make Shuffles for X and Y.  multiply the numbers together to figure out how much to multiply golden ratio by.
 void Idea4 (size_t imageSize, const char* fileName, size_t shuffleSize)
 {
     // report the name of the image we are working on
@@ -563,7 +632,7 @@ void Idea4 (size_t imageSize, const char* fileName, size_t shuffleSize)
 
         for (size_t x = 0; x < imageSize; ++x)
         {
-            float pixelValue = std::fmod(shuffleItemsX[x] * shuffleItemsY[y], 1.0f);
+            float pixelValue = std::fmod((shuffleItemsX[x] * shuffleItemsY[y])*c_goldenRatioConjugate, 1.0f);
             
             uint8 pixelColor = uint8(pixelValue * 255.0f);
 
@@ -574,6 +643,9 @@ void Idea4 (size_t imageSize, const char* fileName, size_t shuffleSize)
 
     // save the image
     ImageSave(image, fileName);
+
+    // do the stippling test
+    StippleTest(image, fileName);
 
     // save the DFT amplitude of the image
     if (DO_DFT())
@@ -590,33 +662,413 @@ void Idea4 (size_t imageSize, const char* fileName, size_t shuffleSize)
     printf("\n");
 }
 
+//======================================================================================
+// Idea 5: (x+y)*golden ratio
+void Idea5 (size_t imageSize, const char* fileName)
+{
+    // report the name of the image we are working on
+    printf("%s\n", fileName);
+
+    // initialize the image
+    SImageData image;
+    ImageInit(image, imageSize, imageSize);
+    ImageClear(image, SColor(255, 255, 255));
+
+    // make the pixels
+    for (size_t y = 0; y < imageSize; ++y)
+    {
+        SColor* pixel = (SColor*)&image.m_pixels[y * image.m_pitch];
+
+        for (size_t x = 0; x < imageSize; ++x)
+        {
+            float pixelValue = std::fmod((x+y)*c_goldenRatioConjugate, 1.0f);
+            
+            uint8 pixelColor = uint8(pixelValue * 255.0f);
+
+            pixel->Set(pixelColor, pixelColor, pixelColor);
+            ++pixel;
+        }
+    }
+
+    // save the image
+    ImageSave(image, fileName);
+
+    // do the stippling test
+    StippleTest(image, fileName);
+
+    // save the DFT amplitude of the image
+    if (DO_DFT())
+    {
+        SImageDataComplex imageDFTData;
+        DFTImage(image, imageDFTData);
+        SImageData imageDFTMagnitude;
+        GetMagnitudeData(imageDFTData, imageDFTMagnitude);
+        char dftFileName[256];
+        strcpy(dftFileName, fileName);
+        strcat(dftFileName, ".mag.bmp");
+        ImageSave(imageDFTMagnitude, dftFileName);
+    }
+    printf("\n");
+}
 
 //======================================================================================
-int main (int argc, char** argv)
+// Idea 6: Random seed for each row and column. pixel = (seed for row + y * golden ratio) + (seed for column + x * golden ratio)
+void Idea6 (size_t imageSize, const char* fileName)
 {
-    Idea1(256 / IMAGE_DOWNSIZE_FACTOR(), "images/Idea1_4.bmp", 4 / IMAGE_DOWNSIZE_FACTOR());
-    Idea1(256 / IMAGE_DOWNSIZE_FACTOR(), "images/Idea1_16.bmp", 16 / IMAGE_DOWNSIZE_FACTOR());
-    Idea1(256 / IMAGE_DOWNSIZE_FACTOR(), "images/Idea1_128.bmp", 128 / IMAGE_DOWNSIZE_FACTOR());
-    Idea1(256 / IMAGE_DOWNSIZE_FACTOR(), "images/Idea1_256.bmp", 256 / IMAGE_DOWNSIZE_FACTOR());
+    // report the name of the image we are working on
+    printf("%s\n", fileName);
 
-    Idea2(256 / IMAGE_DOWNSIZE_FACTOR(), "images/Idea2_4.bmp", 4 / IMAGE_DOWNSIZE_FACTOR());
-    Idea2(256 / IMAGE_DOWNSIZE_FACTOR(), "images/Idea2_16.bmp", 16 / IMAGE_DOWNSIZE_FACTOR());
-    Idea2(256 / IMAGE_DOWNSIZE_FACTOR(), "images/Idea2_128.bmp", 128 / IMAGE_DOWNSIZE_FACTOR());
-    Idea2(256 / IMAGE_DOWNSIZE_FACTOR(), "images/Idea2_256.bmp", 256 / IMAGE_DOWNSIZE_FACTOR());
+    // initialize the image
+    SImageData image;
+    ImageInit(image, imageSize, imageSize);
+    ImageClear(image, SColor(255, 255, 255));
 
-    Idea3(256 / IMAGE_DOWNSIZE_FACTOR(), "images/Idea3_4.bmp", 4 / IMAGE_DOWNSIZE_FACTOR());
-    Idea3(256 / IMAGE_DOWNSIZE_FACTOR(), "images/Idea3_16.bmp", 16 / IMAGE_DOWNSIZE_FACTOR());
-    Idea3(256 / IMAGE_DOWNSIZE_FACTOR(), "images/Idea3_128.bmp", 128 / IMAGE_DOWNSIZE_FACTOR());
-    Idea3(256 / IMAGE_DOWNSIZE_FACTOR(), "images/Idea3_256.bmp", 256 / IMAGE_DOWNSIZE_FACTOR());
+    // seed the random number generator
+    std::random_device rd;
+    std::mt19937 rng(rd());
+    std::uniform_real_distribution<float> dist(0, 1.0f);
 
-    Idea4(256 / IMAGE_DOWNSIZE_FACTOR(), "images/Idea4_4.bmp", 4 / IMAGE_DOWNSIZE_FACTOR());
-    Idea4(256 / IMAGE_DOWNSIZE_FACTOR(), "images/Idea4_16.bmp", 16 / IMAGE_DOWNSIZE_FACTOR());
-    Idea4(256 / IMAGE_DOWNSIZE_FACTOR(), "images/Idea4_128.bmp", 128 / IMAGE_DOWNSIZE_FACTOR());
-    Idea4(256 / IMAGE_DOWNSIZE_FACTOR(), "images/Idea4_256.bmp", 256 / IMAGE_DOWNSIZE_FACTOR());
+    // make the random numbers for x and y axis
+    std::vector<float> seedsX;
+    std::vector<float> seedsY;
+    seedsX.resize(imageSize);
+    seedsY.resize(imageSize);
+    for (size_t i = 0; i < imageSize; ++i)
+    {
+        seedsX[i] = dist(rng);
+        seedsY[i] = dist(rng);
+    }
+
+    // make the pixels
+    for (size_t y = 0; y < imageSize; ++y)
+    {
+        SColor* pixel = (SColor*)&image.m_pixels[y * image.m_pitch];
+
+        for (size_t x = 0; x < imageSize; ++x)
+        {
+            float pixelValue = std::fmod(seedsX[x] + seedsY[y] + (x + y)*c_goldenRatioConjugate, 1.0f);
+            
+            uint8 pixelColor = uint8(pixelValue * 255.0f);
+
+            pixel->Set(pixelColor, pixelColor, pixelColor);
+            ++pixel;
+        }
+    }
+
+    // save the image
+    ImageSave(image, fileName);
+
+    // do the stippling test
+    StippleTest(image, fileName);
+
+    // save the DFT amplitude of the image
+    if (DO_DFT())
+    {
+        SImageDataComplex imageDFTData;
+        DFTImage(image, imageDFTData);
+        SImageData imageDFTMagnitude;
+        GetMagnitudeData(imageDFTData, imageDFTMagnitude);
+        char dftFileName[256];
+        strcpy(dftFileName, fileName);
+        strcat(dftFileName, ".mag.bmp");
+        ImageSave(imageDFTMagnitude, dftFileName);
+    }
+    printf("\n");
+}
+
+//======================================================================================
+// Uniform : ((x + y) % repeatSize) / (repeatSize-1)
+void Uniform (size_t imageSize, const char* fileName, size_t repeatSize)
+{
+    // report the name of the image we are working on
+    printf("%s\n", fileName);
+
+    // initialize the image
+    SImageData image;
+    ImageInit(image, imageSize, imageSize);
+    ImageClear(image, SColor(255, 255, 255));
+
+    // make the pixels
+    for (size_t y = 0; y < imageSize; ++y)
+    {
+        SColor* pixel = (SColor*)&image.m_pixels[y * image.m_pitch];
+
+        for (size_t x = 0; x < imageSize; ++x)
+        {
+            float pixelValue = float((x + y) % repeatSize) / float(repeatSize - 1);
+            
+            uint8 pixelColor = uint8(pixelValue * 255.0f);
+
+            pixel->Set(pixelColor, pixelColor, pixelColor);
+            ++pixel;
+        }
+    }
+
+    // save the image
+    ImageSave(image, fileName);
+
+    // do the stippling test
+    StippleTest(image, fileName);
+
+    // save the DFT amplitude of the image
+    if (DO_DFT())
+    {
+        SImageDataComplex imageDFTData;
+        DFTImage(image, imageDFTData);
+        SImageData imageDFTMagnitude;
+        GetMagnitudeData(imageDFTData, imageDFTMagnitude);
+        char dftFileName[256];
+        strcpy(dftFileName, fileName);
+        strcat(dftFileName, ".mag.bmp");
+        ImageSave(imageDFTMagnitude, dftFileName);
+    }
+    printf("\n");
+}
+
+//======================================================================================
+// Uniform Jitter : ((x + y) % repeatSize) / (repeatSize-1) + rand(0, 1/repeatSize)
+void UniformJitter (size_t imageSize, const char* fileName, size_t repeatSize)
+{
+    // report the name of the image we are working on
+    printf("%s\n", fileName);
+
+    // initialize the image
+    SImageData image;
+    ImageInit(image, imageSize, imageSize);
+    ImageClear(image, SColor(255, 255, 255));
+
+    // seed the random number generator
+    std::random_device rd;
+    std::mt19937 rng(rd());
+    std::uniform_real_distribution<float> dist(0, float(1.0f / repeatSize));
+
+    // make the pixels
+    for (size_t y = 0; y < imageSize; ++y)
+    {
+        SColor* pixel = (SColor*)&image.m_pixels[y * image.m_pitch];
+
+        for (size_t x = 0; x < imageSize; ++x)
+        {
+            float pixelValue = std::fmod(float((x + y) % repeatSize) / float(repeatSize - 1) + dist(rng), 1.0f);
+            
+            uint8 pixelColor = uint8(pixelValue * 255.0f);
+
+            pixel->Set(pixelColor, pixelColor, pixelColor);
+            ++pixel;
+        }
+    }
+
+    // save the image
+    ImageSave(image, fileName);
+
+    // do the stippling test
+    StippleTest(image, fileName);
+
+    // save the DFT amplitude of the image
+    if (DO_DFT())
+    {
+        SImageDataComplex imageDFTData;
+        DFTImage(image, imageDFTData);
+        SImageData imageDFTMagnitude;
+        GetMagnitudeData(imageDFTData, imageDFTMagnitude);
+        char dftFileName[256];
+        strcpy(dftFileName, fileName);
+        strcat(dftFileName, ".mag.bmp");
+        ImageSave(imageDFTMagnitude, dftFileName);
+    }
+    printf("\n");
+}
+
+//======================================================================================
+// White Noise : random pixel color
+void WhiteNoise (size_t imageSize, const char* fileName)
+{
+    // report the name of the image we are working on
+    printf("%s\n", fileName);
+
+    // initialize the image
+    SImageData image;
+    ImageInit(image, imageSize, imageSize);
+    ImageClear(image, SColor(255, 255, 255));
+
+    // seed the random number generator
+    std::random_device rd;
+    std::mt19937 rng(rd());
+    std::uniform_real_distribution<float> dist(0, 1.0f);
+
+    // make the pixels
+    for (size_t y = 0; y < imageSize; ++y)
+    {
+        SColor* pixel = (SColor*)&image.m_pixels[y * image.m_pitch];
+
+        for (size_t x = 0; x < imageSize; ++x)
+        {
+            float pixelValue = dist(rng);
+            
+            uint8 pixelColor = uint8(pixelValue * 255.0f);
+
+            pixel->Set(pixelColor, pixelColor, pixelColor);
+            ++pixel;
+        }
+    }
+
+    // save the image
+    ImageSave(image, fileName);
+
+    // do the stippling test
+    StippleTest(image, fileName);
+
+    // save the DFT amplitude of the image
+    if (DO_DFT())
+    {
+        SImageDataComplex imageDFTData;
+        DFTImage(image, imageDFTData);
+        SImageData imageDFTMagnitude;
+        GetMagnitudeData(imageDFTData, imageDFTMagnitude);
+        char dftFileName[256];
+        strcpy(dftFileName, fileName);
+        strcat(dftFileName, ".mag.bmp");
+        ImageSave(imageDFTMagnitude, dftFileName);
+    }
+    printf("\n");
+}
+
+//======================================================================================
+// Idea 7: Radial golden ratio.  Distance from center (in pixels) * golden ratio
+void Idea7 (size_t imageSize, const char* fileName)
+{
+    // report the name of the image we are working on
+    printf("%s\n", fileName);
+
+    // initialize the image
+    SImageData image;
+    ImageInit(image, imageSize, imageSize);
+    ImageClear(image, SColor(255, 255, 255));
+
+    // make the pixels
+    for (size_t y = 0; y < imageSize; ++y)
+    {
+        SColor* pixel = (SColor*)&image.m_pixels[y * image.m_pitch];
+
+        for (size_t x = 0; x < imageSize; ++x)
+        {
+            float distX = (float(x) - float(imageSize / 2));
+            distX = distX*distX;
+
+            float distY = (float(y) - float(imageSize / 2));
+            distY = distY*distY;
+
+            float distance = std::sqrt(distX + distY);
+
+            float pixelValue = std::fmod(distance * c_goldenRatioConjugate, 1.0f);
+            
+            uint8 pixelColor = uint8(pixelValue * 255.0f);
+
+            pixel->Set(pixelColor, pixelColor, pixelColor);
+            ++pixel;
+        }
+    }
+
+    // save the image
+    ImageSave(image, fileName);
+
+    // do the stippling test
+    StippleTest(image, fileName);
+
+    // save the DFT amplitude of the image
+    if (DO_DFT())
+    {
+        SImageDataComplex imageDFTData;
+        DFTImage(image, imageDFTData);
+        SImageData imageDFTMagnitude;
+        GetMagnitudeData(imageDFTData, imageDFTMagnitude);
+        char dftFileName[256];
+        strcpy(dftFileName, fileName);
+        strcat(dftFileName, ".mag.bmp");
+        ImageSave(imageDFTMagnitude, dftFileName);
+    }
+    printf("\n");
+}
+
+//======================================================================================
+void BlueNoise (const char* fileName)
+{
+    // report the name of the image we are working on
+    printf("%s\n", fileName);
+
+    // do blue noise stipple test
+    SImageData imageData;
+    ImageLoad(fileName, imageData);
+    StippleTest(imageData, fileName);
+
+    // do blue noise dft
+    if (DO_DFT())
+    {
+        SImageDataComplex imageDFTData;
+        DFTImage(imageData, imageDFTData);
+        SImageData imageDFTMagnitude;
+        GetMagnitudeData(imageDFTData, imageDFTMagnitude);
+        char dftFileName[256];
+        strcpy(dftFileName, fileName);
+        strcat(dftFileName, ".mag.bmp");
+        ImageSave(imageDFTMagnitude, dftFileName);
+    }
+    printf("\n");
+}
+
+//======================================================================================
+int main(int argc, char** argv)
+{
+    // load the image used for stippling tests
+    ImageLoad("srcimages/stippleimage.bmp", s_stippleImage);
+
+    Idea1(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/Idea1_4.bmp", 4 / IMAGE_DOWNSIZE_FACTOR());
+    Idea1(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/Idea1_16.bmp", 16 / IMAGE_DOWNSIZE_FACTOR());
+    Idea1(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/Idea1_128.bmp", 128 / IMAGE_DOWNSIZE_FACTOR());
+    Idea1(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/Idea1_256.bmp", 256 / IMAGE_DOWNSIZE_FACTOR());
+
+    Idea2(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/Idea2_4.bmp", 4 / IMAGE_DOWNSIZE_FACTOR());
+    Idea2(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/Idea2_16.bmp", 16 / IMAGE_DOWNSIZE_FACTOR());
+    Idea2(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/Idea2_128.bmp", 128 / IMAGE_DOWNSIZE_FACTOR());
+    Idea2(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/Idea2_256.bmp", 256 / IMAGE_DOWNSIZE_FACTOR());
+
+    Idea3(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/Idea3_4.bmp", 4 / IMAGE_DOWNSIZE_FACTOR());
+    Idea3(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/Idea3_16.bmp", 16 / IMAGE_DOWNSIZE_FACTOR());
+    Idea3(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/Idea3_128.bmp", 128 / IMAGE_DOWNSIZE_FACTOR());
+    Idea3(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/Idea3_256.bmp", 256 / IMAGE_DOWNSIZE_FACTOR());
+
+    Idea4(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/Idea4_4.bmp", 4 / IMAGE_DOWNSIZE_FACTOR());
+    Idea4(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/Idea4_16.bmp", 16 / IMAGE_DOWNSIZE_FACTOR());
+    Idea4(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/Idea4_128.bmp", 128 / IMAGE_DOWNSIZE_FACTOR());
+    Idea4(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/Idea4_256.bmp", 256 / IMAGE_DOWNSIZE_FACTOR());
+
+    Idea5(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/Idea5.bmp");
+    Idea6(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/Idea6.bmp");
+    Idea7(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/Idea7.bmp");
+
+    Uniform(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/Uniform_4.bmp", 4 / IMAGE_DOWNSIZE_FACTOR());
+    Uniform(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/Uniform_16.bmp", 16 / IMAGE_DOWNSIZE_FACTOR());
+    Uniform(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/Uniform_128.bmp", 128 / IMAGE_DOWNSIZE_FACTOR());
+    Uniform(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/Uniform_256.bmp", 256 / IMAGE_DOWNSIZE_FACTOR());
+
+    UniformJitter(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/UniformJitter_4.bmp", 4 / IMAGE_DOWNSIZE_FACTOR());
+    UniformJitter(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/UniformJitter_16.bmp", 16 / IMAGE_DOWNSIZE_FACTOR());
+    UniformJitter(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/UniformJitter_128.bmp", 128 / IMAGE_DOWNSIZE_FACTOR());
+    UniformJitter(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/UniformJitter_256.bmp", 256 / IMAGE_DOWNSIZE_FACTOR());
+
+    WhiteNoise(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/WhiteNoise.bmp");
+
+    BlueNoise("srcimages/BlueNoise470.bmp");
 
     return 0;
 }
 /*
+
+TODO:
+* Measure difference (error) of each image.
+* can you verify your DFT implementation is accurate somehow?
+* convert all these images to png so you can use on the web?
+
 
 Idea 1: Make Shuffles for X. Add golden ratio on y.
  * Notes: visible structure
@@ -626,23 +1078,34 @@ Idea 3: Make Shuffles for X and Y.  add the numbers together to figure out how m
  * Notes: there are a lot of frequencies...
 Idea 4: Make Shuffles for X and Y.  multiply the numbers together to figure out how much to multiply golden ratio by.
  * Notes: The zeros suck and make streaks.  Since the numbers are < 1, they darken eachother too.
+Idea 5: (x+y)*golden ratio
+ * Notes: aweful
+Idea 6: Random seed for each row and column. pixel = (seed for row + y * golden ratio) + (seed for column + x * golden ratio)
+ * Notes: looks a lot like idea3 256 unsurprisingly
+Idea 7: Radial golden ratio.  Distance from center (in pixels) * golden ratio
+ * Notes: odd looking!
+
+Uniform : ((x + y) % repeatSize) / (repeatSize-1)
+Uniform Jitter : ((x + y) % repeatSize) / (repeatSize-1) + rand(0, 1/repeatSize)
+White Noise : random pixel color
 
 
-Idea N: Make multiple rows and columns of shuffles.    add the numbers together to figure out how much to multiply golden ratio by.
- ? could we make multiple rows and columns of shuffles and have it use whichever is immediately to the left or below?
 
-* maybe try gradient noise?
-
-
-
-? am i multithreading DFT correctly? do i really not need any protection when writing to different pixels?
 
 * BLOG
  * basic idea: can i make some 2d low discrepancy sequences (different than "sample points") using shuffling (format preserving encryption) and golden ratio?
+  * thinking that a shuffle is like a low discrepancy sequence, and golden ratio is a low discrepancy sequence
  * start out with real shuffling and then replace with FPE if i see that regular shuffling works, since FPE approaches quality of real shuffling
  * document ideas as you try them.  Code and images and DFT (magnitude)
  * show blue noise and DFT of that as ideal goal to compare against
  * also white noise
  ? maybe also show using these images for dithering something?
+
+
+* free blue noise textures / blue noise info
+ * http://momentsingraphics.de/?p=127
+
+* stippling and blue noise
+ * http://www.joesfer.com/?p=108
 
 */
