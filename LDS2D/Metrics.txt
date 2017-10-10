@@ -1,0 +1,24 @@
+outimages/UniformTest2_4.bmp
+Total Diff: -3968538
+Total Abs Diff: 19342638
+Average Diff:-20.19
+StdDev. Diff: 105.32
+
+outimages/UniformTest2_4_16.bmp
+Total Diff: -3954258
+Total Abs Diff: 19488842
+Average Diff:-20.11
+StdDev. Diff: 106.23
+
+outimages/UniformTest2_4_128.bmp
+Total Diff: -8349948
+Total Abs Diff: 22644544
+Average Diff:-42.47
+StdDev. Diff: 118.22
+
+outimages/UniformTest2_4_256.bmp
+Total Diff: 26871162
+Total Abs Diff: 26871162
+Average Diff:136.67
+StdDev. Diff: 50.84
+

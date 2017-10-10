@@ -10,6 +10,7 @@
 #include <atomic>
 
 typedef uint8_t uint8;
+typedef int64_t int64;
 
 const float c_pi = 3.14159265359f;
 
@@ -18,6 +19,8 @@ const float c_goldenRatioConjugate = 1.61803398875f;
 // settings to speed things up when iterating
 #define IMAGE_DOWNSIZE_FACTOR() 1
 #define DO_DFT() true // TODO: set this to true before checking in
+
+FILE* s_logFile = nullptr;
 
 //======================================================================================
 struct SImageData
@@ -348,6 +351,9 @@ void StippleTest (SImageData& noiseImage, const char* fileName)
     SImageData outputImage;
     ImageInit(outputImage, s_stippleImage.m_width, s_stippleImage.m_height);
 
+    std::vector<int64> pixelDifferences;
+    pixelDifferences.resize(s_stippleImage.m_width * s_stippleImage.m_height);
+
     for (size_t y = 0; y < s_stippleImage.m_height; ++y)
     {
         for (size_t x = 0; x < s_stippleImage.m_width; ++x)
@@ -364,8 +370,28 @@ void StippleTest (SImageData& noiseImage, const char* fileName)
                 destPixel->Set(0, 0, 0);
             else
                 destPixel->Set(255, 255, 255);
+
+            pixelDifferences[y * s_stippleImage.m_width + x] = int64(destPixel->R) - int64(srcPixel->R);
         }
     }
+
+    // calculate some metrics
+    int64 totalDiff = 0;
+    int64 totalAbsDiff = 0;
+    for (int64 v : pixelDifferences)
+    {
+        totalDiff += v;
+        totalAbsDiff += std::abs(v);
+    }
+    float averageDiff = float(totalDiff) / float(pixelDifferences.size());
+    float stdDev = 0.0f;
+    for (int64 v : pixelDifferences)
+    {
+        stdDev += (float(v) - averageDiff) * (float(v) - averageDiff);
+    }
+    stdDev = std::sqrt(stdDev / float(pixelDifferences.size()));
+
+    fprintf(s_logFile, "%s\nTotal Diff: %zi\nTotal Abs Diff: %zi\nAverage Diff:%0.2f\nStdDev. Diff: %0.2f\n\n", fileName, totalDiff, totalAbsDiff, averageDiff, stdDev);
 
     // save the image
     char outFileName[256];
@@ -1070,11 +1096,89 @@ void InterleavedGradientNoise (size_t imageSize, const char* fileName)
 }
 
 //======================================================================================
+// UniformTest2 : pixel color = distance from uniform grid of dots. image normalized.
+void UniformTest2 (size_t imageSize, const char* fileName, size_t gridSize)
+{
+    // report the name of the image we are working on
+    printf("%s\n", fileName);
+
+    // calculate distances
+    std::vector<float> distances;
+    distances.resize(imageSize * imageSize);
+    float maxDist = 0.0f;
+    for (size_t y = 0; y < imageSize; ++y)
+    {
+        for (size_t x = 0; x < imageSize; ++x)
+        {
+            float percentX = float(x) / float(imageSize);
+            float percentY = float(y) / float(imageSize);
+
+            float targetPercentX = std::floor((float(gridSize) * percentX) + 0.5f) / float(gridSize);
+            float targetPercentY = std::floor((float(gridSize) * percentY) + 0.5f) / float(gridSize);
+
+            float dx = percentX - targetPercentX;
+            float dy = percentY - targetPercentY;
+
+            float dist = std::sqrt(dx*dx + dy*dy);
+
+            distances[y*imageSize + x] = dist;
+
+            if (dist > maxDist)
+                maxDist = dist;
+        }
+    }
+
+    // initialize the image
+    SImageData image;
+    ImageInit(image, imageSize, imageSize);
+    ImageClear(image, SColor(255, 255, 255));
+
+    // make the pixels
+    for (size_t y = 0; y < imageSize; ++y)
+    {
+        SColor* pixel = (SColor*)&image.m_pixels[y * image.m_pitch];
+
+        for (size_t x = 0; x < imageSize; ++x)
+        {
+            float pixelValue = distances[y * imageSize + x] / maxDist;
+            
+            uint8 pixelColor = uint8(pixelValue * 255.0f);
+
+            pixel->Set(pixelColor, pixelColor, pixelColor);
+            ++pixel;
+        }
+    }
+
+    // save the image
+    ImageSave(image, fileName);
+
+    // do the stippling test
+    StippleTest(image, fileName);
+
+    // save the DFT amplitude of the image
+    if (DO_DFT())
+    {
+        SImageDataComplex imageDFTData;
+        DFTImage(image, imageDFTData);
+        SImageData imageDFTMagnitude;
+        GetMagnitudeData(imageDFTData, imageDFTMagnitude);
+        char dftFileName[256];
+        strcpy(dftFileName, fileName);
+        strcat(dftFileName, ".mag.bmp");
+        ImageSave(imageDFTMagnitude, dftFileName);
+    }
+    printf("\n");
+}
+
+//======================================================================================
 int main(int argc, char** argv)
 {
+    s_logFile = fopen("Metrics.txt", "w+t");
+
     // load the image used for stippling tests
     ImageLoad("srcimages/stippleimage.bmp", s_stippleImage);
 
+    /*
     Idea1(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/Idea1_4.bmp", 4 / IMAGE_DOWNSIZE_FACTOR());
     Idea1(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/Idea1_16.bmp", 16 / IMAGE_DOWNSIZE_FACTOR());
     Idea1(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/Idea1_128.bmp", 128 / IMAGE_DOWNSIZE_FACTOR());
@@ -1108,24 +1212,34 @@ int main(int argc, char** argv)
     UniformJitter(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/UniformJitter_16.bmp", 16 / IMAGE_DOWNSIZE_FACTOR());
     UniformJitter(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/UniformJitter_128.bmp", 128 / IMAGE_DOWNSIZE_FACTOR());
     UniformJitter(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/UniformJitter_256.bmp", 256 / IMAGE_DOWNSIZE_FACTOR());
+    */
 
+    UniformTest2(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/UniformTest2_4.bmp", 4 / IMAGE_DOWNSIZE_FACTOR());
+    UniformTest2(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/UniformTest2_4_16.bmp", 16 / IMAGE_DOWNSIZE_FACTOR());
+    UniformTest2(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/UniformTest2_4_128.bmp", 128 / IMAGE_DOWNSIZE_FACTOR());
+    UniformTest2(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/UniformTest2_4_256.bmp", 256 / IMAGE_DOWNSIZE_FACTOR());
+
+    /*
     WhiteNoise(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/WhiteNoise.bmp");
 
     BlueNoise("srcimages/BlueNoise470.bmp");
 
     InterleavedGradientNoise(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/InterleavedGradient.bmp");
+    */
+
+    fclose(s_logFile);
 
     return 0;
 }
 /*
 
 TODO:
-* Measure difference (error) of each image.
- * absolute value sum
- * net value sum
- * mean and standard deviation
- * print to a text file?
+! uniformtest2 256 doesn't seem correct.
+* maybe try uniform as pixel distance to regular points on a grid, and normalize image?
+ * if that works, maybe jitter etc are similar
+ * i wonder how this compares with blue noise?
 * can you verify your DFT implementation is accurate somehow?
+* TODO's in code
 * convert all these images to png so you can use on the web?
 
 
