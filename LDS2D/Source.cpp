@@ -19,7 +19,7 @@ const float c_goldenRatioConjugate = 1.61803398875f;
 
 // settings to speed things up when iterating
 #define IMAGE_DOWNSIZE_FACTOR() 1
-#define DO_DFT() false // TODO: set this to true before checking in
+#define DO_DFT() true // TODO: set this to true before checking in
 
 FILE* s_logFile = nullptr;
 
@@ -1407,6 +1407,171 @@ void HaltonTestDistance (size_t imageSize, const char* fileName)
 }
 
 //======================================================================================
+void GenerateJitterPoints (std::vector<std::array<float, 2>>& samples, size_t gridSize, size_t imageSize)
+{
+    // seed the random number generator
+    std::random_device rd;
+    std::mt19937 rng(rd());
+    std::uniform_real_distribution<float> dist(0, 1.0f / float(gridSize));
+
+    size_t sampleIndex = 0;
+    samples.resize(gridSize * gridSize);
+    for (size_t y = 0; y < gridSize; ++y)
+    {
+        for (size_t x = 0; x < gridSize; ++x)
+        {
+            samples[sampleIndex][0] = dist(rng) + (float(x)) / (float(gridSize));
+            samples[sampleIndex][1] = dist(rng) + (float(y)) / (float(gridSize));
+            ++sampleIndex;
+        }
+    }
+}
+
+//======================================================================================
+void JitterTestDots (size_t imageSize, const char* fileName, size_t gridSize)
+{
+    // report the name of the image we are working on
+    printf("%s\n", fileName);
+
+    // initialize the image
+    SImageData image;
+    ImageInit(image, imageSize, imageSize);
+    ImageClear(image, SColor(255, 255, 255));
+
+    // generate the sample points
+    std::vector<std::array<float, 2>> samples;
+    GenerateJitterPoints(samples, gridSize, imageSize);
+
+    // make the pixels
+    for (size_t y = 0; y < imageSize; ++y)
+    {
+        SColor* pixel = (SColor*)&image.m_pixels[y * image.m_pitch];
+
+        for (size_t x = 0; x < imageSize; ++x)
+        {
+            bool isASample = std::any_of(
+                samples.begin(),
+                samples.end(),
+                [&] (std::array<float, 2>& sample) -> bool
+                {
+                    size_t pixelX = size_t(sample[0] * imageSize);
+                    size_t pixelY = size_t(sample[1] * imageSize);
+                    return pixelX == x && pixelY == y;
+                }
+            );
+
+            float pixelValue = isASample ? 0.5f : 1.0f;
+            
+            uint8 pixelColor = uint8(pixelValue * 255.0f);
+
+            pixel->Set(pixelColor, pixelColor, pixelColor);
+            ++pixel;
+        }
+    }
+
+    // save the image
+    ImageSave(image, fileName);
+
+    // do the stippling test
+    StippleTest(image, fileName);
+
+    // save the DFT amplitude of the image
+    if (DO_DFT())
+    {
+        SImageDataComplex imageDFTData;
+        DFTImage(image, imageDFTData);
+        SImageData imageDFTMagnitude;
+        GetMagnitudeData(imageDFTData, imageDFTMagnitude);
+        char dftFileName[256];
+        strcpy(dftFileName, fileName);
+        strcat(dftFileName, ".mag.bmp");
+        ImageSave(imageDFTMagnitude, dftFileName);
+    }
+    printf("\n");
+}
+
+//======================================================================================
+void JitterTestDistance (size_t imageSize, const char* fileName, size_t gridSize)
+{
+    // report the name of the image we are working on
+    printf("%s\n", fileName);
+
+    // generate the sample points
+    std::vector<std::array<float, 2>> samples;
+    GenerateJitterPoints(samples, gridSize, imageSize);
+
+    // calculate distances
+    std::vector<float> distances;
+    distances.resize(imageSize * imageSize);
+    float maxDist = 0.0f;
+    for (size_t y = 0; y < imageSize; ++y)
+    {
+        for (size_t x = 0; x < imageSize; ++x)
+        {
+            float percentX = float(x) / float(imageSize);
+            float percentY = float(y) / float(imageSize);
+
+            float minDist = FLT_MAX;
+            for (std::array<float, 2>& sample : samples)
+            {
+                float dx = sample[0] - percentX;
+                float dy = sample[1] - percentY;
+                float dist = std::sqrt(dx*dx + dy*dy);
+
+                if (dist < minDist)
+                    minDist = dist;
+            }
+
+            distances[y*imageSize + x] = minDist;
+
+            if (minDist > maxDist)
+                maxDist = minDist;
+        }
+    }
+
+    // initialize the image
+    SImageData image;
+    ImageInit(image, imageSize, imageSize);
+    ImageClear(image, SColor(255, 255, 255));
+
+    // make the pixels
+    for (size_t y = 0; y < imageSize; ++y)
+    {
+        SColor* pixel = (SColor*)&image.m_pixels[y * image.m_pitch];
+
+        for (size_t x = 0; x < imageSize; ++x)
+        {
+            float pixelValue = distances[y * imageSize + x] / maxDist;
+            
+            uint8 pixelColor = uint8(pixelValue * 255.0f);
+
+            pixel->Set(pixelColor, pixelColor, pixelColor);
+            ++pixel;
+        }
+    }
+
+    // save the image
+    ImageSave(image, fileName);
+
+    // do the stippling test
+    StippleTest(image, fileName);
+
+    // save the DFT amplitude of the image
+    if (DO_DFT())
+    {
+        SImageDataComplex imageDFTData;
+        DFTImage(image, imageDFTData);
+        SImageData imageDFTMagnitude;
+        GetMagnitudeData(imageDFTData, imageDFTMagnitude);
+        char dftFileName[256];
+        strcpy(dftFileName, fileName);
+        strcat(dftFileName, ".mag.bmp");
+        ImageSave(imageDFTMagnitude, dftFileName);
+    }
+    printf("\n");
+}
+
+//======================================================================================
 int main(int argc, char** argv)
 {
     s_logFile = fopen("Metrics.txt", "w+t");
@@ -1476,6 +1641,18 @@ int main(int argc, char** argv)
     HaltonTestDistance<100000>(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/HaltonDistance_100000.bmp");
     */
 
+    JitterTestDots(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/JitterDots_16.bmp", 16 / IMAGE_DOWNSIZE_FACTOR());
+    JitterTestDots(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/JitterDots_32.bmp", 32 / IMAGE_DOWNSIZE_FACTOR());
+    JitterTestDots(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/JitterDots_64.bmp", 64 / IMAGE_DOWNSIZE_FACTOR());
+    JitterTestDots(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/JitterDots_128.bmp", 128 / IMAGE_DOWNSIZE_FACTOR());
+
+    JitterTestDistance(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/JitterDistance_16.bmp", 16 / IMAGE_DOWNSIZE_FACTOR());
+    JitterTestDistance(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/JitterDistance_32.bmp", 32 / IMAGE_DOWNSIZE_FACTOR());
+    JitterTestDistance(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/JitterDistance_64.bmp", 64 / IMAGE_DOWNSIZE_FACTOR());
+    JitterTestDistance(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/JitterDistance_128.bmp", 128 / IMAGE_DOWNSIZE_FACTOR()
+
+);
+
     fclose(s_logFile);
 
     return 0;
@@ -1483,8 +1660,8 @@ int main(int argc, char** argv)
 /*
 
 TODO:
-* distance: uniform + jitter, blue noise
-* dots: uniform + jitter, blue noise
+* distance: blue noise
+* dots: blue noise
 
 * try l1 norm instead of distance to make diamonds? just one for fun?
 
@@ -1523,7 +1700,10 @@ HaltonTestDots : just dots arranged in the halton sequence
 HaltonTestDistance : pixels colored based on distance from halton
  * Notes: decent. when downsized the image looks sketched!
 
-
+Jitter dots:
+ * Notes: decent
+Jitter Distance:
+ * Notes: decent. I wonder how this compares to blue noise? looks similar
 
 
 * BLOG

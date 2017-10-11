@@ -1,24 +1,48 @@
-outimages/HaltonDistance_100.bmp
-Total Diff: 10236237
-Total Abs Diff: 19815149
-Average Diff:52.06
-StdDev. Diff: 96.96
+outimages/JitterDots_16.bmp
+Total Diff: -23175393
+Total Abs Diff: 23238283
+Average Diff:-117.88
+StdDev. Diff: 51.55
 
-outimages/HaltonDistance_1000.bmp
-Total Diff: 8044002
-Total Abs Diff: 19581238
-Average Diff:40.91
-StdDev. Diff: 100.67
+outimages/JitterDots_32.bmp
+Total Diff: -22926003
+Total Abs Diff: 23169779
+Average Diff:-116.61
+StdDev. Diff: 53.53
 
-outimages/HaltonDistance_10000.bmp
-Total Diff: 12812757
-Total Abs Diff: 20160043
-Average Diff:65.17
-StdDev. Diff: 91.18
+outimages/JitterDots_64.bmp
+Total Diff: -21886368
+Total Abs Diff: 22884132
+Average Diff:-111.32
+StdDev. Diff: 60.84
 
-outimages/HaltonDistance_100000.bmp
-Total Diff: 12873957
-Total Abs Diff: 20027731
-Average Diff:65.48
-StdDev. Diff: 90.02
+outimages/JitterDots_128.bmp
+Total Diff: -17739048
+Total Abs Diff: 21738222
+Average Diff:-90.23
+StdDev. Diff: 80.41
+
+outimages/JitterDistance_16.bmp
+Total Diff: 10238787
+Total Abs Diff: 19821357
+Average Diff:52.08
+StdDev. Diff: 96.99
+
+outimages/JitterDistance_32.bmp
+Total Diff: 9833337
+Total Abs Diff: 19773395
+Average Diff:50.01
+StdDev. Diff: 97.77
+
+outimages/JitterDistance_64.bmp
+Total Diff: 8903862
+Total Abs Diff: 19690616
+Average Diff:45.29
+StdDev. Diff: 99.51
+
+outimages/JitterDistance_128.bmp
+Total Diff: 10106697
+Total Abs Diff: 19762221
+Average Diff:51.41
+StdDev. Diff: 96.97
 
