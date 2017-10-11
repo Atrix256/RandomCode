@@ -8,6 +8,7 @@
 #include <complex>
 #include <thread>
 #include <atomic>
+#include <array>
 
 typedef uint8_t uint8;
 typedef int64_t int64;
@@ -18,7 +19,7 @@ const float c_goldenRatioConjugate = 1.61803398875f;
 
 // settings to speed things up when iterating
 #define IMAGE_DOWNSIZE_FACTOR() 1
-#define DO_DFT() true // TODO: set this to true before checking in
+#define DO_DFT() false // TODO: set this to true before checking in
 
 FILE* s_logFile = nullptr;
 
@@ -1171,6 +1172,241 @@ void UniformTest2 (size_t imageSize, const char* fileName, size_t gridSize)
 }
 
 //======================================================================================
+// UniformTest3 : just uniform dots
+void UniformTest3 (size_t imageSize, const char* fileName, size_t gridSize)
+{
+    // report the name of the image we are working on
+    printf("%s\n", fileName);
+
+    // initialize the image
+    SImageData image;
+    ImageInit(image, imageSize, imageSize);
+    ImageClear(image, SColor(255, 255, 255));
+
+    // make the pixels
+    for (size_t y = 0; y < imageSize; ++y)
+    {
+        SColor* pixel = (SColor*)&image.m_pixels[y * image.m_pitch];
+
+        for (size_t x = 0; x < imageSize; ++x)
+        {
+            float pixelValue = 1.0f;
+            
+            if ((x % gridSize) == 0 && (y%gridSize) == 0)
+                pixelValue = 0.5f;
+            
+            uint8 pixelColor = uint8(pixelValue * 255.0f);
+
+            pixel->Set(pixelColor, pixelColor, pixelColor);
+            ++pixel;
+        }
+    }
+
+    // save the image
+    ImageSave(image, fileName);
+
+    // do the stippling test
+    StippleTest(image, fileName);
+
+    // save the DFT amplitude of the image
+    if (DO_DFT())
+    {
+        SImageDataComplex imageDFTData;
+        DFTImage(image, imageDFTData);
+        SImageData imageDFTMagnitude;
+        GetMagnitudeData(imageDFTData, imageDFTMagnitude);
+        char dftFileName[256];
+        strcpy(dftFileName, fileName);
+        strcat(dftFileName, ".mag.bmp");
+        ImageSave(imageDFTMagnitude, dftFileName);
+    }
+    printf("\n");
+}
+
+//======================================================================================
+template <size_t NUM_SAMPLES>
+void GenerateHaltonPoints (std::array<std::array<float, 2>, NUM_SAMPLES>& samples, size_t basex, size_t basey)
+{
+    // calculate the sample points=
+    for (size_t i = 0; i < NUM_SAMPLES; ++i)
+    {
+        // x axis
+        samples[i][0] = 0.0f;
+        {
+            float denominator = float(basex);
+            size_t n = i;
+            while (n > 0)
+            {
+                size_t multiplier = n % basex;
+                samples[i][0] += float(multiplier) / denominator;
+                n = n / basex;
+                denominator *= basex;
+            }
+        }
+ 
+        // y axis
+        samples[i][1] = 0.0f;
+        {
+            float denominator = float(basey);
+            size_t n = i;
+            while (n > 0)
+            {
+                size_t multiplier = n % basey;
+                samples[i][1] += float(multiplier) / denominator;
+                n = n / basey;
+                denominator *= basey;
+            }
+        }
+    }
+}
+
+//======================================================================================
+template <size_t NUM_SAMPLES>
+void HaltonTestDots (size_t imageSize, const char* fileName)
+{
+    // report the name of the image we are working on
+    printf("%s\n", fileName);
+
+    // initialize the image
+    SImageData image;
+    ImageInit(image, imageSize, imageSize);
+    ImageClear(image, SColor(255, 255, 255));
+
+    // generate the sample points
+    std::array<std::array<float, 2>, NUM_SAMPLES> samples;
+    GenerateHaltonPoints(samples, 2, 3);
+
+    // make the pixels
+    for (size_t y = 0; y < imageSize; ++y)
+    {
+        SColor* pixel = (SColor*)&image.m_pixels[y * image.m_pitch];
+
+        for (size_t x = 0; x < imageSize; ++x)
+        {
+            bool isASample = std::any_of(
+                samples.begin(),
+                samples.end(),
+                [&] (std::array<float, 2>& sample) -> bool
+                {
+                    size_t pixelX = size_t(sample[0] * imageSize);
+                    size_t pixelY = size_t(sample[1] * imageSize);
+                    return pixelX == x && pixelY == y;
+                }
+            );
+
+            float pixelValue = isASample ? 0.5f : 1.0f;
+            
+            uint8 pixelColor = uint8(pixelValue * 255.0f);
+
+            pixel->Set(pixelColor, pixelColor, pixelColor);
+            ++pixel;
+        }
+    }
+
+    // save the image
+    ImageSave(image, fileName);
+
+    // do the stippling test
+    StippleTest(image, fileName);
+
+    // save the DFT amplitude of the image
+    if (DO_DFT())
+    {
+        SImageDataComplex imageDFTData;
+        DFTImage(image, imageDFTData);
+        SImageData imageDFTMagnitude;
+        GetMagnitudeData(imageDFTData, imageDFTMagnitude);
+        char dftFileName[256];
+        strcpy(dftFileName, fileName);
+        strcat(dftFileName, ".mag.bmp");
+        ImageSave(imageDFTMagnitude, dftFileName);
+    }
+    printf("\n");
+}
+
+//======================================================================================
+template <size_t NUM_SAMPLES>
+void HaltonTestDistance (size_t imageSize, const char* fileName)
+{
+    // report the name of the image we are working on
+    printf("%s\n", fileName);
+
+    // generate the sample points
+    std::array<std::array<float, 2>, NUM_SAMPLES> samples;
+    GenerateHaltonPoints(samples, 2, 3);
+
+    // calculate distances
+    std::vector<float> distances;
+    distances.resize(imageSize * imageSize);
+    float maxDist = 0.0f;
+    for (size_t y = 0; y < imageSize; ++y)
+    {
+        for (size_t x = 0; x < imageSize; ++x)
+        {
+            float percentX = float(x) / float(imageSize);
+            float percentY = float(y) / float(imageSize);
+
+            float minDist = FLT_MAX;
+            for (std::array<float, 2>& sample : samples)
+            {
+                float dx = sample[0] - percentX;
+                float dy = sample[1] - percentY;
+                float dist = std::sqrt(dx*dx + dy*dy);
+
+                if (dist < minDist)
+                    minDist = dist;
+            }
+
+            distances[y*imageSize + x] = minDist;
+
+            if (minDist > maxDist)
+                maxDist = minDist;
+        }
+    }
+
+    // initialize the image
+    SImageData image;
+    ImageInit(image, imageSize, imageSize);
+    ImageClear(image, SColor(255, 255, 255));
+
+    // make the pixels
+    for (size_t y = 0; y < imageSize; ++y)
+    {
+        SColor* pixel = (SColor*)&image.m_pixels[y * image.m_pitch];
+
+        for (size_t x = 0; x < imageSize; ++x)
+        {
+            float pixelValue = distances[y * imageSize + x] / maxDist;
+            
+            uint8 pixelColor = uint8(pixelValue * 255.0f);
+
+            pixel->Set(pixelColor, pixelColor, pixelColor);
+            ++pixel;
+        }
+    }
+
+    // save the image
+    ImageSave(image, fileName);
+
+    // do the stippling test
+    StippleTest(image, fileName);
+
+    // save the DFT amplitude of the image
+    if (DO_DFT())
+    {
+        SImageDataComplex imageDFTData;
+        DFTImage(image, imageDFTData);
+        SImageData imageDFTMagnitude;
+        GetMagnitudeData(imageDFTData, imageDFTMagnitude);
+        char dftFileName[256];
+        strcpy(dftFileName, fileName);
+        strcat(dftFileName, ".mag.bmp");
+        ImageSave(imageDFTMagnitude, dftFileName);
+    }
+    printf("\n");
+}
+
+//======================================================================================
 int main(int argc, char** argv)
 {
     s_logFile = fopen("Metrics.txt", "w+t");
@@ -1179,6 +1415,12 @@ int main(int argc, char** argv)
     ImageLoad("srcimages/stippleimage.bmp", s_stippleImage);
 
     /*
+    WhiteNoise(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/WhiteNoise.bmp");
+
+    BlueNoise("srcimages/BlueNoise470.bmp");
+
+    InterleavedGradientNoise(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/InterleavedGradient.bmp");
+
     Idea1(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/Idea1_4.bmp", 4 / IMAGE_DOWNSIZE_FACTOR());
     Idea1(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/Idea1_16.bmp", 16 / IMAGE_DOWNSIZE_FACTOR());
     Idea1(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/Idea1_128.bmp", 128 / IMAGE_DOWNSIZE_FACTOR());
@@ -1212,19 +1454,26 @@ int main(int argc, char** argv)
     UniformJitter(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/UniformJitter_16.bmp", 16 / IMAGE_DOWNSIZE_FACTOR());
     UniformJitter(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/UniformJitter_128.bmp", 128 / IMAGE_DOWNSIZE_FACTOR());
     UniformJitter(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/UniformJitter_256.bmp", 256 / IMAGE_DOWNSIZE_FACTOR());
-    */
 
+    UniformTest2(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/UniformTest2_2.bmp", 2 / IMAGE_DOWNSIZE_FACTOR());
     UniformTest2(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/UniformTest2_4.bmp", 4 / IMAGE_DOWNSIZE_FACTOR());
-    UniformTest2(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/UniformTest2_4_16.bmp", 16 / IMAGE_DOWNSIZE_FACTOR());
-    UniformTest2(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/UniformTest2_4_128.bmp", 128 / IMAGE_DOWNSIZE_FACTOR());
-    UniformTest2(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/UniformTest2_4_256.bmp", 256 / IMAGE_DOWNSIZE_FACTOR());
+    UniformTest2(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/UniformTest2_16.bmp", 16 / IMAGE_DOWNSIZE_FACTOR());
+    UniformTest2(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/UniformTest2_128.bmp", 128 / IMAGE_DOWNSIZE_FACTOR());
 
-    /*
-    WhiteNoise(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/WhiteNoise.bmp");
+    UniformTest3(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/UniformTest3_2.bmp", 2 / IMAGE_DOWNSIZE_FACTOR());
+    UniformTest3(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/UniformTest3_4.bmp", 4 / IMAGE_DOWNSIZE_FACTOR());
+    UniformTest3(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/UniformTest3_16.bmp", 16 / IMAGE_DOWNSIZE_FACTOR());
+    UniformTest3(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/UniformTest3_128.bmp", 128 / IMAGE_DOWNSIZE_FACTOR());
 
-    BlueNoise("srcimages/BlueNoise470.bmp");
+    HaltonTestDots<100>(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/HaltonDots_100.bmp");
+    HaltonTestDots<1000>(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/HaltonDots_1000.bmp");
+    HaltonTestDots<10000>(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/HaltonDots_10000.bmp");
+    HaltonTestDots<100000>(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/HaltonDots_100000.bmp");
 
-    InterleavedGradientNoise(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/InterleavedGradient.bmp");
+    HaltonTestDistance<100>(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/HaltonDistance_100.bmp");
+    HaltonTestDistance<1000>(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/HaltonDistance_1000.bmp");
+    HaltonTestDistance<10000>(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/HaltonDistance_10000.bmp");
+    HaltonTestDistance<100000>(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/HaltonDistance_100000.bmp");
     */
 
     fclose(s_logFile);
@@ -1234,14 +1483,19 @@ int main(int argc, char** argv)
 /*
 
 TODO:
-! uniformtest2 256 doesn't seem correct.
-* maybe try uniform as pixel distance to regular points on a grid, and normalize image?
- * if that works, maybe jitter etc are similar
- * i wonder how this compares with blue noise?
-* can you verify your DFT implementation is accurate somehow?
-* TODO's in code
-* convert all these images to png so you can use on the web?
+* distance: uniform + jitter, blue noise
+* dots: uniform + jitter, blue noise
 
+* try l1 norm instead of distance to make diamonds? just one for fun?
+
+
+* TODO's in code
+* convert all these images to png so you can use on the web? and maybe combine them to make it easier?
+
+
+Uniform : ((x + y) % repeatSize) / (repeatSize-1)
+Uniform Jitter : ((x + y) % repeatSize) / (repeatSize-1) + rand(0, 1/repeatSize)
+White Noise : random pixel color
 
 Idea 1: Make Shuffles for X. Add golden ratio on y.
  * Notes: visible structure
@@ -1258,9 +1512,16 @@ Idea 6: Random seed for each row and column. pixel = (seed for row + y * golden 
 Idea 7: Radial golden ratio.  Distance from center (in pixels) * golden ratio
  * Notes: odd looking!
 
-Uniform : ((x + y) % repeatSize) / (repeatSize-1)
-Uniform Jitter : ((x + y) % repeatSize) / (repeatSize-1) + rand(0, 1/repeatSize)
-White Noise : random pixel color
+Uniform test2: color points based on their distance to grid points.
+ * Notes: looks like an old style.  note 256 doesn't make sense as that is a black image since it's 256x256, so the distance is always 0.
+Uniform test3: make a grid of half dark points. use that for stippling.
+ * Notes: doesn't look bad! having the pixels be full dark instead of half dark makes them always be written, so doesn't make a decent image
+
+
+HaltonTestDots : just dots arranged in the halton sequence
+ * Notes: decent
+HaltonTestDistance : pixels colored based on distance from halton
+ * Notes: decent. when downsized the image looks sketched!
 
 
 
@@ -1274,6 +1535,7 @@ White Noise : random pixel color
  * also white noise
  ! Jorge Jiminez has a good solution
   * ALAN: check presentation. it says something about a spiral pattern.
+ * seems in some of the images are because i repeated a noise tile instead of calculating the noise over the whole domain (eg halton and interleaved gradient noise)
 
 
 * free blue noise textures / blue noise info
