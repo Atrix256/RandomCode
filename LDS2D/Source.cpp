@@ -347,7 +347,36 @@ void ImageClear (SImageData& image, const SColor& color)
 }
 
 //======================================================================================
-void StippleTest (SImageData& noiseImage, const char* fileName)
+void GradientTest (const SImageData& noiseImage, const char* fileName)
+{
+    SImageData outputImage;
+    ImageInit(outputImage, noiseImage.m_width, noiseImage.m_height);
+
+    for (size_t y = 0; y < noiseImage.m_height; ++y)
+    {
+        for (size_t x = 0; x < noiseImage.m_width; ++x)
+        {
+            float gradientPixel = 255.0f * float(x) / float(noiseImage.m_width);
+
+            SColor* noisePixel = (SColor*)&noiseImage.m_pixels[y * noiseImage.m_pitch + x * 3];
+            SColor* destPixel = (SColor*)&outputImage.m_pixels[y * outputImage.m_pitch + x * 3];
+
+            if (noisePixel->R >= gradientPixel)
+                destPixel->Set(0, 0, 0);
+            else
+                destPixel->Set(255, 255, 255);
+        }
+    }
+
+    // save the image
+    char outFileName[256];
+    strcpy(outFileName, fileName);
+    strcat(outFileName, ".gradient.bmp");
+    ImageSave(outputImage, outFileName);
+}
+
+//======================================================================================
+void StippleTest (const SImageData& noiseImage, const char* fileName)
 {
     SImageData outputImage;
     ImageInit(outputImage, s_stippleImage.m_width, s_stippleImage.m_height);
@@ -399,6 +428,9 @@ void StippleTest (SImageData& noiseImage, const char* fileName)
     strcpy(outFileName, fileName);
     strcat(outFileName, ".stipple.bmp");
     ImageSave(outputImage, outFileName);
+
+    // also do a gradient test
+    GradientTest(noiseImage, fileName);
 }
 
 //======================================================================================
@@ -1579,7 +1611,6 @@ int main(int argc, char** argv)
     // load the image used for stippling tests
     ImageLoad("srcimages/stippleimage.bmp", s_stippleImage);
 
-    /*
     WhiteNoise(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/WhiteNoise.bmp");
 
     BlueNoise("srcimages/BlueNoise470.bmp");
@@ -1639,7 +1670,6 @@ int main(int argc, char** argv)
     HaltonTestDistance<1000>(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/HaltonDistance_1000.bmp");
     HaltonTestDistance<10000>(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/HaltonDistance_10000.bmp");
     HaltonTestDistance<100000>(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/HaltonDistance_100000.bmp");
-    */
 
     JitterTestDots(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/JitterDots_16.bmp", 16 / IMAGE_DOWNSIZE_FACTOR());
     JitterTestDots(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/JitterDots_32.bmp", 32 / IMAGE_DOWNSIZE_FACTOR());
@@ -1664,6 +1694,11 @@ TODO:
 * dots: blue noise
 
 * try l1 norm instead of distance to make diamonds? just one for fun?
+
+* triangle noise
+* pixel arty stylish noise? like from the presentation that has triangle noise mentioned in it
+* bayer matrix 
+
 
 
 * TODO's in code
@@ -1728,5 +1763,8 @@ Jitter Distance:
   * https://bartwronski.com/2016/10/30/dithering-part-three-real-world-2d-quantization-dithering/
   * he links to jorge's Interleaved gradient noise
    * http://www.iryoku.com/next-generation-post-processing-in-call-of-duty-advanced-warfare
+
+* Connection between samples and greyscale patterns is "ordered dithering"
+ ? can you asnwer the questions about low discrepancy sequences etc?
 
 */
