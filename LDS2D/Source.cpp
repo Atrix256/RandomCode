@@ -1679,9 +1679,7 @@ int main(int argc, char** argv)
     JitterTestDistance(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/JitterDistance_16.bmp", 16 / IMAGE_DOWNSIZE_FACTOR());
     JitterTestDistance(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/JitterDistance_32.bmp", 32 / IMAGE_DOWNSIZE_FACTOR());
     JitterTestDistance(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/JitterDistance_64.bmp", 64 / IMAGE_DOWNSIZE_FACTOR());
-    JitterTestDistance(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/JitterDistance_128.bmp", 128 / IMAGE_DOWNSIZE_FACTOR()
-
-);
+    JitterTestDistance(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/JitterDistance_128.bmp", 128 / IMAGE_DOWNSIZE_FACTOR();
 
     fclose(s_logFile);
 
@@ -1692,17 +1690,44 @@ int main(int argc, char** argv)
 TODO:
 * distance: blue noise
 * dots: blue noise
+* maybe get a source blue noise dots texture from other project for now. don't need to include mitchell here :P
+
+* make blue noise source texture into 256x256?
 
 * try l1 norm instead of distance to make diamonds? just one for fun?
+ * a version of this for the one that's circles. (uniform distance)
+ 
+? maybe try sinusoid of distance in blue noise to see if that gets rid of some frequencies or anything?
+
+* bayer matrix
+ * https://en.wikipedia.org/wiki/Ordered_dithering
+ * M(i, j) = bit_reverse(bit_interleave(bitwise_xor(x, y), x)) / n ^ 2
 
 * triangle noise
 * pixel arty stylish noise? like from the presentation that has triangle noise mentioned in it
 * bayer matrix 
 
+* uniform via recursive grids. for 4x4 you'd go (x%4==0)&&(y%4==0).  then %2, then %1. only add a sample that hasn't been filled yet. Keep rank of these pixels, that is greyscale.
+ * Problem for notes: x axis definitely has preference.
+ * solution: interleave x and y bits and that determines rank, so that they have even priority.
+  * still do in recursive grids? or no? is this the same as regular Z order?
+
+* uniform via Z order! interleave bits to get rank.
 
 
 * TODO's in code
 * convert all these images to png so you can use on the web? and maybe combine them to make it easier?
+* remake all images before making blog post
+
+
+
+
+
+
+
+
+
+
 
 
 Uniform : ((x + y) % repeatSize) / (repeatSize-1)
@@ -1763,6 +1788,21 @@ Jitter Distance:
   * https://bartwronski.com/2016/10/30/dithering-part-three-real-world-2d-quantization-dithering/
   * he links to jorge's Interleaved gradient noise
    * http://www.iryoku.com/next-generation-post-processing-in-call-of-duty-advanced-warfare
+
+* rendering "inside". great use of noise!
+ * https://www.gdcvault.com/play/1023002/Low-Complexity-High-Fidelity-INSIDE
+ * https://www.youtube.com/watch?v=RdN06E6Xn9E
+
+* info including triangle noise
+ * http://loopit.dk/banding_in_games.pdf
+ * from https://twitter.com/pixelmager
+
+* triangle noise shadertoys
+ * https://www.shadertoy.com/view/4t2SDh
+ * https://www.shadertoy.com/view/ltBSRG
+
+* good read on a fairly decent blue noise algorithm, and also ordered dithering.
+ * http://cv.ulichney.com/papers/1993-void-cluster.pdf
 
 * Connection between samples and greyscale patterns is "ordered dithering"
  ? can you asnwer the questions about low discrepancy sequences etc?
