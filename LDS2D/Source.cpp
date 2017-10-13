@@ -19,7 +19,7 @@ const float c_goldenRatioConjugate = 1.61803398875f;
 
 // settings to speed things up when iterating
 #define IMAGE_DOWNSIZE_FACTOR() 1
-#define DO_DFT() true // TODO: set this to true before checking in
+#define DO_DFT() false // TODO: set this to true before checking in
 
 FILE* s_logFile = nullptr;
 

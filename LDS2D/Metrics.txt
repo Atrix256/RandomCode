@@ -1,8 +1,8 @@
 outimages/WhiteNoise.bmp
-Total Diff: -13233
-Total Abs Diff: 20960937
-Average Diff:-0.07
-StdDev. Diff: 116.62
+Total Diff: 134667
+Total Abs Diff: 20926967
+Average Diff:0.68
+StdDev. Diff: 116.42
 
 srcimages/BlueNoise470.bmp
 Total Diff: -70863
@@ -17,100 +17,100 @@ Average Diff:0.03
 StdDev. Diff: 116.59
 
 outimages/Idea1_4.bmp
-Total Diff: -106818
-Total Abs Diff: 20989630
-Average Diff:-0.54
-StdDev. Diff: 116.77
+Total Diff: -108603
+Total Abs Diff: 20991479
+Average Diff:-0.55
+StdDev. Diff: 116.78
 
 outimages/Idea1_16.bmp
-Total Diff: -88968
-Total Abs Diff: 20956160
-Average Diff:-0.45
-StdDev. Diff: 116.58
-
-outimages/Idea1_128.bmp
-Total Diff: -98148
-Total Abs Diff: 20954114
-Average Diff:-0.50
-StdDev. Diff: 116.57
-
-outimages/Idea1_256.bmp
-Total Diff: -91008
-Total Abs Diff: 20959888
-Average Diff:-0.46
-StdDev. Diff: 116.60
-
-outimages/Idea2_4.bmp
-Total Diff: -3269328
-Total Abs Diff: 20776258
-Average Diff:-16.63
-StdDev. Diff: 114.38
-
-outimages/Idea2_16.bmp
-Total Diff: -3543
-Total Abs Diff: 20977617
-Average Diff:-0.02
-StdDev. Diff: 116.71
-
-outimages/Idea2_128.bmp
-Total Diff: -93813
-Total Abs Diff: 20966283
+Total Diff: -93558
+Total Abs Diff: 20966890
 Average Diff:-0.48
 StdDev. Diff: 116.64
 
-outimages/Idea2_256.bmp
-Total Diff: -96873
-Total Abs Diff: 20962967
-Average Diff:-0.49
-StdDev. Diff: 116.62
+outimages/Idea1_128.bmp
+Total Diff: -56583
+Total Abs Diff: 20975511
+Average Diff:-0.29
+StdDev. Diff: 116.71
 
-outimages/Idea3_4.bmp
-Total Diff: 5798472
-Total Abs Diff: 21641144
-Average Diff:29.49
+outimages/Idea1_256.bmp
+Total Diff: -117273
+Total Abs Diff: 20956845
+Average Diff:-0.60
+StdDev. Diff: 116.58
+
+outimages/Idea2_4.bmp
+Total Diff: -3262953
+Total Abs Diff: 20782129
+Average Diff:-16.60
+StdDev. Diff: 114.42
+
+outimages/Idea2_16.bmp
+Total Diff: -18333
+Total Abs Diff: 20970349
+Average Diff:-0.09
+StdDev. Diff: 116.66
+
+outimages/Idea2_128.bmp
+Total Diff: -105543
+Total Abs Diff: 20972807
+Average Diff:-0.54
 StdDev. Diff: 116.67
 
+outimages/Idea2_256.bmp
+Total Diff: -95598
+Total Abs Diff: 20960836
+Average Diff:-0.49
+StdDev. Diff: 116.61
+
+outimages/Idea3_4.bmp
+Total Diff: 5782407
+Total Abs Diff: 21642009
+Average Diff:29.41
+StdDev. Diff: 116.70
+
 outimages/Idea3_16.bmp
-Total Diff: -438318
-Total Abs Diff: 20887612
-Average Diff:-2.23
-StdDev. Diff: 116.19
+Total Diff: -443418
+Total Abs Diff: 20895394
+Average Diff:-2.26
+StdDev. Diff: 116.24
 
 outimages/Idea3_128.bmp
-Total Diff: -406443
-Total Abs Diff: 20859525
-Average Diff:-2.07
-StdDev. Diff: 116.03
+Total Diff: -409248
+Total Abs Diff: 20876914
+Average Diff:-2.08
+StdDev. Diff: 116.12
 
 outimages/Idea3_256.bmp
-Total Diff: -498753
-Total Abs Diff: 20838113
-Average Diff:-2.54
-StdDev. Diff: 115.90
+Total Diff: -552558
+Total Abs Diff: 20862356
+Average Diff:-2.81
+StdDev. Diff: 116.03
 
 outimages/Idea4_4.bmp
-Total Diff: 15249537
-Total Abs Diff: 23409915
-Average Diff:77.56
-StdDev. Diff: 103.72
+Total Diff: 15247752
+Total Abs Diff: 23431796
+Average Diff:77.55
+StdDev. Diff: 103.86
 
 outimages/Idea4_16.bmp
-Total Diff: 12030162
-Total Abs Diff: 22409652
-Average Diff:61.19
-StdDev. Diff: 108.33
+Total Diff: 11996757
+Total Abs Diff: 22414413
+Average Diff:61.02
+StdDev. Diff: 108.44
 
 outimages/Idea4_128.bmp
-Total Diff: 11275617
-Total Abs Diff: 22129939
-Average Diff:57.35
-StdDev. Diff: 108.75
+Total Diff: 11290407
+Total Abs Diff: 22192015
+Average Diff:57.43
+StdDev. Diff: 109.09
 
 outimages/Idea4_256.bmp
-Total Diff: 11485737
-Total Abs Diff: 22105657
-Average Diff:58.42
-StdDev. Diff: 108.04
+Total Diff: 10969872
+Total Abs Diff: 22008230
+Average Diff:55.80
+StdDev. Diff: 108.83
 
 outimages/Idea5.bmp
 Total Diff: 25017
@@ -119,10 +119,10 @@ Average Diff:0.13
 StdDev. Diff: 116.53
 
 outimages/Idea6.bmp
-Total Diff: -60408
-Total Abs Diff: 20967606
-Average Diff:-0.31
-StdDev. Diff: 116.65
+Total Diff: 93867
+Total Abs Diff: 20954033
+Average Diff:0.48
+StdDev. Diff: 116.57
 
 outimages/Idea7.bmp
 Total Diff: 189237
@@ -155,22 +155,22 @@ Average Diff:-0.16
 StdDev. Diff: 119.06
 
 outimages/UniformJitter_4.bmp
-Total Diff: 7692102
-Total Abs Diff: 22020070
-Average Diff:39.12
-StdDev. Diff: 115.94
+Total Diff: 7671702
+Total Abs Diff: 22016940
+Average Diff:39.02
+StdDev. Diff: 115.96
 
 outimages/UniformJitter_16.bmp
-Total Diff: 1769217
-Total Abs Diff: 21325775
-Average Diff:9.00
-StdDev. Diff: 118.28
+Total Diff: 1787577
+Total Abs Diff: 21318877
+Average Diff:9.09
+StdDev. Diff: 118.22
 
 outimages/UniformJitter_128.bmp
 Total Diff: 115542
-Total Abs Diff: 21019560
+Total Abs Diff: 21016420
 Average Diff:0.59
-StdDev. Diff: 116.94
+StdDev. Diff: 116.93
 
 outimages/UniformJitter_256.bmp
 Total Diff: 164502
@@ -275,50 +275,50 @@ Average Diff:65.48
 StdDev. Diff: 90.02
 
 outimages/JitterDots_16.bmp
-Total Diff: -23178963
-Total Abs Diff: 23240465
-Average Diff:-117.89
-StdDev. Diff: 51.54
+Total Diff: -23176413
+Total Abs Diff: 23240387
+Average Diff:-117.88
+StdDev. Diff: 51.57
 
 outimages/JitterDots_32.bmp
-Total Diff: -22914783
-Total Abs Diff: 23164255
-Average Diff:-116.55
-StdDev. Diff: 53.59
+Total Diff: -22925238
+Total Abs Diff: 23169984
+Average Diff:-116.60
+StdDev. Diff: 53.54
 
 outimages/JitterDots_64.bmp
-Total Diff: -21880503
-Total Abs Diff: 22883245
-Average Diff:-111.29
-StdDev. Diff: 60.88
+Total Diff: -21896823
+Total Abs Diff: 22888541
+Average Diff:-111.37
+StdDev. Diff: 60.78
 
 outimages/JitterDots_128.bmp
-Total Diff: -17752818
-Total Abs Diff: 21738208
-Average Diff:-90.30
-StdDev. Diff: 80.33
+Total Diff: -17746188
+Total Abs Diff: 21738312
+Average Diff:-90.26
+StdDev. Diff: 80.37
 
 outimages/JitterDistance_16.bmp
-Total Diff: 9328182
-Total Abs Diff: 19637380
-Average Diff:47.45
-StdDev. Diff: 98.14
+Total Diff: 7600557
+Total Abs Diff: 19590683
+Average Diff:38.66
+StdDev. Diff: 101.63
 
 outimages/JitterDistance_32.bmp
-Total Diff: 11010672
-Total Abs Diff: 19844076
-Average Diff:56.00
-StdDev. Diff: 94.95
+Total Diff: 7825722
+Total Abs Diff: 19578108
+Average Diff:39.80
+StdDev. Diff: 101.10
 
 outimages/JitterDistance_64.bmp
-Total Diff: 8177622
-Total Abs Diff: 19629400
-Average Diff:41.59
-StdDev. Diff: 100.71
+Total Diff: 9512802
+Total Abs Diff: 19752788
+Average Diff:48.38
+StdDev. Diff: 98.44
 
 outimages/JitterDistance_128.bmp
-Total Diff: 11548722
-Total Abs Diff: 19909696
-Average Diff:58.74
-StdDev. Diff: 93.73
+Total Diff: 8363007
+Total Abs Diff: 19640527
+Average Diff:42.54
+StdDev. Diff: 100.38
 
