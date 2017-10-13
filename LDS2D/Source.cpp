@@ -1604,6 +1604,134 @@ void JitterTestDistance (size_t imageSize, const char* fileName, size_t gridSize
 }
 
 //======================================================================================
+void RecursiveGridTest (size_t imageSize, const char* fileName)
+{
+    // report the name of the image we are working on
+    printf("%s\n", fileName);
+
+    // initialize the image
+    SImageData image;
+    ImageInit(image, imageSize, imageSize);
+    ImageClear(image, SColor(255, 255, 255));
+
+    // make the pixels
+    std::vector<bool> pixelWritten;
+    pixelWritten.resize(imageSize*imageSize);
+    std::fill(pixelWritten.begin(), pixelWritten.end(), false);
+    float inverseNumPixels = 1.0f / (float(imageSize)*float(imageSize));
+    size_t rank = 0;
+    for (size_t gridSize = imageSize; gridSize > 0; gridSize /= 2)
+    {
+        for (size_t y = 0; y < imageSize; y += gridSize)
+        {
+            for (size_t x = 0; x < imageSize; x += gridSize)
+            {
+                if (pixelWritten[y*imageSize + x])
+                    continue;
+
+                float pixelValue = float(rank) * inverseNumPixels;
+                uint8 pixelColor = uint8(pixelValue * 255.0f);
+
+                SColor* pixel = (SColor*)&image.m_pixels[y * image.m_pitch + x * 3];
+                pixelWritten[y*imageSize + x] = true;
+                pixel->Set(pixelColor, pixelColor, pixelColor);
+                ++rank;
+            }
+        }
+    }
+
+    // save the image
+    ImageSave(image, fileName);
+
+    // do the stippling test
+    StippleTest(image, fileName);
+
+    // save the DFT amplitude of the image
+    if (DO_DFT())
+    {
+        SImageDataComplex imageDFTData;
+        DFTImage(image, imageDFTData);
+        SImageData imageDFTMagnitude;
+        GetMagnitudeData(imageDFTData, imageDFTMagnitude);
+        char dftFileName[256];
+        strcpy(dftFileName, fileName);
+        strcat(dftFileName, ".mag.bmp");
+        ImageSave(imageDFTMagnitude, dftFileName);
+    }
+    printf("\n");
+}
+
+//======================================================================================
+size_t InterleaveBits (size_t A, size_t B)
+{
+    size_t ret = 0;
+    
+    while (A || B)
+    {
+        ret |= (A & 1);
+        ret <<= 1;
+        A >>= 1;
+
+        ret |= (B & 1);
+        ret <<= 1;
+        B >>= 1;
+    }
+
+    return ret / 2;
+}
+
+//======================================================================================
+void ZOrderTest (size_t imageSize, const char* fileName)
+{
+    // report the name of the image we are working on
+    printf("%s\n", fileName);
+
+    // initialize the image
+    SImageData image;
+    ImageInit(image, imageSize, imageSize);
+    ImageClear(image, SColor(255, 255, 255));
+
+    // make the pixels
+    float inverseNumPixels = 1.0f / (float(imageSize)*float(imageSize));
+    for (size_t y = 0; y < imageSize; ++y)
+    {
+        SColor* pixel = (SColor*)&image.m_pixels[y * image.m_pitch];
+
+        for (size_t x = 0; x < imageSize; ++x)
+        {
+            size_t rank = InterleaveBits(x, y);
+
+            float pixelValue = float(rank) * inverseNumPixels;
+            
+            uint8 pixelColor = uint8(pixelValue * 255.0f);
+
+            pixel->Set(pixelColor, pixelColor, pixelColor);
+            ++pixel;
+        }
+    }
+
+    // save the image
+    ImageSave(image, fileName);
+
+    // do the stippling test
+    StippleTest(image, fileName);
+
+    // save the DFT amplitude of the image
+    if (DO_DFT())
+    {
+        SImageDataComplex imageDFTData;
+        DFTImage(image, imageDFTData);
+        SImageData imageDFTMagnitude;
+        GetMagnitudeData(imageDFTData, imageDFTMagnitude);
+        char dftFileName[256];
+        strcpy(dftFileName, fileName);
+        strcat(dftFileName, ".mag.bmp");
+        ImageSave(imageDFTMagnitude, dftFileName);
+    }
+    printf("\n");
+}
+
+//======================================================================================
 int main(int argc, char** argv)
 {
     s_logFile = fopen("Metrics.txt", "w+t");
@@ -1611,6 +1739,7 @@ int main(int argc, char** argv)
     // load the image used for stippling tests
     ImageLoad("srcimages/stippleimage.bmp", s_stippleImage);
 
+    /*
     WhiteNoise(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/WhiteNoise.bmp");
 
     BlueNoise("srcimages/BlueNoise470.bmp");
@@ -1681,6 +1810,11 @@ int main(int argc, char** argv)
     JitterTestDistance(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/JitterDistance_64.bmp", 64 / IMAGE_DOWNSIZE_FACTOR());
     JitterTestDistance(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/JitterDistance_128.bmp", 128 / IMAGE_DOWNSIZE_FACTOR();
 
+    RecursiveGridTest(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/RecursiveGrid.bmp");
+    */
+
+    ZOrderTest(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/ZOrder.bmp");
+
     fclose(s_logFile);
 
     return 0;
@@ -1688,6 +1822,26 @@ int main(int argc, char** argv)
 /*
 
 TODO:
+
+
+* uniform via recursive grids. for 4x4 you'd go (x%4==0)&&(y%4==0).  then %2, then %1. only add a sample that hasn't been filled yet. Keep rank of these pixels, that is greyscale.
+ * Problem for notes: x axis definitely has preference.
+ * Solution? maybe instead interleave bits and do z order
+ ! done add this to notes when totally done
+
+* uniform via Z order! interleave bits to get rank.
+ * problem: favors lower numbers too much.
+ * Solution? reverse it.
+ ! done add this to notes when totally done
+
+* reverse Z order
+ * problem: I'm not sure yet, look at it and see.
+ * solution: likely a good solution will be to xor x and y, and interleave that with x.  that gives bayer matrix! explain what bayer matrix gives us i think.
+
+
+
+
+
 * distance: blue noise
 * dots: blue noise
 * maybe get a source blue noise dots texture from other project for now. don't need to include mitchell here :P
@@ -1707,12 +1861,6 @@ TODO:
 * pixel arty stylish noise? like from the presentation that has triangle noise mentioned in it
 * bayer matrix 
 
-* uniform via recursive grids. for 4x4 you'd go (x%4==0)&&(y%4==0).  then %2, then %1. only add a sample that hasn't been filled yet. Keep rank of these pixels, that is greyscale.
- * Problem for notes: x axis definitely has preference.
- * solution: interleave x and y bits and that determines rank, so that they have even priority.
-  * still do in recursive grids? or no? is this the same as regular Z order?
-
-* uniform via Z order! interleave bits to get rank.
 
 
 * TODO's in code
