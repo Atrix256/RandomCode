@@ -1662,26 +1662,47 @@ void RecursiveGridTest (size_t imageSize, const char* fileName)
 }
 
 //======================================================================================
-size_t InterleaveBits (size_t A, size_t B)
+size_t ReverseBits (size_t A, size_t numBits)
 {
     size_t ret = 0;
-    
-    while (A || B)
-    {
-        ret |= (A & 1);
-        ret <<= 1;
-        A >>= 1;
 
-        ret |= (B & 1);
+    size_t targetMask = size_t(1) << (numBits - 1);
+    size_t mask = 1;
+
+    while (mask <= targetMask)
+    {
         ret <<= 1;
-        B >>= 1;
+        ret |= ((A & mask) != 0);
+
+        mask <<= 1;
     }
 
-    return ret / 2;
+    return ret;
 }
 
 //======================================================================================
-void ZOrderTest (size_t imageSize, const char* fileName)
+size_t InterleaveBits (size_t A, size_t B, size_t numBits)
+{
+    size_t ret = 0;
+    
+    size_t mask = size_t(1) << (numBits-1);
+
+    while (mask)
+    {
+        ret <<= 1;
+        ret |= ((A & mask) != 0);
+
+        ret <<= 1;
+        ret |= ((B & mask) != 0);
+
+        mask >>= 1;
+    }
+
+    return ret;
+}
+
+//======================================================================================
+void ZOrderTest (size_t imageSize, const char* fileName, bool reverseBeforeInterleave)
 {
     // report the name of the image we are working on
     printf("%s\n", fileName);
@@ -1691,6 +1712,12 @@ void ZOrderTest (size_t imageSize, const char* fileName)
     ImageInit(image, imageSize, imageSize);
     ImageClear(image, SColor(255, 255, 255));
 
+    // TODO: seems like it should be < not <=
+    // calculate how many bits are needed in each coordinate
+    size_t numBits = 0;
+    while ((size_t(1) << numBits) <= imageSize)
+        ++numBits;
+
     // make the pixels
     float inverseNumPixels = 1.0f / (float(imageSize)*float(imageSize));
     for (size_t y = 0; y < imageSize; ++y)
@@ -1699,7 +1726,69 @@ void ZOrderTest (size_t imageSize, const char* fileName)
 
         for (size_t x = 0; x < imageSize; ++x)
         {
-            size_t rank = InterleaveBits(x, y);
+            size_t rank;
+            
+            if (reverseBeforeInterleave)
+                rank = InterleaveBits(ReverseBits(x, numBits), ReverseBits(y, numBits), numBits);
+            else
+                rank = InterleaveBits(x, y, numBits);
+
+            float pixelValue = float(rank) * inverseNumPixels;
+            
+            uint8 pixelColor = uint8(pixelValue * 255.0f);
+
+            pixel->Set(pixelColor, pixelColor, pixelColor);
+            ++pixel;
+        }
+    }
+
+    // save the image
+    ImageSave(image, fileName);
+
+    // do the stippling test
+    StippleTest(image, fileName);
+
+    // save the DFT amplitude of the image
+    if (DO_DFT())
+    {
+        SImageDataComplex imageDFTData;
+        DFTImage(image, imageDFTData);
+        SImageData imageDFTMagnitude;
+        GetMagnitudeData(imageDFTData, imageDFTMagnitude);
+        char dftFileName[256];
+        strcpy(dftFileName, fileName);
+        strcat(dftFileName, ".mag.bmp");
+        ImageSave(imageDFTMagnitude, dftFileName);
+    }
+    printf("\n");
+}
+
+//======================================================================================
+void BayerTest (size_t imageSize, const char* fileName)
+{
+    // report the name of the image we are working on
+    printf("%s\n", fileName);
+
+    // initialize the image
+    SImageData image;
+    ImageInit(image, imageSize, imageSize);
+    ImageClear(image, SColor(255, 255, 255));
+
+    // TODO: seems like this should be < not <= but in 2x2 bayer matrix, needed <= i think
+    // calculate how many bits are needed in each coordinate
+    size_t numBits = 0;
+    while ((size_t(1) << numBits) <= imageSize)
+        ++numBits;
+
+    // make the pixels
+    float inverseNumPixels = 1.0f / (float(imageSize)*float(imageSize));
+    for (size_t y = 0; y < imageSize; ++y)
+    {
+        SColor* pixel = (SColor*)&image.m_pixels[y * image.m_pitch];
+
+        for (size_t x = 0; x < imageSize; ++x)
+        {
+            size_t rank = ReverseBits(InterleaveBits(x, x^y, numBits), numBits);
 
             float pixelValue = float(rank) * inverseNumPixels;
             
@@ -1813,7 +1902,14 @@ int main(int argc, char** argv)
     RecursiveGridTest(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/RecursiveGrid.bmp");
     */
 
-    ZOrderTest(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/ZOrder.bmp");
+    // TODO: temp!
+    //BayerTest(2, "outimages/Bayer.bmp");
+    //ZOrderTest(16, "outimages/ZOrder.bmp", false);
+
+    // TODO: This stuff still seems wrong, need to dig into it. Bayer size 2 seems right though... kinda confusing
+    ZOrderTest(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/ZOrder.bmp", false);
+    ZOrderTest(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/ZOrderReversed.bmp", true);
+    BayerTest(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/Bayer.bmp");
 
     fclose(s_logFile);
 
@@ -1856,6 +1952,7 @@ TODO:
 * bayer matrix
  * https://en.wikipedia.org/wiki/Ordered_dithering
  * M(i, j) = bit_reverse(bit_interleave(bitwise_xor(x, y), x)) / n ^ 2
+ * make a 4x4 bayer matrix and compare vs the values on wikipedia
 
 * triangle noise
 * pixel arty stylish noise? like from the presentation that has triangle noise mentioned in it

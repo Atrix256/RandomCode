@@ -1,6 +1,18 @@
 outimages/ZOrder.bmp
-Total Diff: 8246727
-Total Abs Diff: 22352973
-Average Diff:41.95
-StdDev. Diff: 116.82
+Total Diff: 1744482
+Total Abs Diff: 20950874
+Average Diff:8.87
+StdDev. Diff: 116.21
+
+outimages/ZOrderReversed.bmp
+Total Diff: 15072
+Total Abs Diff: 20942942
+Average Diff:0.08
+StdDev. Diff: 116.51
+
+outimages/Bayer.bmp
+Total Diff: 26871162
+Total Abs Diff: 26871162
+Average Diff:136.67
+StdDev. Diff: 50.84
 
