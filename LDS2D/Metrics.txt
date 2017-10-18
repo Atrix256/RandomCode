@@ -1,6 +1,42 @@
-outimages/BlueNoise_ChopTile32.bmp
-Total Diff: 1047
-Total Abs Diff: 20979725
-Average Diff:0.01
-StdDev. Diff: 116.73
+outimages/Bayer_2.bmp
+Total Diff: 5653377
+Total Abs Diff: 21358217
+Average Diff:28.75
+StdDev. Diff: 115.26
+
+outimages/Bayer_4.bmp
+Total Diff: 1608312
+Total Abs Diff: 21080712
+Average Diff:8.18
+StdDev. Diff: 116.98
+
+outimages/Bayer_8.bmp
+Total Diff: 402927
+Total Abs Diff: 21000601
+Average Diff:2.05
+StdDev. Diff: 116.81
+
+outimages/Bayer_32.bmp
+Total Diff: 35217
+Total Abs Diff: 20958949
+Average Diff:0.18
+StdDev. Diff: 116.60
+
+outimages/Bayer_64.bmp
+Total Diff: 15327
+Total Abs Diff: 20956135
+Average Diff:0.08
+StdDev. Diff: 116.58
+
+outimages/Bayer_128.bmp
+Total Diff: 12012
+Total Abs Diff: 20956346
+Average Diff:0.06
+StdDev. Diff: 116.58
+
+outimages/Bayer_256.bmp
+Total Diff: 10992
+Total Abs Diff: 20956100
+Average Diff:0.06
+StdDev. Diff: 116.59
 

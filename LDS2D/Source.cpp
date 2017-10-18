@@ -19,7 +19,7 @@ const float c_goldenRatioConjugate = 1.61803398875f;
 
 // settings to speed things up when iterating
 #define IMAGE_DOWNSIZE_FACTOR() 1
-#define DO_DFT() true // TODO: set this to true before checking in
+#define DO_DFT() false // TODO: set this to true before checking in
 
 FILE* s_logFile = nullptr;
 
@@ -1829,7 +1829,8 @@ void ZOrderTest (size_t imageSize, const char* fileName, bool reverseBeforeInter
 }
 
 //======================================================================================
-void BayerTest (size_t imageSize, const char* fileName)
+// NOTE: this function only works when gridSize is a power of 2
+void BayerTest (size_t imageSize, const char* fileName, size_t gridSize)
 {
     // report the name of the image we are working on
     printf("%s\n", fileName);
@@ -1839,21 +1840,34 @@ void BayerTest (size_t imageSize, const char* fileName)
     ImageInit(image, imageSize, imageSize);
     ImageClear(image, SColor(255, 255, 255));
 
-    // TODO: seems like this should be < not <= but in 2x2 bayer matrix, needed <= i think
     // calculate how many bits are needed in each coordinate
     size_t numBits = 0;
-    while ((size_t(1) << numBits) <= imageSize)
+    while ((size_t(1) << numBits) < gridSize)
         ++numBits;
 
+#if 0  //set to 1 to have it print out the bayer matrix
+    for (size_t bayerY = 0; bayerY < gridSize; ++bayerY)
+    {
+        for (size_t bayerX = 0; bayerX < gridSize; ++bayerX)
+        {
+            printf("%zu ", ReverseBits(InterleaveBits(bayerX, bayerX^bayerY, numBits + 1), numBits * 2));
+        }
+        printf("\n");
+    }
+#endif
+
     // make the pixels
-    float inverseNumPixels = 1.0f / (float(imageSize)*float(imageSize));
+    float inverseNumPixels = 1.0f / (float(gridSize)*float(gridSize));
     for (size_t y = 0; y < imageSize; ++y)
     {
         SColor* pixel = (SColor*)&image.m_pixels[y * image.m_pitch];
 
         for (size_t x = 0; x < imageSize; ++x)
         {
-            size_t rank = ReverseBits(InterleaveBits(x, x^y, numBits), numBits);
+            size_t bayerX = x % gridSize;
+            size_t bayerY = y % gridSize;
+
+            size_t rank = ReverseBits(InterleaveBits(bayerX, bayerX^bayerY, numBits + 1), numBits * 2);
 
             float pixelValue = float(rank) * inverseNumPixels;
             
@@ -1971,18 +1985,27 @@ int main(int argc, char** argv)
     JitterTestDistance(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/JitterDistance_128.bmp", 128 / IMAGE_DOWNSIZE_FACTOR();
 
     RecursiveGridTest(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/RecursiveGrid.bmp");
+
+    BayerTest(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/Bayer_2.bmp", 2 / IMAGE_DOWNSIZE_FACTOR());
+    BayerTest(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/Bayer_4.bmp", 4 / IMAGE_DOWNSIZE_FACTOR());
+    BayerTest(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/Bayer_8.bmp", 8 / IMAGE_DOWNSIZE_FACTOR());
+    BayerTest(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/Bayer_32.bmp", 32 / IMAGE_DOWNSIZE_FACTOR());
+    BayerTest(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/Bayer_64.bmp", 64 / IMAGE_DOWNSIZE_FACTOR());
+    BayerTest(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/Bayer_128.bmp", 128 / IMAGE_DOWNSIZE_FACTOR());
+    BayerTest(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/Bayer_256.bmp", 256 / IMAGE_DOWNSIZE_FACTOR());
+
     */
 
     // TODO: temp!
-    //BayerTest(2, "outimages/Bayer.bmp");
     //ZOrderTest(16, "outimages/ZOrder.bmp", false);
 
     /*
     // TODO: This stuff still seems wrong, need to dig into it. Bayer size 2 seems right though... kinda confusing. maybe it is actually ok.
     ZOrderTest(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/ZOrder.bmp", false);
     ZOrderTest(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/ZOrderReversed.bmp", true);
-    BayerTest(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/Bayer.bmp");
     */
+
+
 
     fclose(s_logFile);
 
@@ -1992,9 +2015,8 @@ int main(int argc, char** argv)
 
 TODO:
 
-* make bayer matrix take size of matrix as param. 2, 4, ... 256 etc.
-
 * try making red noise by inverting blue noise amplitudes and inverse DFT'ing. Just do this ahead of time and make the texture, put it next to blue noise.
+ * show jay when you've done it (;
 
 * uniform via recursive grids. for 4x4 you'd go (x%4==0)&&(y%4==0).  then %2, then %1. only add a sample that hasn't been filled yet. Keep rank of these pixels, that is greyscale.
  * Problem for notes: x axis definitely has preference.
@@ -2100,6 +2122,7 @@ Jitter Distance:
   * ALAN: check presentation. it says something about a spiral pattern.
  * seems in some of the images are because i repeated a noise tile instead of calculating the noise over the whole domain (eg halton and interleaved gradient noise)
 
+! will likely want to make some gifs, like showing the stippled bayer images. larger bayer matrices don't really add that much to the quality of the image
 
 * free blue noise textures / blue noise info
  * http://momentsingraphics.de/?p=127
