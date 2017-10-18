@@ -1,18 +1,6 @@
-outimages/ZOrder.bmp
-Total Diff: 1744482
-Total Abs Diff: 20950874
-Average Diff:8.87
-StdDev. Diff: 116.21
-
-outimages/ZOrderReversed.bmp
-Total Diff: 15072
-Total Abs Diff: 20942942
-Average Diff:0.08
-StdDev. Diff: 116.51
-
-outimages/Bayer.bmp
-Total Diff: 26871162
-Total Abs Diff: 26871162
-Average Diff:136.67
-StdDev. Diff: 50.84
+outimages/BlueNoise_ChopTile32.bmp
+Total Diff: 1047
+Total Abs Diff: 20979725
+Average Diff:0.01
+StdDev. Diff: 116.73
 

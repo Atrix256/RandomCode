@@ -19,7 +19,7 @@ const float c_goldenRatioConjugate = 1.61803398875f;
 
 // settings to speed things up when iterating
 #define IMAGE_DOWNSIZE_FACTOR() 1
-#define DO_DFT() false // TODO: set this to true before checking in
+#define DO_DFT() true // TODO: set this to true before checking in
 
 FILE* s_logFile = nullptr;
 
@@ -343,6 +343,25 @@ void ImageClear (SImageData& image, const SColor& color)
         std::fill(pixels, pixels + image.m_width, color);
  
         row += image.m_pitch;
+    }
+}
+
+//======================================================================================
+void ImageTile (const SImageData& srcImageData, SImageData& destImageData, size_t width, size_t height)
+{
+    for (size_t y = 0; y < destImageData.m_height; ++y)
+    {
+        size_t srcY = y % width;
+
+        for (size_t x = 0; x < destImageData.m_width; ++x)
+        {
+            size_t srcX = x % height;
+
+            SColor* srcPixel = (SColor*)&srcImageData.m_pixels[srcY * srcImageData.m_pitch + srcX * 3];
+            SColor* destPixel = (SColor*)&destImageData.m_pixels[y * destImageData.m_pitch + x * 3];
+
+            *destPixel = *srcPixel;
+        }
     }
 }
 
@@ -1050,15 +1069,25 @@ void Idea7 (size_t imageSize, const char* fileName)
 }
 
 //======================================================================================
-void BlueNoise (const char* fileName)
+void BlueNoise (size_t imageSize, const char* srcFileName, const char* destFileName)
 {
     // report the name of the image we are working on
-    printf("%s\n", fileName);
+    printf("%s\n", destFileName);
+
+    // load the blue noise source file
+    SImageData srcImageData;
+    ImageLoad(srcFileName, srcImageData);
+
+    // copy just the portion we want
+    SImageData imageData;
+    ImageInit(imageData, imageSize, imageSize);
+    ImageTile(srcImageData, imageData, srcImageData.m_width, srcImageData.m_height);
+
+    // save the image
+    ImageSave(imageData, destFileName);
 
     // do blue noise stipple test
-    SImageData imageData;
-    ImageLoad(fileName, imageData);
-    StippleTest(imageData, fileName);
+    StippleTest(imageData, destFileName);
 
     // do blue noise dft
     if (DO_DFT())
@@ -1068,7 +1097,43 @@ void BlueNoise (const char* fileName)
         SImageData imageDFTMagnitude;
         GetMagnitudeData(imageDFTData, imageDFTMagnitude);
         char dftFileName[256];
-        strcpy(dftFileName, fileName);
+        strcpy(dftFileName, destFileName);
+        strcat(dftFileName, ".mag.bmp");
+        ImageSave(imageDFTMagnitude, dftFileName);
+    }
+    printf("\n");
+}
+
+//======================================================================================
+void BlueNoiseChopTile (size_t imageSize, const char* srcFileName, const char* destFileName, size_t chopSize)
+{
+    // report the name of the image we are working on
+    printf("%s\n", destFileName);
+
+    // load the blue noise source file
+    SImageData srcImageData;
+    ImageLoad(srcFileName, srcImageData);
+
+    // copy just the portion we want
+    SImageData imageData;
+    ImageInit(imageData, imageSize, imageSize);
+    ImageTile(srcImageData, imageData, chopSize, chopSize);
+
+    // save the image
+    ImageSave(imageData, destFileName);
+
+    // do blue noise stipple test
+    StippleTest(imageData, destFileName);
+
+    // do blue noise dft
+    if (DO_DFT())
+    {
+        SImageDataComplex imageDFTData;
+        DFTImage(imageData, imageDFTData);
+        SImageData imageDFTMagnitude;
+        GetMagnitudeData(imageDFTData, imageDFTMagnitude);
+        char dftFileName[256];
+        strcpy(dftFileName, destFileName);
         strcat(dftFileName, ".mag.bmp");
         ImageSave(imageDFTMagnitude, dftFileName);
     }
@@ -1831,7 +1896,13 @@ int main(int argc, char** argv)
     /*
     WhiteNoise(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/WhiteNoise.bmp");
 
-    BlueNoise("srcimages/BlueNoise470.bmp");
+    BlueNoise(256 / IMAGE_DOWNSIZE_FACTOR(), "srcimages/BlueNoise_16.bmp", "outimages/BlueNoise_16.bmp");
+    BlueNoise(256 / IMAGE_DOWNSIZE_FACTOR(), "srcimages/BlueNoise_32.bmp", "outimages/BlueNoise_32.bmp");
+    BlueNoise(256 / IMAGE_DOWNSIZE_FACTOR(), "srcimages/BlueNoise_64.bmp", "outimages/BlueNoise_64.bmp");
+    BlueNoise(256 / IMAGE_DOWNSIZE_FACTOR(), "srcimages/BlueNoise_128.bmp", "outimages/BlueNoise_128.bmp");
+    BlueNoise(256 / IMAGE_DOWNSIZE_FACTOR(), "srcimages/BlueNoise_256.bmp", "outimages/BlueNoise_256.bmp");
+
+    BlueNoiseChopTile(256 / IMAGE_DOWNSIZE_FACTOR(), "srcimages/BlueNoise_256.bmp", "outimages/BlueNoise_ChopTile32.bmp", 32);
 
     InterleavedGradientNoise(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/InterleavedGradient.bmp");
 
@@ -1906,10 +1977,12 @@ int main(int argc, char** argv)
     //BayerTest(2, "outimages/Bayer.bmp");
     //ZOrderTest(16, "outimages/ZOrder.bmp", false);
 
-    // TODO: This stuff still seems wrong, need to dig into it. Bayer size 2 seems right though... kinda confusing
+    /*
+    // TODO: This stuff still seems wrong, need to dig into it. Bayer size 2 seems right though... kinda confusing. maybe it is actually ok.
     ZOrderTest(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/ZOrder.bmp", false);
     ZOrderTest(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/ZOrderReversed.bmp", true);
     BayerTest(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/Bayer.bmp");
+    */
 
     fclose(s_logFile);
 
@@ -1919,6 +1992,9 @@ int main(int argc, char** argv)
 
 TODO:
 
+* make bayer matrix take size of matrix as param. 2, 4, ... 256 etc.
+
+* try making red noise by inverting blue noise amplitudes and inverse DFT'ing. Just do this ahead of time and make the texture, put it next to blue noise.
 
 * uniform via recursive grids. for 4x4 you'd go (x%4==0)&&(y%4==0).  then %2, then %1. only add a sample that hasn't been filled yet. Keep rank of these pixels, that is greyscale.
  * Problem for notes: x axis definitely has preference.
@@ -1935,7 +2011,7 @@ TODO:
  * solution: likely a good solution will be to xor x and y, and interleave that with x.  that gives bayer matrix! explain what bayer matrix gives us i think.
 
 
-
+? try adding some small random noise to Bayer to try "jitter the regular sampling"? daniel from tweitter thought this up. (@nostalgiadriven)
 
 
 * distance: blue noise
@@ -1978,6 +2054,8 @@ TODO:
 Uniform : ((x + y) % repeatSize) / (repeatSize-1)
 Uniform Jitter : ((x + y) % repeatSize) / (repeatSize-1) + rand(0, 1/repeatSize)
 White Noise : random pixel color
+
+Blue Noise: good stuff.  It tiles pretty well too. Chopping a larger blue noise texture down and tiling that does not work well though.
 
 Idea 1: Make Shuffles for X. Add golden ratio on y.
  * Notes: visible structure
@@ -2051,5 +2129,20 @@ Jitter Distance:
 
 * Connection between samples and greyscale patterns is "ordered dithering"
  ? can you asnwer the questions about low discrepancy sequences etc?
+
+* noise shaping, an audio thing.  Get quantization error (quantize and subtract from original?) and then shape the error to be whatever spectrum you want
+ * http://wiki.hydrogenaud.io/index.php?title=Noise_shaping
+ * idea: put noise where it will be noticed less.
+ * apparently very similar results to blue noise when you shape it to be blue noise.
+
+* 11 dithering algorithms: error diffusion, which is different than ordered dithering.
+ * http://www.tannerhelland.com/4660/dithering-eleven-algorithms-source-code/
+ 
+
+* bayer matrix:
+ * Bayer matrix is where distance between numbers are maximized.
+ * this page says it's optimal in that way: https://www.visgraf.impa.br/Courses/ip00/proj/Dithering1/ordered_dithering.html
+ * It's supposed to have only high frequency components?
+ ? i wonder how larger ones look vs blue noise?
 
 */
