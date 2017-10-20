@@ -360,12 +360,12 @@ int main (int argc, char** argv)
     SImageData image;
     ImageLoad("Image.bmp", image);
 
+    const size_t samples1 = 256;   // 16x16
+    const size_t samples2 = 1024;  // 32x32
+    const size_t samples3 = 16384; // 128x128
+
     // white noise
     {
-        const size_t samples1 = 100;
-        const size_t samples2 = 1000;
-        const size_t samples3 = 10000;
-
         SImageData samples;
         ImageInit(samples, c_imageSize, c_imageSize);
 
@@ -452,9 +452,9 @@ int main (int argc, char** argv)
             }
         };
 
-        GridTest(256);    // 16 * 16
-        GridTest(1024);   // 32 * 32
-        GridTest(16384);  // 128 * 128
+        GridTest(samples1);
+        GridTest(samples2);
+        GridTest(samples3);
     }
 
     return 0;
