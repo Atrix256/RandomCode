@@ -7,6 +7,7 @@
 #include <thread>
 #include <atomic>
 #include <random>
+#include <array>
 
 typedef uint8_t uint8;
 typedef int64_t int64;
@@ -351,27 +352,48 @@ void SampleTest (const SImageData& image, const SImageData& samples, const char*
 }
 
 //======================================================================================
+inline float Distance (size_t x1, size_t y1, size_t x2, size_t y2, int imageWidth)
+{
+    // this returns the toroidal distance between the points
+    // aka the interval [0, width) wraps around
+    float dx = std::abs(float(x2) - float(x1));
+    float dy = std::abs(float(y2) - float(y1));
+
+    if (dx > float(imageWidth / 2))
+        dx = float(imageWidth) - dx;
+
+    if (dy > float(imageWidth / 2))
+        dy = float(imageWidth) - dy;
+
+    // returning squared distance cause why not
+    return dx*dx + dy*dy;
+}
+
+//======================================================================================
 int main (int argc, char** argv)
 {
     const size_t c_imageSize = 256;
-    const bool c_doDFT = false;
+    const bool c_doDFT = true;
+
+    const size_t c_blueNoiseSampleMultiplier = 1;
+
+    const size_t samples1 = 256;   // 16x16
+    const size_t samples2 = 1024;  // 32x32
+    const size_t samples3 = 4096; // 128x128
 
     // load the source image
     SImageData image;
     ImageLoad("Image.bmp", image);
 
-    const size_t samples1 = 256;   // 16x16
-    const size_t samples2 = 1024;  // 32x32
-    const size_t samples3 = 16384; // 128x128
+    // init random number generator
+    std::random_device rd;
+    std::mt19937 rng(rd());
+    std::uniform_int_distribution<int> dist(0, c_imageSize - 1);
 
     // white noise
     {
         SImageData samples;
         ImageInit(samples, c_imageSize, c_imageSize);
-
-        std::random_device rd;
-        std::mt19937 rng(rd());
-        std::uniform_int_distribution<int> dist(0, c_imageSize-1);
 
         for (size_t i = 1; i <= samples3; ++i)
         {
@@ -457,13 +479,86 @@ int main (int argc, char** argv)
         GridTest(samples3);
     }
 
+    // blue noise
+    {
+        SImageData samples;
+        ImageInit(samples, c_imageSize, c_imageSize);
+
+        std::vector<std::array<size_t, 2>> samplesPos;
+
+        size_t percent = (size_t)-1;
+
+        for (size_t i = 1; i <= samples3; ++i)
+        {
+            size_t newPercent;
+            if (i <= samples1)
+                newPercent = size_t(100.0f * float(i) / float(samples1));
+            else if (i <= samples2)
+                newPercent = size_t(100.0f * float(i - samples1) / float(samples2 - samples1));
+            else
+                newPercent = size_t(100.0f * float(i - samples2) / float(samples3 - samples2));
+            if (percent != newPercent)
+            {
+                percent = newPercent;
+                printf("\rGenerating Blue Noise Samples: %zu%%", percent);
+            }
+
+            // keep the candidate that is farthest from it's closest point
+            size_t numCandidates = samplesPos.size() * c_blueNoiseSampleMultiplier + 1;
+            float bestDistance = 0.0f;
+            size_t bestCandidateX = 0;
+            size_t bestCandidateY = 0;
+            for (size_t candidate = 0; candidate < numCandidates; ++candidate)
+            {
+                size_t x = dist(rng);
+                size_t y = dist(rng);
+
+                // calculate the closest distance from this point to an existing sample
+                float minDist = FLT_MAX;
+                for (const std::array<size_t, 2>& samplePos : samplesPos)
+                {
+                    float dist = Distance(x, y, samplePos[0], samplePos[1], c_imageSize);
+                    if (dist < minDist)
+                        minDist = dist;
+                }
+
+                if (minDist > bestDistance)
+                {
+                    bestDistance = minDist;
+                    bestCandidateX = x;
+                    bestCandidateY = y;
+                }
+            }
+            samplesPos.push_back({ bestCandidateX, bestCandidateY });
+
+            SColor* pixel = (SColor*)&samples.m_pixels[bestCandidateY*samples.m_pitch + bestCandidateX * 3];
+            pixel->R = pixel->G = pixel->B = 255;
+
+            if (i == samples1 || i == samples2 || i == samples3)
+            {
+                printf("\nBlue Noise %zu samples\n", i);
+
+                char fileName[256];
+                sprintf(fileName, "BlueNoise_%zu.bmp", i);
+                ImageSave(samples, fileName);
+
+                sprintf(fileName, "BlueNoise_%zu_samples.bmp", i);
+                SampleTest(image, samples, fileName);
+
+                if (c_doDFT)
+                {
+                    SImageDataComplex frequencyData;
+                    DFTImage(samples, frequencyData);
+
+                    SImageData magnitudeData;
+                    GetMagnitudeData(frequencyData, magnitudeData);
+
+                    sprintf(fileName, "BlueNoise_%zu_mag.bmp", i);
+                    ImageSave(magnitudeData, fileName);
+                }
+            }
+        }
+    }
+
     return 0;
 }
-
-/*
-
-TODO:
-* blue noise
-* make all the DFT's
-
-*/
