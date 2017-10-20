@@ -287,6 +287,7 @@ bool ImageSave (const SImageData &image, const char *fileName)
     return true;
 }
 
+//======================================================================================
 bool ImageLoad (const char *fileName, SImageData& imageData)
 {
     // open the file if we can
