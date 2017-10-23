@@ -537,6 +537,7 @@ int main (int argc, char ** argv)
     // calculate the blur size from our sigma
     int blurSize = PixelsNeededForSigma(c_blurSigma) | 1;
 
+    /*
     // blue noise
     {
         // generate some white noise
@@ -573,9 +574,8 @@ int main (int argc, char ** argv)
             SaveImageFloatAsBMP(noise, fileName);
         }
     }
+    */
 
-    // TODO: make red noise work after blue noise is working
-    /*
     // red noise
     {
         // generate some white noise
@@ -591,7 +591,7 @@ int main (int argc, char ** argv)
         char fileName[256];
 
         sprintf(fileName, baseFileName, 0);
-        SaveImageFloatAsBMP(noise, fileName, false);
+        SaveImageFloatAsBMP(noise, fileName);
 
         // iteratively high pass filter and rescale histogram to the 0 to 1 range
         SImageDataFloat blurredImage;
@@ -600,16 +600,17 @@ int main (int argc, char ** argv)
             // get a low passed version of the current image
             ImageGaussianBlur(noise, blurredImage, c_blurSigma, c_blurSigma, blurSize, blurSize);
 
-            // TODO: set noise to the low passed version
+            // set noise image to the low passed version
+            noise.m_pixels = blurredImage.m_pixels;
 
-            // TODO: need to re-adjust histogram!
+            // put all pixels between 0.0 and 1.0 again
+            NormalizeHistogram(noise);
 
             // save this image
             sprintf(fileName, baseFileName, blurIndex + 1);
-            SaveImageFloatAsBMP(noise, fileName, blurIndex == c_numBlurs - 1);
+            SaveImageFloatAsBMP(noise, fileName);
         }
     }
-    */
 
     return 0;
 }
