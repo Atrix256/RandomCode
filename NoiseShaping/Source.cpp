@@ -754,13 +754,12 @@ TODO:
  * https://bartwronski.com/2016/10/30/dithering-part-two-golden-ratio-sequence-blue-noise-and-highpass-and-remap/
  * https://gpuopen.com/vdr-follow-up-fine-art-of-film-grain/
  * gaussian blur: https://blog.demofox.org/2015/08/19/gaussian-blur/
+ * DFT / IDFT: https://blog.demofox.org/2016/07/28/fourier-transform-and-inverse-of-images/
  * https://www.solidangle.com/research/dither_abstract.pdf
 
 Blog:
 * digital alchemy? turning white noise into other noise
-! let's make some noise gif
 * note that blur needs to wrap around!
-* note: you can't make blue noise by making white noise, doing DFT, modifying stuff, then doing IDFT. that is filtering it and is equivelant to what you are doing here.
 * note: timothy lottes says to use sort that's more efficient for fixed sizes keys (radix sort), and fits it in 64 bits instead of a struct.
 * Note: likely want a better algorithm if doing offline. But this algorithm is pretty easy
 
@@ -768,5 +767,8 @@ Blog:
  * box blur = low quality
  * gaussian blur = better.
  * best = sync.
+
+DONE:
+* note: you can't make blue noise by making white noise, doing DFT, modifying stuff, then doing IDFT. that is filtering it and is equivelant to what you are doing here.
 
 */
