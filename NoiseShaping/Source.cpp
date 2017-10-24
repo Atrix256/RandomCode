@@ -15,9 +15,8 @@ typedef int64_t int64;
 const float c_pi = 3.14159265359f;
 
 // settings
-const size_t    c_imageSize = 256;
+const size_t    c_imageSize = 256; // TODO: 256
 const bool      c_doDFT = true; // TODO: true before checkin!
-const float     c_blurSigma = 1.0f;
 const float     c_blurThresholdPercent = 0.005f; // lower numbers give higher quality results, but take longer. This is 0.5%
 const float     c_numBlurs = 5;
 
@@ -444,6 +443,8 @@ void ImageGaussianBlur (const SImageDataFloat& srcImage, SImageDataFloat &destIm
 //======================================================================================
 void SaveImageFloatAsBMP (const SImageDataFloat& imageFloat, const char* fileName)
 {
+    printf("\n%s\n", fileName);
+
     // init the image
     SImageData image;
     ImageInit(image, imageFloat.m_width, imageFloat.m_height);
@@ -502,8 +503,7 @@ void NormalizeHistogram (SImageDataFloat& image)
         pixels[i].pixelIndex = i;
     }
 
-    // TODO: is the shuffle needed? is there ever really a duplicate? do it even if not, but note the outcome in the blog.
-    // shuffle the pixels to randomly order ties
+    // shuffle the pixels to randomly order ties. not as big a deal with floating point pixel values though
     static std::random_device rd;
     static std::mt19937 rng(rd());
     std::shuffle(pixels.begin(), pixels.end(), rng);
@@ -527,90 +527,208 @@ void NormalizeHistogram (SImageDataFloat& image)
 }
 
 //======================================================================================
-int main (int argc, char ** argv)
+void BlueNoiseTest (float blurSigma)
 {
-    // seed the random number generator
+    // calculate the blur size from our sigma
+    int blurSize = PixelsNeededForSigma(blurSigma) | 1;
+
+    // setup the randon number generator
     std::random_device rd;
     std::mt19937 rng(rd());
     std::uniform_real_distribution<float> dist(0.0f, 1.0f);
 
+    // generate some white noise
+    SImageDataFloat noise;
+    ImageFloatInit(noise, c_imageSize, c_imageSize);
+    for (float& v : noise.m_pixels)
+    {
+        v = dist(rng);
+    }
+
+    // save off the starting white noise
+    const char* baseFileName = "bluenoise_%i_%zu.bmp";
+    char fileName[256];
+
+    sprintf(fileName, baseFileName, int(blurSigma * 100.0f), 0);
+    SaveImageFloatAsBMP(noise, fileName);
+
+    // iteratively high pass filter and rescale histogram to the 0 to 1 range
+    SImageDataFloat blurredImage;
+    for (size_t blurIndex = 0; blurIndex < c_numBlurs; ++blurIndex)
+    {
+        // get a low passed version of the current image
+        ImageGaussianBlur(noise, blurredImage, blurSigma, blurSigma, blurSize, blurSize);
+
+        // subtract the low passed version to get the high passed version
+        for (size_t pixelIndex = 0; pixelIndex < c_imageSize * c_imageSize; ++pixelIndex)
+            noise.m_pixels[pixelIndex] -= blurredImage.m_pixels[pixelIndex];
+
+        // put all pixels between 0.0 and 1.0 again
+        NormalizeHistogram(noise);
+
+        // save this image
+        sprintf(fileName, baseFileName, int(blurSigma * 100.0f), blurIndex + 1);
+        SaveImageFloatAsBMP(noise, fileName);
+    }
+}
+
+//======================================================================================
+void RedNoiseTest (float blurSigma)
+{
     // calculate the blur size from our sigma
-    int blurSize = PixelsNeededForSigma(c_blurSigma) | 1;
+    int blurSize = PixelsNeededForSigma(blurSigma) | 1;
 
-    /*
-    // blue noise
+    // setup the randon number generator
+    std::random_device rd;
+    std::mt19937 rng(rd());
+    std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+
+    // generate some white noise
+    SImageDataFloat noise;
+    ImageFloatInit(noise, c_imageSize, c_imageSize);
+    for (float& v : noise.m_pixels)
     {
-        // generate some white noise
-        SImageDataFloat noise;
-        ImageFloatInit(noise, c_imageSize, c_imageSize);
-        for (float& v : noise.m_pixels)
-        {
-            v = dist(rng);
-        }
-
-        // save off the starting white noise
-        const char* baseFileName = "bluenoise%zu.bmp";
-        char fileName[256];
-
-        sprintf(fileName, baseFileName, 0);
-        SaveImageFloatAsBMP(noise, fileName);
-
-        // iteratively high pass filter and rescale histogram to the 0 to 1 range
-        SImageDataFloat blurredImage;
-        for (size_t blurIndex = 0; blurIndex < c_numBlurs; ++blurIndex)
-        {
-            // get a low passed version of the current image
-            ImageGaussianBlur(noise, blurredImage, c_blurSigma, c_blurSigma, blurSize, blurSize);
-
-            // subtract the low passed version to get the high passed version
-            for (size_t pixelIndex = 0; pixelIndex < c_imageSize * c_imageSize; ++pixelIndex)
-                noise.m_pixels[pixelIndex] -= blurredImage.m_pixels[pixelIndex];
-
-            // put all pixels between 0.0 and 1.0 again
-            NormalizeHistogram(noise);
-
-            // save this image
-            sprintf(fileName, baseFileName, blurIndex + 1);
-            SaveImageFloatAsBMP(noise, fileName);
-        }
+        v = dist(rng);
     }
-    */
 
-    // red noise
+    // save off the starting white noise
+    const char* baseFileName = "rednoise_%i_%zu.bmp";
+    char fileName[256];
+
+    sprintf(fileName, baseFileName, int(blurSigma * 100.0f), 0);
+    SaveImageFloatAsBMP(noise, fileName);
+
+    // iteratively high pass filter and rescale histogram to the 0 to 1 range
+    SImageDataFloat blurredImage;
+    for (size_t blurIndex = 0; blurIndex < c_numBlurs; ++blurIndex)
     {
-        // generate some white noise
-        SImageDataFloat noise;
-        ImageFloatInit(noise, c_imageSize, c_imageSize);
-        for (float& v : noise.m_pixels)
-        {
-            v = dist(rng);
-        }
+        // get a low passed version of the current image
+        ImageGaussianBlur(noise, blurredImage, blurSigma, blurSigma, blurSize, blurSize);
 
-        // save off the starting white noise
-        const char* baseFileName = "rednoise%zu.bmp";
-        char fileName[256];
+        // set noise image to the low passed version
+        noise.m_pixels = blurredImage.m_pixels;
 
-        sprintf(fileName, baseFileName, 0);
+        // put all pixels between 0.0 and 1.0 again
+        NormalizeHistogram(noise);
+
+        // save this image
+        sprintf(fileName, baseFileName, int(blurSigma * 100.0f), blurIndex + 1);
         SaveImageFloatAsBMP(noise, fileName);
-
-        // iteratively high pass filter and rescale histogram to the 0 to 1 range
-        SImageDataFloat blurredImage;
-        for (size_t blurIndex = 0; blurIndex < c_numBlurs; ++blurIndex)
-        {
-            // get a low passed version of the current image
-            ImageGaussianBlur(noise, blurredImage, c_blurSigma, c_blurSigma, blurSize, blurSize);
-
-            // set noise image to the low passed version
-            noise.m_pixels = blurredImage.m_pixels;
-
-            // put all pixels between 0.0 and 1.0 again
-            NormalizeHistogram(noise);
-
-            // save this image
-            sprintf(fileName, baseFileName, blurIndex + 1);
-            SaveImageFloatAsBMP(noise, fileName);
-        }
     }
+}
+
+//======================================================================================
+void BandPassTest (float blurSigma1, float blurSigma2)
+{
+    // calculate the blur size from our sigma
+    int blurSize1 = PixelsNeededForSigma(blurSigma1) | 1;
+    int blurSize2 = PixelsNeededForSigma(blurSigma2) | 1;
+
+    // setup the randon number generator
+    std::random_device rd;
+    std::mt19937 rng(rd());
+    std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+
+    // generate some white noise
+    SImageDataFloat noise;
+    ImageFloatInit(noise, c_imageSize, c_imageSize);
+    for (float& v : noise.m_pixels)
+    {
+        v = dist(rng);
+    }
+
+    // save off the starting white noise
+    const char* baseFileName = "bandpass_%i_%i_%zu.bmp";
+    char fileName[256];
+
+    sprintf(fileName, baseFileName, int(blurSigma1 * 100.0f), int(blurSigma2 * 100.0f), 0);
+    SaveImageFloatAsBMP(noise, fileName);
+
+    // iteratively high pass filter and rescale histogram to the 0 to 1 range
+    SImageDataFloat blurredImage1;
+    SImageDataFloat blurredImage2;
+    for (size_t blurIndex = 0; blurIndex < c_numBlurs; ++blurIndex)
+    {
+        // get two low passed versions of the current image
+        ImageGaussianBlur(noise, blurredImage1, blurSigma1, blurSigma1, blurSize1, blurSize1);
+        ImageGaussianBlur(noise, blurredImage2, blurSigma2, blurSigma2, blurSize2, blurSize2);
+
+        // subtract one low passed version from the other
+        for (size_t pixelIndex = 0; pixelIndex < c_imageSize * c_imageSize; ++pixelIndex)
+            noise.m_pixels[pixelIndex] = blurredImage1.m_pixels[pixelIndex] - blurredImage2.m_pixels[pixelIndex];
+
+        // put all pixels between 0.0 and 1.0 again
+        NormalizeHistogram(noise);
+
+        // save this image
+        sprintf(fileName, baseFileName, int(blurSigma1 * 100.0f), int(blurSigma2 * 100.0f), blurIndex + 1);
+        SaveImageFloatAsBMP(noise, fileName);
+    }
+}
+
+//======================================================================================
+void BandStopTest (float blurSigma1, float blurSigma2)
+{
+    // calculate the blur size from our sigma
+    int blurSize1 = PixelsNeededForSigma(blurSigma1) | 1;
+    int blurSize2 = PixelsNeededForSigma(blurSigma2) | 1;
+
+    // setup the randon number generator
+    std::random_device rd;
+    std::mt19937 rng(rd());
+    std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+
+    // generate some white noise
+    SImageDataFloat noise;
+    ImageFloatInit(noise, c_imageSize, c_imageSize);
+    for (float& v : noise.m_pixels)
+    {
+        v = dist(rng);
+    }
+
+    // save off the starting white noise
+    const char* baseFileName = "bandstop_%i_%i_%zu.bmp";
+    char fileName[256];
+
+    sprintf(fileName, baseFileName, int(blurSigma1 * 100.0f), int(blurSigma2 * 100.0f), 0);
+    SaveImageFloatAsBMP(noise, fileName);
+
+    // iteratively high pass filter and rescale histogram to the 0 to 1 range
+    SImageDataFloat blurredImage1;
+    SImageDataFloat blurredImage2;
+    for (size_t blurIndex = 0; blurIndex < c_numBlurs; ++blurIndex)
+    {
+        // get two low passed versions of the current image
+        ImageGaussianBlur(noise, blurredImage1, blurSigma1, blurSigma1, blurSize1, blurSize1);
+        ImageGaussianBlur(noise, blurredImage2, blurSigma2, blurSigma2, blurSize2, blurSize2);
+
+        // subtract one low passed version from the other to get the pandpass noise, and subtract that from the original noise to get the band stop noise
+        for (size_t pixelIndex = 0; pixelIndex < c_imageSize * c_imageSize; ++pixelIndex)
+            noise.m_pixels[pixelIndex] -= (blurredImage1.m_pixels[pixelIndex] - blurredImage2.m_pixels[pixelIndex]);
+
+        // put all pixels between 0.0 and 1.0 again
+        NormalizeHistogram(noise);
+
+        // save this image
+        sprintf(fileName, baseFileName, int(blurSigma1 * 100.0f), int(blurSigma2 * 100.0f), blurIndex + 1);
+        SaveImageFloatAsBMP(noise, fileName);
+    }
+}
+
+//======================================================================================
+int main (int argc, char ** argv)
+{
+    BlueNoiseTest(0.5f);
+    BlueNoiseTest(1.0f);
+    BlueNoiseTest(2.0f);
+
+    RedNoiseTest(0.5f);
+    RedNoiseTest(1.0f);
+    RedNoiseTest(2.0f);
+
+    BandPassTest(0.5f, 2.0f);
+
+    BandStopTest(0.5f, 2.0f);
 
     return 0;
 }
@@ -619,37 +737,36 @@ int main (int argc, char ** argv)
 
 TODO:
 
-* show how different blur sigmas affect the frequencies and the final noise output
-* get red noise working
-
-* different blurs are different quality low pass filters.
- * box blur = low quality
- * gaussian blur = better.
- * best = sync.
- * maybe need to do a post on that next? or getting lost in the weeds...?
- * not sure if worth white, but could show box vs gaussian?
-
-* animated gifs showing it evolve?
+* animated gifs showing the noise and their DFT evolve?
 
 * maybe also animate blue noise w/ golden ratio, and mention that in this post? vs a flip book of blue noise?
-
-? should we DFT the float array? probably would be good if we can! (higher quality results)
 
 * TODOs in code
 
 ? how to demo the quality of this noise?
  * compare image and DFT to blue noise image and DFT
- * show thresholding (animation?) of blue noise texture
+ * show thresholding (animation?) of noise textures
  * some kind of actual sampling thing or something?
+ * show whether noise tiles
+ * also just use it for greyscale image dithering?
 
 * links
  * https://bartwronski.com/2016/10/30/dithering-part-two-golden-ratio-sequence-blue-noise-and-highpass-and-remap/
  * https://gpuopen.com/vdr-follow-up-fine-art-of-film-grain/
  * gaussian blur: https://blog.demofox.org/2015/08/19/gaussian-blur/
+ * https://www.solidangle.com/research/dither_abstract.pdf
 
 Blog:
+* digital alchemy? turning white noise into other noise
+! let's make some noise gif
 * note that blur needs to wrap around!
 * note: you can't make blue noise by making white noise, doing DFT, modifying stuff, then doing IDFT. that is filtering it and is equivelant to what you are doing here.
 * note: timothy lottes says to use sort that's more efficient for fixed sizes keys (radix sort), and fits it in 64 bits instead of a struct.
+* Note: likely want a better algorithm if doing offline. But this algorithm is pretty easy
+
+* different blurs are different quality low pass filters.
+ * box blur = low quality
+ * gaussian blur = better.
+ * best = sync.
 
 */
