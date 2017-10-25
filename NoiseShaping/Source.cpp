@@ -758,17 +758,18 @@ TODO:
  * https://www.solidangle.com/research/dither_abstract.pdf
 
 Blog:
+
+
+DONE:
+* note: you can't make blue noise by making white noise, doing DFT, modifying stuff, then doing IDFT. that is filtering it and is equivelant to what you are doing here.
 * digital alchemy? turning white noise into other noise
 * note that blur needs to wrap around!
 * note: timothy lottes says to use sort that's more efficient for fixed sizes keys (radix sort), and fits it in 64 bits instead of a struct.
 * Note: likely want a better algorithm if doing offline. But this algorithm is pretty easy
-
+* Nathan Reed said the band pass noise looks like Perlin noise. google for more info? ryg said it also helps for mipmapping
 * different blurs are different quality low pass filters.
  * box blur = low quality
  * gaussian blur = better.
  * best = sync.
-
-DONE:
-* note: you can't make blue noise by making white noise, doing DFT, modifying stuff, then doing IDFT. that is filtering it and is equivelant to what you are doing here.
 
 */
