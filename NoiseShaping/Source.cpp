@@ -15,8 +15,8 @@ typedef int64_t int64;
 const float c_pi = 3.14159265359f;
 
 // settings
-const size_t    c_imageSize = 256; // TODO: 256
-const bool      c_doDFT = true; // TODO: true before checkin!
+const size_t    c_imageSize = 256;
+const bool      c_doDFT = true;
 const float     c_blurThresholdPercent = 0.005f; // lower numbers give higher quality results, but take longer. This is 0.5%
 const float     c_numBlurs = 5;
 
@@ -737,9 +737,9 @@ int main (int argc, char ** argv)
 
 TODO:
 
-* animated gifs showing the noise and their DFT evolve?
 
-* maybe also animate blue noise w/ golden ratio, and mention that in this post? vs a flip book of blue noise?
+
+
 
 * TODOs in code
 
@@ -771,5 +771,8 @@ DONE:
  * box blur = low quality
  * gaussian blur = better.
  * best = sync.
+
+ * animated gifs showing the noise and their DFT evolve?
+ * maybe also animate blue noise w/ golden ratio, and mention that in this post? vs a flip book of blue noise? (NO!)
 
 */
