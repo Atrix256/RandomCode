@@ -19,7 +19,7 @@ const float c_goldenRatioConjugate = 1.61803398875f;
 
 // settings to speed things up when iterating
 #define IMAGE_DOWNSIZE_FACTOR() 1
-#define DO_DFT() false // TODO: set this to true before checking in
+#define DO_DFT() true // TODO: set this to true before checking in
 
 FILE* s_logFile = nullptr;
 
@@ -1907,6 +1907,9 @@ int main(int argc, char** argv)
 
     // load the image used for stippling tests
     ImageLoad("srcimages/stippleimage.bmp", s_stippleImage);
+
+    // TODO: leave this in but need to call the function something else :P
+    BlueNoise(256 / IMAGE_DOWNSIZE_FACTOR(), "srcimages/Diffusion.bmp", "outimages/Diffusion.bmp");
 
     /*
     WhiteNoise(256 / IMAGE_DOWNSIZE_FACTOR(), "outimages/WhiteNoise.bmp");
