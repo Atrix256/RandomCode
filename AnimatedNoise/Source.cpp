@@ -27,22 +27,6 @@ struct SImageData
     size_t m_height;
     size_t m_pitch;
     std::vector<uint8> m_pixels;
-
-    template <typename LAMBDA>
-    void ForEachPixel (const LAMBDA& lambda)
-    {
-        size_t pixelIndex = 0;
-        for (size_t y = 0; y < m_height; ++y)
-        {
-            SColor* pixel = (SColor*)&m_pixels[y * m_pitch];
-            for (size_t x = 0; x < m_width; ++x)
-            {
-                lambda(*pixel, pixelIndex);
-                ++pixel;
-                ++pixelIndex;
-            }
-        }
-    }
 };
  
 //======================================================================================
@@ -150,6 +134,23 @@ void ImageInit (SImageData& image, size_t width, size_t height)
     image.m_pitch = 4 * ((width * 24 + 31) / 32);
     image.m_pixels.resize(image.m_pitch * image.m_height);
     std::fill(image.m_pixels.begin(), image.m_pixels.end(), 0);
+}
+
+//======================================================================================
+template <typename LAMBDA>
+void ImageForEachPixel (SImageData& image, const LAMBDA& lambda)
+{
+    size_t pixelIndex = 0;
+    for (size_t y = 0; y < image.m_height; ++y)
+    {
+        SColor* pixel = (SColor*)&image.m_pixels[y * image.m_pitch];
+        for (size_t x = 0; x < image.m_width; ++x)
+        {
+            lambda(*pixel, pixelIndex);
+            ++pixel;
+            ++pixelIndex;
+        }
+    }
 }
 
 //======================================================================================
@@ -472,7 +473,8 @@ void DitherWhiteNoiseAnimatedIntegrated (const SImageData& ditherImage)
         DitherWithTexture(ditherImage, noise, dither);
 
         // integrate and put the current integration results into the dither image
-        dither.ForEachPixel(
+        ImageForEachPixel(
+            dither,
             [&] (SColor& pixel, size_t pixelIndex)
             {
                 float pixelValueFloat = float(pixel.R) / 255.0f;
@@ -488,6 +490,92 @@ void DitherWhiteNoiseAnimatedIntegrated (const SImageData& ditherImage)
         // save the results
         SImageData combined;
         ImageCombine2(noise, dither, combined);
+        ImageSave(combined, fileName);
+    }
+}
+
+//======================================================================================
+void DitherInterleavedGradientNoiseAnimatedIntegrated (const SImageData& ditherImage)
+{
+    std::vector<float> integration;
+    integration.resize(ditherImage.m_width * ditherImage.m_height);
+    std::fill(integration.begin(), integration.end(), 0.0f);
+
+    std::random_device rd;
+    std::mt19937 rng(rd());
+    std::uniform_real_distribution<float> dist(0.0f, 1000.0f);
+
+    // animate 8 frames
+    for (size_t i = 0; i < 8; ++i)
+    {
+        char fileName[256];
+        sprintf(fileName, "out/animint_ignoise%zu.bmp", i);
+
+        // make noise
+        SImageData noise;
+        GenerateInterleavedGradientNoise(noise, ditherImage.m_width, ditherImage.m_height, dist(rng), dist(rng));
+
+        // dither the image
+        SImageData dither;
+        DitherWithTexture(ditherImage, noise, dither);
+
+        // integrate and put the current integration results into the dither image
+        ImageForEachPixel(
+            dither,
+            [&](SColor& pixel, size_t pixelIndex)
+            {
+                float pixelValueFloat = float(pixel.R) / 255.0f;
+                integration[pixelIndex] = Lerp(integration[pixelIndex], pixelValueFloat, 1.0f / float(i + 1));
+
+                uint8 integratedPixelValue = uint8(integration[pixelIndex] * 255.0f);
+                pixel.R = integratedPixelValue;
+                pixel.G = integratedPixelValue;
+                pixel.B = integratedPixelValue;
+            }
+        );
+
+        // save the results
+        SImageData combined;
+        ImageCombine2(noise, dither, combined);
+        ImageSave(combined, fileName);
+    }
+}
+
+//======================================================================================
+void DitherBlueNoiseAnimatedIntegrated (const SImageData& ditherImage, const SImageData blueNoise[8])
+{
+    std::vector<float> integration;
+    integration.resize(ditherImage.m_width * ditherImage.m_height);
+    std::fill(integration.begin(), integration.end(), 0.0f);
+
+    // animate 8 frames
+    for (size_t i = 0; i < 8; ++i)
+    {
+        char fileName[256];
+        sprintf(fileName, "out/animint_bluenoise%zu.bmp", i);
+
+        // dither the image
+        SImageData dither;
+        DitherWithTexture(ditherImage, blueNoise[i], dither);
+
+        // integrate and put the current integration results into the dither image
+        ImageForEachPixel(
+            dither,
+            [&] (SColor& pixel, size_t pixelIndex)
+            {
+                float pixelValueFloat = float(pixel.R) / 255.0f;
+                integration[pixelIndex] = Lerp(integration[pixelIndex], pixelValueFloat, 1.0f / float(i+1));
+
+                uint8 integratedPixelValue = uint8(integration[pixelIndex] * 255.0f);
+                pixel.R = integratedPixelValue;
+                pixel.G = integratedPixelValue;
+                pixel.B = integratedPixelValue;
+            }
+        );
+
+        // save the results
+        SImageData combined;
+        ImageCombine2(blueNoise[i], dither, combined);
         ImageSave(combined, fileName);
     }
 }
@@ -626,6 +714,196 @@ void DitherBlueNoiseAnimatedGoldenRatio (const SImageData& ditherImage, const SI
 }
 
 //======================================================================================
+void DitherWhiteNoiseAnimatedGoldenRatioIntegrated (const SImageData& ditherImage)
+{
+    std::vector<float> integration;
+    integration.resize(ditherImage.m_width * ditherImage.m_height);
+    std::fill(integration.begin(), integration.end(), 0.0f);
+
+    // make noise
+    SImageData noise;
+    GenerateWhiteNoise(noise, ditherImage.m_width, ditherImage.m_height);
+
+    // animate 8 frames
+    for (size_t i = 0; i < 8; ++i)
+    {
+        char fileName[256];
+        sprintf(fileName, "out/animgrint_whitenoise%zu.bmp", i);
+
+        // add golden ratio to the noise after each frame
+        if (i > 0)
+        {
+            float add = float(i) * c_goldenRatio;
+
+            for (size_t y = 0; y < noise.m_height; ++y)
+            {
+                SColor* pixel = (SColor*)&noise.m_pixels[y * noise.m_pitch];
+                for (size_t x = 0; x < noise.m_height; ++x)
+                {
+                    float valueFloat = std::fmodf((float(pixel->R) / 255.0f) + add, 1.0f);
+                    uint8 value = uint8(valueFloat * 255.0f);
+                    pixel->R = value;
+                    pixel->G = value;
+                    pixel->B = value;
+                    ++pixel;
+                }
+            }
+        }
+
+        // dither the image
+        SImageData dither;
+        DitherWithTexture(ditherImage, noise, dither);
+
+        // integrate and put the current integration results into the dither image
+        ImageForEachPixel(
+            dither,
+            [&] (SColor& pixel, size_t pixelIndex)
+            {
+                float pixelValueFloat = float(pixel.R) / 255.0f;
+                integration[pixelIndex] = Lerp(integration[pixelIndex], pixelValueFloat, 1.0f / float(i+1));
+
+                uint8 integratedPixelValue = uint8(integration[pixelIndex] * 255.0f);
+                pixel.R = integratedPixelValue;
+                pixel.G = integratedPixelValue;
+                pixel.B = integratedPixelValue;
+            }
+        );
+
+        // save the results
+        SImageData combined;
+        ImageCombine2(noise, dither, combined);
+        ImageSave(combined, fileName);
+    }
+}
+
+//======================================================================================
+void DitherInterleavedGradientNoiseAnimatedGoldenRatioIntegrated (const SImageData& ditherImage)
+{
+    std::vector<float> integration;
+    integration.resize(ditherImage.m_width * ditherImage.m_height);
+    std::fill(integration.begin(), integration.end(), 0.0f);
+
+    // make noise
+    SImageData noise;
+    GenerateInterleavedGradientNoise(noise, ditherImage.m_width, ditherImage.m_height, 0.0f, 0.0f);
+
+    // animate 8 frames
+    for (size_t i = 0; i < 8; ++i)
+    {
+        char fileName[256];
+        sprintf(fileName, "out/animgrint_ignoise%zu.bmp", i);
+
+        // add golden ratio to the noise after each frame
+        if (i > 0)
+        {
+            float add = float(i) * c_goldenRatio;
+
+            for (size_t y = 0; y < noise.m_height; ++y)
+            {
+                SColor* pixel = (SColor*)&noise.m_pixels[y * noise.m_pitch];
+                for (size_t x = 0; x < noise.m_height; ++x)
+                {
+                    float valueFloat = std::fmodf((float(pixel->R) / 255.0f) + add, 1.0f);
+                    uint8 value = uint8(valueFloat * 255.0f);
+                    pixel->R = value;
+                    pixel->G = value;
+                    pixel->B = value;
+                    ++pixel;
+                }
+            }
+        }
+
+        // dither the image
+        SImageData dither;
+        DitherWithTexture(ditherImage, noise, dither);
+
+        // integrate and put the current integration results into the dither image
+        ImageForEachPixel(
+            dither,
+            [&] (SColor& pixel, size_t pixelIndex)
+            {
+                float pixelValueFloat = float(pixel.R) / 255.0f;
+                integration[pixelIndex] = Lerp(integration[pixelIndex], pixelValueFloat, 1.0f / float(i+1));
+
+                uint8 integratedPixelValue = uint8(integration[pixelIndex] * 255.0f);
+                pixel.R = integratedPixelValue;
+                pixel.G = integratedPixelValue;
+                pixel.B = integratedPixelValue;
+            }
+        );
+
+        // save the results
+        SImageData combined;
+        ImageCombine2(noise, dither, combined);
+        ImageSave(combined, fileName);
+    }
+}
+
+//======================================================================================
+void DitherBlueNoiseAnimatedGoldenRatioIntegrated (const SImageData& ditherImage, const SImageData& blueNoise)
+{
+    std::vector<float> integration;
+    integration.resize(ditherImage.m_width * ditherImage.m_height);
+    std::fill(integration.begin(), integration.end(), 0.0f);
+
+    // copy the blue noise so we can modify it
+    SImageData noise;
+    ImageInit(noise, blueNoise.m_width, blueNoise.m_height);
+    noise.m_pixels = blueNoise.m_pixels;
+
+    // animate 8 frames
+    for (size_t i = 0; i < 8; ++i)
+    {
+        char fileName[256];
+        sprintf(fileName, "out/animgrint_bluenoise%zu.bmp", i);
+
+        // add golden ratio to the noise after each frame
+        if (i > 0)
+        {
+            float add = float(i) * c_goldenRatio;
+
+            for (size_t y = 0; y < noise.m_height; ++y)
+            {
+                SColor* pixel = (SColor*)&noise.m_pixels[y * noise.m_pitch];
+                for (size_t x = 0; x < noise.m_height; ++x)
+                {
+                    float valueFloat = std::fmodf((float(pixel->R) / 255.0f) + add, 1.0f);
+                    uint8 value = uint8(valueFloat * 255.0f);
+                    pixel->R = value;
+                    pixel->G = value;
+                    pixel->B = value;
+                    ++pixel;
+                }
+            }
+        }
+
+        // dither the image
+        SImageData dither;
+        DitherWithTexture(ditherImage, noise, dither);
+
+        // integrate and put the current integration results into the dither image
+        ImageForEachPixel(
+            dither,
+            [&] (SColor& pixel, size_t pixelIndex)
+            {
+                float pixelValueFloat = float(pixel.R) / 255.0f;
+                integration[pixelIndex] = Lerp(integration[pixelIndex], pixelValueFloat, 1.0f / float(i+1));
+
+                uint8 integratedPixelValue = uint8(integration[pixelIndex] * 255.0f);
+                pixel.R = integratedPixelValue;
+                pixel.G = integratedPixelValue;
+                pixel.B = integratedPixelValue;
+            }
+        );
+
+        // save the results
+        SImageData combined;
+        ImageCombine2(noise, dither, combined);
+        ImageSave(combined, fileName);
+    }
+}
+
+//======================================================================================
 int main (int argc, char** argv)
 {
     // load the dither image and convert it to greyscale (luma)
@@ -667,8 +945,13 @@ int main (int argc, char** argv)
 
     // Animated dither integration tests
     DitherWhiteNoiseAnimatedIntegrated(ditherImage);
+    DitherInterleavedGradientNoiseAnimatedIntegrated(ditherImage);
+    DitherBlueNoiseAnimatedIntegrated(ditherImage, blueNoise);
 
-    // TODO: integration tests for animated and golden ratio animated
+    // Golden ratio animated dither integration tests
+    DitherWhiteNoiseAnimatedGoldenRatioIntegrated(ditherImage);
+    DitherInterleavedGradientNoiseAnimatedGoldenRatioIntegrated(ditherImage);
+    DitherBlueNoiseAnimatedGoldenRatioIntegrated(ditherImage, blueNoise[0]);
 
     return 0;
 }
@@ -676,13 +959,21 @@ int main (int argc, char** argv)
 /*
 
 TODO:
-* make things use SImageData for each pixel. maybe make it a non member function since everything else is too?
+* make things use SImageData for each pixel.
 
 * csv of integration steps / make graphs
 
 * the golden ratio animation tests may benefit from showing the DFT, to see if adding GR changes anything?
 
-* TODOs in code
+* I think i have "ulimited" blue noise textures with those 8.
+ * random pixel offset (it tiles well)
+ * mirror x axis
+ * mirror y axis
+ * flip x and y
+ * invert (1.0 - grey)
+ ? ask SE if anyone can say how this would compare to having more textures?
+
+* for integration, maybe show stills of higher sample counts, and also show variance etc graph.
 
 Blog:
 * show a comparison of dithering the tree image using white noise, blue noise, interleaved gradient noise.
