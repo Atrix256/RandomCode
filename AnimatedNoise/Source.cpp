@@ -7,6 +7,14 @@
 
 typedef uint8_t uint8;
 
+const float c_goldenRatio = 1.61803398875f;
+
+//======================================================================================
+inline float Lerp (float A, float B, float t)
+{
+    return A * (1.0f - t) + B * t;
+}
+
 //======================================================================================
 struct SImageData
 {
@@ -19,6 +27,22 @@ struct SImageData
     size_t m_height;
     size_t m_pitch;
     std::vector<uint8> m_pixels;
+
+    template <typename LAMBDA>
+    void ForEachPixel (const LAMBDA& lambda)
+    {
+        size_t pixelIndex = 0;
+        for (size_t y = 0; y < m_height; ++y)
+        {
+            SColor* pixel = (SColor*)&m_pixels[y * m_pitch];
+            for (size_t x = 0; x < m_width; ++x)
+            {
+                lambda(*pixel, pixelIndex);
+                ++pixel;
+                ++pixelIndex;
+            }
+        }
+    }
 };
  
 //======================================================================================
@@ -147,6 +171,87 @@ void ImageConvertToLuma (SImageData& image)
 }
 
 //======================================================================================
+void ImageCombine2 (const SImageData& imageA, const SImageData& imageB, SImageData& result)
+{
+    // put the images side by side. A on left, B on right
+    ImageInit(result, imageA.m_width + imageB.m_width, max(imageA.m_height, imageB.m_height));
+    std::fill(result.m_pixels.begin(), result.m_pixels.end(), 0);
+
+    // image A on left
+    for (size_t y = 0; y < imageA.m_height; ++y)
+    {
+        SColor* destPixel = (SColor*)&result.m_pixels[y * result.m_pitch];
+        SColor* srcPixel = (SColor*)&imageA.m_pixels[y * imageA.m_pitch];
+        for (size_t x = 0; x < imageA.m_width; ++x)
+        {
+            destPixel[0] = srcPixel[0];
+            ++destPixel;
+            ++srcPixel;
+        }
+    }
+
+    // image B on right
+    for (size_t y = 0; y < imageB.m_height; ++y)
+    {
+        SColor* destPixel = (SColor*)&result.m_pixels[y * result.m_pitch + imageA.m_width * 3];
+        SColor* srcPixel = (SColor*)&imageB.m_pixels[y * imageB.m_pitch];
+        for (size_t x = 0; x < imageB.m_width; ++x)
+        {
+            destPixel[0] = srcPixel[0];
+            ++destPixel;
+            ++srcPixel;
+        }
+    }
+}
+
+//======================================================================================
+void ImageCombine3 (const SImageData& imageA, const SImageData& imageB, const SImageData& imageC, SImageData& result)
+{
+    // put the images side by side. A on left, B in middle, C on right
+    ImageInit(result, imageA.m_width + imageB.m_width + imageC.m_width, max(max(imageA.m_height, imageB.m_height), imageC.m_height));
+    std::fill(result.m_pixels.begin(), result.m_pixels.end(), 0);
+
+    // image A on left
+    for (size_t y = 0; y < imageA.m_height; ++y)
+    {
+        SColor* destPixel = (SColor*)&result.m_pixels[y * result.m_pitch];
+        SColor* srcPixel = (SColor*)&imageA.m_pixels[y * imageA.m_pitch];
+        for (size_t x = 0; x < imageA.m_width; ++x)
+        {
+            destPixel[0] = srcPixel[0];
+            ++destPixel;
+            ++srcPixel;
+        }
+    }
+
+    // image B in middle
+    for (size_t y = 0; y < imageB.m_height; ++y)
+    {
+        SColor* destPixel = (SColor*)&result.m_pixels[y * result.m_pitch + imageA.m_width * 3];
+        SColor* srcPixel = (SColor*)&imageB.m_pixels[y * imageB.m_pitch];
+        for (size_t x = 0; x < imageB.m_width; ++x)
+        {
+            destPixel[0] = srcPixel[0];
+            ++destPixel;
+            ++srcPixel;
+        }
+    }
+
+    // image C on right
+    for (size_t y = 0; y < imageC.m_height; ++y)
+    {
+        SColor* destPixel = (SColor*)&result.m_pixels[y * result.m_pitch + imageA.m_width * 3 + imageC.m_width * 3];
+        SColor* srcPixel = (SColor*)&imageC.m_pixels[y * imageC.m_pitch];
+        for (size_t x = 0; x < imageC.m_width; ++x)
+        {
+            destPixel[0] = srcPixel[0];
+            ++destPixel;
+            ++srcPixel;
+        }
+    }
+}
+
+//======================================================================================
 void GenerateWhiteNoise (SImageData& image, size_t width, size_t height)
 {
     ImageInit(image, width, height);
@@ -237,9 +342,10 @@ void DitherWhiteNoise (const SImageData& ditherImage)
     SImageData dither;
     DitherWithTexture(ditherImage, noise, dither);
 
-    // save the noise and dither results
-    ImageSave(noise, "out/still_noise_white.bmp");
-    ImageSave(dither, "out/still_dither_white.bmp");
+    // save the results
+    SImageData combined;
+    ImageCombine3(ditherImage, noise, dither, combined);
+    ImageSave(combined, "out/still_whitenoise.bmp");
 }
 
 //======================================================================================
@@ -253,9 +359,10 @@ void DitherInterleavedGradientNoise (const SImageData& ditherImage)
     SImageData dither;
     DitherWithTexture(ditherImage, noise, dither);
 
-    // save the noise and dither results
-    ImageSave(noise, "out/still_noise_ig.bmp");
-    ImageSave(dither, "out/still_dither_ig.bmp");
+    // save the results
+    SImageData combined;
+    ImageCombine3(ditherImage, noise, dither, combined);
+    ImageSave(combined, "out/still_ignoise.bmp");
 }
 
 //======================================================================================
@@ -265,21 +372,270 @@ void DitherBlueNoise (const SImageData& ditherImage, const SImageData& blueNoise
     SImageData dither;
     DitherWithTexture(ditherImage, blueNoise, dither);
 
-    // save the noise and dither results
-    ImageSave(blueNoise, "out/still_noise_bluenoise.bmp");
-    ImageSave(dither, "out/still_dither_bluenoise.bmp");
+    // save the results
+    SImageData combined;
+    ImageCombine3(ditherImage, blueNoise, dither, combined);
+    ImageSave(combined, "out/still_bluenoise.bmp");
+}
+
+//======================================================================================
+void DitherWhiteNoiseAnimated (const SImageData& ditherImage)
+{
+    // animate 8 frames
+    for (size_t i = 0; i < 8; ++i)
+    {
+        char fileName[256];
+        sprintf(fileName, "out/anim_whitenoise%zu.bmp", i);
+
+        // make noise
+        SImageData noise;
+        GenerateWhiteNoise(noise, ditherImage.m_width, ditherImage.m_height);
+
+        // dither the image
+        SImageData dither;
+        DitherWithTexture(ditherImage, noise, dither);
+
+        // save the results
+        SImageData combined;
+        ImageCombine2(noise, dither, combined);
+        ImageSave(combined, fileName);
+    }
+}
+
+//======================================================================================
+void DitherInterleavedGradientNoiseAnimated (const SImageData& ditherImage)
+{
+    std::random_device rd;
+    std::mt19937 rng(rd());
+    std::uniform_real_distribution<float> dist(0.0f, 1000.0f);
+
+    // animate 8 frames
+    for (size_t i = 0; i < 8; ++i)
+    {
+        char fileName[256];
+        sprintf(fileName, "out/anim_ignoise%zu.bmp", i);
+
+        // make noise
+        SImageData noise;
+        GenerateInterleavedGradientNoise(noise, ditherImage.m_width, ditherImage.m_height, dist(rng), dist(rng));
+
+        // dither the image
+        SImageData dither;
+        DitherWithTexture(ditherImage, noise, dither);
+
+        // save the results
+        SImageData combined;
+        ImageCombine2(noise, dither, combined);
+        ImageSave(combined, fileName);
+    }
+}
+
+//======================================================================================
+void DitherBlueNoiseAnimated (const SImageData& ditherImage, const SImageData blueNoise[8])
+{
+    // animate 8 frames
+    for (size_t i = 0; i < 8; ++i)
+    {
+        char fileName[256];
+        sprintf(fileName, "out/anim_bluenoise%zu.bmp", i);
+
+        // dither the image
+        SImageData dither;
+        DitherWithTexture(ditherImage, blueNoise[i], dither);
+
+        // save the results
+        SImageData combined;
+        ImageCombine2(blueNoise[i], dither, combined);
+        ImageSave(combined, fileName);
+    }
+}
+
+//======================================================================================
+void DitherWhiteNoiseAnimatedIntegrated (const SImageData& ditherImage)
+{
+    std::vector<float> integration;
+    integration.resize(ditherImage.m_width * ditherImage.m_height);
+    std::fill(integration.begin(), integration.end(), 0.0f);
+
+    // animate 8 frames
+    for (size_t i = 0; i < 8; ++i)
+    {
+        char fileName[256];
+        sprintf(fileName, "out/animint_whitenoise%zu.bmp", i);
+
+        // make noise
+        SImageData noise;
+        GenerateWhiteNoise(noise, ditherImage.m_width, ditherImage.m_height);
+
+        // dither the image
+        SImageData dither;
+        DitherWithTexture(ditherImage, noise, dither);
+
+        // integrate and put the current integration results into the dither image
+        dither.ForEachPixel(
+            [&] (SColor& pixel, size_t pixelIndex)
+            {
+                float pixelValueFloat = float(pixel.R) / 255.0f;
+                integration[pixelIndex] = Lerp(integration[pixelIndex], pixelValueFloat, 1.0f / float(i+1));
+
+                uint8 integratedPixelValue = uint8(integration[pixelIndex] * 255.0f);
+                pixel.R = integratedPixelValue;
+                pixel.G = integratedPixelValue;
+                pixel.B = integratedPixelValue;
+            }
+        );
+
+        // save the results
+        SImageData combined;
+        ImageCombine2(noise, dither, combined);
+        ImageSave(combined, fileName);
+    }
+}
+
+//======================================================================================
+void DitherWhiteNoiseAnimatedGoldenRatio (const SImageData& ditherImage)
+{
+    // make noise
+    SImageData noise;
+    GenerateWhiteNoise(noise, ditherImage.m_width, ditherImage.m_height);
+
+    // animate 8 frames
+    for (size_t i = 0; i < 8; ++i)
+    {
+        char fileName[256];
+        sprintf(fileName, "out/animgr_whitenoise%zu.bmp", i);
+
+        // add golden ratio to the noise after each frame
+        if (i > 0)
+        {
+            float add = float(i) * c_goldenRatio;
+
+            for (size_t y = 0; y < noise.m_height; ++y)
+            {
+                SColor* pixel = (SColor*)&noise.m_pixels[y * noise.m_pitch];
+                for (size_t x = 0; x < noise.m_height; ++x)
+                {
+                    float valueFloat = std::fmodf((float(pixel->R) / 255.0f) + add, 1.0f);
+                    uint8 value = uint8(valueFloat * 255.0f);
+                    pixel->R = value;
+                    pixel->G = value;
+                    pixel->B = value;
+                    ++pixel;
+                }
+            }
+        }
+
+        // dither the image
+        SImageData dither;
+        DitherWithTexture(ditherImage, noise, dither);
+
+        // save the results
+        SImageData combined;
+        ImageCombine2(noise, dither, combined);
+        ImageSave(combined, fileName);
+    }
+}
+
+//======================================================================================
+void DitherInterleavedGradientNoiseAnimatedGoldenRatio (const SImageData& ditherImage)
+{
+    // make noise
+    SImageData noise;
+    GenerateInterleavedGradientNoise(noise, ditherImage.m_width, ditherImage.m_height, 0.0f, 0.0f);
+
+    // animate 8 frames
+    for (size_t i = 0; i < 8; ++i)
+    {
+        char fileName[256];
+        sprintf(fileName, "out/animgr_ignoise%zu.bmp", i);
+
+        // add golden ratio to the noise after each frame
+        if (i > 0)
+        {
+            float add = float(i) * c_goldenRatio;
+
+            for (size_t y = 0; y < noise.m_height; ++y)
+            {
+                SColor* pixel = (SColor*)&noise.m_pixels[y * noise.m_pitch];
+                for (size_t x = 0; x < noise.m_height; ++x)
+                {
+                    float valueFloat = std::fmodf((float(pixel->R) / 255.0f) + add, 1.0f);
+                    uint8 value = uint8(valueFloat * 255.0f);
+                    pixel->R = value;
+                    pixel->G = value;
+                    pixel->B = value;
+                    ++pixel;
+                }
+            }
+        }
+
+        // dither the image
+        SImageData dither;
+        DitherWithTexture(ditherImage, noise, dither);
+
+        // save the results
+        SImageData combined;
+        ImageCombine2(noise, dither, combined);
+        ImageSave(combined, fileName);
+    }
+}
+
+//======================================================================================
+void DitherBlueNoiseAnimatedGoldenRatio (const SImageData& ditherImage, const SImageData& blueNoise)
+{
+    // copy the blue noise so we can modify it
+    SImageData noise;
+    ImageInit(noise, blueNoise.m_width, blueNoise.m_height);
+    noise.m_pixels = blueNoise.m_pixels;
+
+    // animate 8 frames
+    for (size_t i = 0; i < 8; ++i)
+    {
+        char fileName[256];
+        sprintf(fileName, "out/animgr_bluenoise%zu.bmp", i);
+
+        // add golden ratio to the noise after each frame
+        if (i > 0)
+        {
+            float add = float(i) * c_goldenRatio;
+
+            for (size_t y = 0; y < noise.m_height; ++y)
+            {
+                SColor* pixel = (SColor*)&noise.m_pixels[y * noise.m_pitch];
+                for (size_t x = 0; x < noise.m_height; ++x)
+                {
+                    float valueFloat = std::fmodf((float(pixel->R) / 255.0f) + add, 1.0f);
+                    uint8 value = uint8(valueFloat * 255.0f);
+                    pixel->R = value;
+                    pixel->G = value;
+                    pixel->B = value;
+                    ++pixel;
+                }
+            }
+        }
+
+        // dither the image
+        SImageData dither;
+        DitherWithTexture(ditherImage, noise, dither);
+
+        // save the results
+        SImageData combined;
+        ImageCombine2(noise, dither, combined);
+        ImageSave(combined, fileName);
+    }
 }
 
 //======================================================================================
 int main (int argc, char** argv)
 {
-    // load the dither image
+    // load the dither image and convert it to greyscale (luma)
     SImageData ditherImage;
     if (!ImageLoad("src/ditherimage.bmp", ditherImage))
     {
         printf("Could not load src/ditherimage.bmp");
         return 0;
     }
+    ImageConvertToLuma(ditherImage);
 
     // load the blue noise images
     SImageData blueNoise[8];
@@ -293,17 +649,26 @@ int main (int argc, char** argv)
             return 0;
         }
     }
-
-    // convert the dither image to luma (greyscale) and save it in the out directory
-    ImageConvertToLuma(ditherImage);
-    ImageSave(ditherImage, "out/ditherimage.bmp");
     
     // still image dither tests
     DitherWhiteNoise(ditherImage);
     DitherInterleavedGradientNoise(ditherImage);
     DitherBlueNoise(ditherImage, blueNoise[0]);
 
+    // Animated dither tests
+    DitherWhiteNoiseAnimated(ditherImage);
+    DitherInterleavedGradientNoiseAnimated(ditherImage);
+    DitherBlueNoiseAnimated(ditherImage, blueNoise);
 
+    // Golden ratio animated dither tests
+    DitherWhiteNoiseAnimatedGoldenRatio(ditherImage);
+    DitherInterleavedGradientNoiseAnimatedGoldenRatio(ditherImage);
+    DitherBlueNoiseAnimatedGoldenRatio(ditherImage, blueNoise[0]);
+
+    // Animated dither integration tests
+    DitherWhiteNoiseAnimatedIntegrated(ditherImage);
+
+    // TODO: integration tests for animated and golden ratio animated
 
     return 0;
 }
@@ -311,15 +676,11 @@ int main (int argc, char** argv)
 /*
 
 TODO:
-* animate the dithering.
- * 8 frames since we have 8 blue noise textures?
- * white noise is random each time
- * interleaved gradient noise uses a random offset each time?
+* make things use SImageData for each pixel. maybe make it a non member function since everything else is too?
 
- * should you also animate an incremental averaging one? or save that... i dunno.
-
-* animated again using golden ratio
 * csv of integration steps / make graphs
+
+* the golden ratio animation tests may benefit from showing the DFT, to see if adding GR changes anything?
 
 * TODOs in code
 
