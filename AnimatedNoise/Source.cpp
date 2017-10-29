@@ -156,19 +156,17 @@ void ImageForEachPixel (SImageData& image, const LAMBDA& lambda)
 //======================================================================================
 void ImageConvertToLuma (SImageData& image)
 {
-    for (size_t y = 0; y < image.m_height; ++y)
-    {
-        SColor* pixel = (SColor*)&image.m_pixels[y * image.m_pitch];
-        for (size_t x = 0; x < image.m_width; ++x)
+    ImageForEachPixel(
+        image,
+        [] (SColor& pixel, size_t pixelIndex)
         {
-            float luma = float(pixel->R) * 0.3f + float(pixel->G) * 0.59f + float(pixel->B) * 0.11f;
+            float luma = float(pixel.R) * 0.3f + float(pixel.G) * 0.59f + float(pixel.B) * 0.11f;
             uint8 lumau8 = uint8(luma + 0.5f);
-            pixel->R = lumau8;
-            pixel->G = lumau8;
-            pixel->B = lumau8;
-            ++pixel;
+            pixel.R = lumau8;
+            pixel.G = lumau8;
+            pixel.B = lumau8;
         }
-    }
+    );
 }
 
 //======================================================================================
@@ -261,18 +259,16 @@ void GenerateWhiteNoise (SImageData& image, size_t width, size_t height)
     std::mt19937 rng(rd());
     std::uniform_int_distribution<unsigned int> dist(0, 255);
 
-    for (size_t y = 0; y < height; ++y)
-    {
-        SColor* pixel = (SColor*)&image.m_pixels[y * image.m_pitch];
-        for (size_t x = 0; x < width; ++x)
+    ImageForEachPixel(
+        image,
+        [&] (SColor& pixel, size_t pixelIndex)
         {
             uint8 value = dist(rng);
-            pixel->R = value;
-            pixel->G = value;
-            pixel->B = value;
-            ++pixel;
+            pixel.R = value;
+            pixel.G = value;
+            pixel.B = value;
         }
-    }
+    );
 }
 
 //======================================================================================
@@ -597,20 +593,17 @@ void DitherWhiteNoiseAnimatedGoldenRatio (const SImageData& ditherImage)
         if (i > 0)
         {
             float add = float(i) * c_goldenRatio;
-
-            for (size_t y = 0; y < noise.m_height; ++y)
-            {
-                SColor* pixel = (SColor*)&noise.m_pixels[y * noise.m_pitch];
-                for (size_t x = 0; x < noise.m_height; ++x)
+            ImageForEachPixel(
+                noise,
+                [&] (SColor& pixel, size_t pixelIndex)
                 {
-                    float valueFloat = std::fmodf((float(pixel->R) / 255.0f) + add, 1.0f);
+                    float valueFloat = std::fmodf((float(pixel.R) / 255.0f) + add, 1.0f);
                     uint8 value = uint8(valueFloat * 255.0f);
-                    pixel->R = value;
-                    pixel->G = value;
-                    pixel->B = value;
-                    ++pixel;
+                    pixel.R = value;
+                    pixel.G = value;
+                    pixel.B = value;
                 }
-            }
+            );
         }
 
         // dither the image
@@ -641,20 +634,17 @@ void DitherInterleavedGradientNoiseAnimatedGoldenRatio (const SImageData& dither
         if (i > 0)
         {
             float add = float(i) * c_goldenRatio;
-
-            for (size_t y = 0; y < noise.m_height; ++y)
-            {
-                SColor* pixel = (SColor*)&noise.m_pixels[y * noise.m_pitch];
-                for (size_t x = 0; x < noise.m_height; ++x)
+            ImageForEachPixel(
+                noise,
+                [&] (SColor& pixel, size_t pixelIndex)
                 {
-                    float valueFloat = std::fmodf((float(pixel->R) / 255.0f) + add, 1.0f);
+                    float valueFloat = std::fmodf((float(pixel.R) / 255.0f) + add, 1.0f);
                     uint8 value = uint8(valueFloat * 255.0f);
-                    pixel->R = value;
-                    pixel->G = value;
-                    pixel->B = value;
-                    ++pixel;
+                    pixel.R = value;
+                    pixel.G = value;
+                    pixel.B = value;
                 }
-            }
+            );
         }
 
         // dither the image
@@ -686,20 +676,17 @@ void DitherBlueNoiseAnimatedGoldenRatio (const SImageData& ditherImage, const SI
         if (i > 0)
         {
             float add = float(i) * c_goldenRatio;
-
-            for (size_t y = 0; y < noise.m_height; ++y)
-            {
-                SColor* pixel = (SColor*)&noise.m_pixels[y * noise.m_pitch];
-                for (size_t x = 0; x < noise.m_height; ++x)
+            ImageForEachPixel(
+                noise,
+                [&] (SColor& pixel, size_t pixelIndex)
                 {
-                    float valueFloat = std::fmodf((float(pixel->R) / 255.0f) + add, 1.0f);
+                    float valueFloat = std::fmodf((float(pixel.R) / 255.0f) + add, 1.0f);
                     uint8 value = uint8(valueFloat * 255.0f);
-                    pixel->R = value;
-                    pixel->G = value;
-                    pixel->B = value;
-                    ++pixel;
+                    pixel.R = value;
+                    pixel.G = value;
+                    pixel.B = value;
                 }
-            }
+            );
         }
 
         // dither the image
@@ -734,20 +721,17 @@ void DitherWhiteNoiseAnimatedGoldenRatioIntegrated (const SImageData& ditherImag
         if (i > 0)
         {
             float add = float(i) * c_goldenRatio;
-
-            for (size_t y = 0; y < noise.m_height; ++y)
-            {
-                SColor* pixel = (SColor*)&noise.m_pixels[y * noise.m_pitch];
-                for (size_t x = 0; x < noise.m_height; ++x)
+            ImageForEachPixel(
+                noise,
+                [&] (SColor& pixel, size_t pixelIndex)
                 {
-                    float valueFloat = std::fmodf((float(pixel->R) / 255.0f) + add, 1.0f);
+                    float valueFloat = std::fmodf((float(pixel.R) / 255.0f) + add, 1.0f);
                     uint8 value = uint8(valueFloat * 255.0f);
-                    pixel->R = value;
-                    pixel->G = value;
-                    pixel->B = value;
-                    ++pixel;
+                    pixel.R = value;
+                    pixel.G = value;
+                    pixel.B = value;
                 }
-            }
+            );
         }
 
         // dither the image
@@ -797,20 +781,17 @@ void DitherInterleavedGradientNoiseAnimatedGoldenRatioIntegrated (const SImageDa
         if (i > 0)
         {
             float add = float(i) * c_goldenRatio;
-
-            for (size_t y = 0; y < noise.m_height; ++y)
-            {
-                SColor* pixel = (SColor*)&noise.m_pixels[y * noise.m_pitch];
-                for (size_t x = 0; x < noise.m_height; ++x)
+            ImageForEachPixel(
+                noise,
+                [&] (SColor& pixel, size_t pixelIndex)
                 {
-                    float valueFloat = std::fmodf((float(pixel->R) / 255.0f) + add, 1.0f);
+                    float valueFloat = std::fmodf((float(pixel.R) / 255.0f) + add, 1.0f);
                     uint8 value = uint8(valueFloat * 255.0f);
-                    pixel->R = value;
-                    pixel->G = value;
-                    pixel->B = value;
-                    ++pixel;
+                    pixel.R = value;
+                    pixel.G = value;
+                    pixel.B = value;
                 }
-            }
+            );
         }
 
         // dither the image
@@ -861,20 +842,17 @@ void DitherBlueNoiseAnimatedGoldenRatioIntegrated (const SImageData& ditherImage
         if (i > 0)
         {
             float add = float(i) * c_goldenRatio;
-
-            for (size_t y = 0; y < noise.m_height; ++y)
-            {
-                SColor* pixel = (SColor*)&noise.m_pixels[y * noise.m_pitch];
-                for (size_t x = 0; x < noise.m_height; ++x)
+            ImageForEachPixel(
+                noise,
+                [&] (SColor& pixel, size_t pixelIndex)
                 {
-                    float valueFloat = std::fmodf((float(pixel->R) / 255.0f) + add, 1.0f);
+                    float valueFloat = std::fmodf((float(pixel.R) / 255.0f) + add, 1.0f);
                     uint8 value = uint8(valueFloat * 255.0f);
-                    pixel->R = value;
-                    pixel->G = value;
-                    pixel->B = value;
-                    ++pixel;
+                    pixel.R = value;
+                    pixel.G = value;
+                    pixel.B = value;
                 }
-            }
+            );
         }
 
         // dither the image
