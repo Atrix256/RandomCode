@@ -4,10 +4,20 @@
 #include <stdint.h>
 #include <vector>
 #include <random>
+#include <atomic>
+#include <thread>
+#include <complex>
 
 typedef uint8_t uint8;
 
 const float c_goldenRatio = 1.61803398875f;
+const float c_pi = 3.14159265359f;
+
+// settings
+const bool c_doDFT = true; // TODO: true before checkin
+
+// globals 
+FILE* g_logFile = nullptr;
 
 //======================================================================================
 inline float Lerp (float A, float B, float t)
@@ -45,6 +55,157 @@ struct SColor
  
     uint8 B, G, R;
 };
+
+//======================================================================================
+struct SImageDataComplex
+{
+    SImageDataComplex ()
+        : m_width(0)
+        , m_height(0)
+    { }
+  
+    size_t m_width;
+    size_t m_height;
+    std::vector<std::complex<float>> m_pixels;
+};
+ 
+//======================================================================================
+std::complex<float> DFTPixel (const SImageData &srcImage, size_t K, size_t L)
+{
+    std::complex<float> ret(0.0f, 0.0f);
+  
+    for (size_t x = 0; x < srcImage.m_width; ++x)
+    {
+        for (size_t y = 0; y < srcImage.m_height; ++y)
+        {
+            // Get the pixel value (assuming greyscale) and convert it to [0,1] space
+            const uint8 *src = &srcImage.m_pixels[(y * srcImage.m_pitch) + x * 3];
+            float grey = float(src[0]) / 255.0f;
+  
+            // Add to the sum of the return value
+            float v = float(K * x) / float(srcImage.m_width);
+            v += float(L * y) / float(srcImage.m_height);
+            ret += std::complex<float>(grey, 0.0f) * std::polar<float>(1.0f, -2.0f * c_pi * v);
+        }
+    }
+  
+    return ret;
+}
+  
+//======================================================================================
+void ImageDFT (const SImageData &srcImage, SImageDataComplex &destImage)
+{
+    // NOTE: this function assumes srcImage is greyscale, so works on only the red component of srcImage.
+    // ImageToGrey() will convert an image to greyscale.
+ 
+    // size the output dft data
+    destImage.m_width = srcImage.m_width;
+    destImage.m_height = srcImage.m_height;
+    destImage.m_pixels.resize(destImage.m_width*destImage.m_height);
+ 
+    size_t numThreads = std::thread::hardware_concurrency();
+    //if (numThreads > 0)
+        //numThreads = numThreads - 1;
+ 
+    std::vector<std::thread> threads;
+    threads.resize(numThreads);
+ 
+    printf("Doing DFT with %zu threads...\n", numThreads);
+ 
+    // calculate 2d dft (brute force, not using fast fourier transform) multithreadedly
+    std::atomic<size_t> nextRow(0);
+    for (std::thread& t : threads)
+    {
+        t = std::thread(
+            [&] ()
+            {
+                size_t row = nextRow.fetch_add(1);
+                bool reportProgress = (row == 0);
+                int lastPercent = -1;
+ 
+                while (row < srcImage.m_height)
+                {
+                    // calculate the DFT for every pixel / frequency in this row
+                    for (size_t x = 0; x < srcImage.m_width; ++x)
+                    {
+                        destImage.m_pixels[row * destImage.m_width + x] = DFTPixel(srcImage, x, row);
+                    }
+ 
+                    // report progress if we should
+                    if (reportProgress)
+                    {
+                        int percent = int(100.0f * float(row) / float(srcImage.m_height));
+                        if (lastPercent != percent)
+                        {
+                            lastPercent = percent;
+                            printf("            \rDFT: %i%%", lastPercent);
+                        }
+                    }
+ 
+                    // go to the next row
+                    row = nextRow.fetch_add(1);
+                }
+            }
+        );
+    }
+ 
+    for (std::thread& t : threads)
+        t.join();
+ 
+    printf("\n");
+}
+ 
+//======================================================================================
+void GetMagnitudeData (const SImageDataComplex& srcImage, SImageData& destImage)
+{
+    // size the output image
+    destImage.m_width = srcImage.m_width;
+    destImage.m_height = srcImage.m_height;
+    destImage.m_pitch = 4 * ((srcImage.m_width * 24 + 31) / 32);
+    destImage.m_pixels.resize(destImage.m_pitch*destImage.m_height);
+  
+    // get floating point magnitude data
+    std::vector<float> magArray;
+    magArray.resize(srcImage.m_width*srcImage.m_height);
+    float maxmag = 0.0f;
+    for (size_t x = 0; x < srcImage.m_width; ++x)
+    {
+        for (size_t y = 0; y < srcImage.m_height; ++y)
+        {
+            // Offset the information by half width & height in the positive direction.
+            // This makes frequency 0 (DC) be at the image origin, like most diagrams show it.
+            int k = (x + (int)srcImage.m_width / 2) % (int)srcImage.m_width;
+            int l = (y + (int)srcImage.m_height / 2) % (int)srcImage.m_height;
+            const std::complex<float> &src = srcImage.m_pixels[l*srcImage.m_width + k];
+  
+            float mag = std::abs(src);
+            if (mag > maxmag)
+                maxmag = mag;
+  
+            magArray[y*srcImage.m_width + x] = mag;
+        }
+    }
+    if (maxmag == 0.0f)
+        maxmag = 1.0f;
+  
+    const float c = 255.0f / log(1.0f+maxmag);
+  
+    // normalize the magnitude data and send it back in [0, 255]
+    for (size_t x = 0; x < srcImage.m_width; ++x)
+    {
+        for (size_t y = 0; y < srcImage.m_height; ++y)
+        {
+            float src = c * log(1.0f + magArray[y*srcImage.m_width + x]);
+  
+            uint8 magu8 = uint8(src);
+  
+            uint8* dest = &destImage.m_pixels[y*destImage.m_pitch + x * 3];
+            dest[0] = magu8;
+            dest[1] = magu8;
+            dest[2] = magu8;
+        }
+    }
+}
 
 //======================================================================================
 bool ImageSave (const SImageData &image, const char *fileName)
@@ -331,6 +492,8 @@ void DitherWithTexture (const SImageData& ditherImage, const SImageData& noiseIm
 //======================================================================================
 void DitherWhiteNoise (const SImageData& ditherImage)
 {
+    printf("\n%s\n", __FUNCTION__);
+
     // make noise
     SImageData noise;
     GenerateWhiteNoise(noise, ditherImage.m_width, ditherImage.m_height);
@@ -348,6 +511,8 @@ void DitherWhiteNoise (const SImageData& ditherImage)
 //======================================================================================
 void DitherInterleavedGradientNoise (const SImageData& ditherImage)
 {
+    printf("\n%s\n", __FUNCTION__);
+
     // make noise
     SImageData noise;
     GenerateInterleavedGradientNoise(noise, ditherImage.m_width, ditherImage.m_height, 0.0f, 0.0f);
@@ -365,6 +530,8 @@ void DitherInterleavedGradientNoise (const SImageData& ditherImage)
 //======================================================================================
 void DitherBlueNoise (const SImageData& ditherImage, const SImageData& blueNoise)
 {
+    printf("\n%s\n", __FUNCTION__);
+
     // dither the image
     SImageData dither;
     DitherWithTexture(ditherImage, blueNoise, dither);
@@ -378,6 +545,8 @@ void DitherBlueNoise (const SImageData& ditherImage, const SImageData& blueNoise
 //======================================================================================
 void DitherWhiteNoiseAnimated (const SImageData& ditherImage)
 {
+    printf("\n%s\n", __FUNCTION__);
+
     // animate 8 frames
     for (size_t i = 0; i < 8; ++i)
     {
@@ -402,6 +571,8 @@ void DitherWhiteNoiseAnimated (const SImageData& ditherImage)
 //======================================================================================
 void DitherInterleavedGradientNoiseAnimated (const SImageData& ditherImage)
 {
+    printf("\n%s\n", __FUNCTION__);
+
     std::random_device rd;
     std::mt19937 rng(rd());
     std::uniform_real_distribution<float> dist(0.0f, 1000.0f);
@@ -430,6 +601,8 @@ void DitherInterleavedGradientNoiseAnimated (const SImageData& ditherImage)
 //======================================================================================
 void DitherBlueNoiseAnimated (const SImageData& ditherImage, const SImageData blueNoise[8])
 {
+    printf("\n%s\n", __FUNCTION__);
+
     // animate 8 frames
     for (size_t i = 0; i < 8; ++i)
     {
@@ -450,6 +623,8 @@ void DitherBlueNoiseAnimated (const SImageData& ditherImage, const SImageData bl
 //======================================================================================
 void DitherWhiteNoiseAnimatedIntegrated (const SImageData& ditherImage)
 {
+    printf("\n%s\n", __FUNCTION__);
+
     std::vector<float> integration;
     integration.resize(ditherImage.m_width * ditherImage.m_height);
     std::fill(integration.begin(), integration.end(), 0.0f);
@@ -493,6 +668,8 @@ void DitherWhiteNoiseAnimatedIntegrated (const SImageData& ditherImage)
 //======================================================================================
 void DitherInterleavedGradientNoiseAnimatedIntegrated (const SImageData& ditherImage)
 {
+    printf("\n%s\n", __FUNCTION__);
+
     std::vector<float> integration;
     integration.resize(ditherImage.m_width * ditherImage.m_height);
     std::fill(integration.begin(), integration.end(), 0.0f);
@@ -540,6 +717,8 @@ void DitherInterleavedGradientNoiseAnimatedIntegrated (const SImageData& ditherI
 //======================================================================================
 void DitherBlueNoiseAnimatedIntegrated (const SImageData& ditherImage, const SImageData blueNoise[8])
 {
+    printf("\n%s\n", __FUNCTION__);
+
     std::vector<float> integration;
     integration.resize(ditherImage.m_width * ditherImage.m_height);
     std::fill(integration.begin(), integration.end(), 0.0f);
@@ -579,9 +758,14 @@ void DitherBlueNoiseAnimatedIntegrated (const SImageData& ditherImage, const SIm
 //======================================================================================
 void DitherWhiteNoiseAnimatedGoldenRatio (const SImageData& ditherImage)
 {
+    printf("\n%s\n", __FUNCTION__);
+
     // make noise
     SImageData noise;
     GenerateWhiteNoise(noise, ditherImage.m_width, ditherImage.m_height);
+
+    SImageDataComplex noiseDFT;
+    SImageData noiseDFTMag;
 
     // animate 8 frames
     for (size_t i = 0; i < 8; ++i)
@@ -606,13 +790,25 @@ void DitherWhiteNoiseAnimatedGoldenRatio (const SImageData& ditherImage)
             );
         }
 
+        // DFT the noise
+        if (c_doDFT)
+        {
+            ImageDFT(noise, noiseDFT);
+            GetMagnitudeData(noiseDFT, noiseDFTMag);
+        }
+        else
+        {
+            ImageInit(noiseDFTMag, noise.m_width, noise.m_height);
+            std::fill(noiseDFTMag.m_pixels.begin(), noiseDFTMag.m_pixels.end(), 0);
+        }
+
         // dither the image
         SImageData dither;
         DitherWithTexture(ditherImage, noise, dither);
 
         // save the results
         SImageData combined;
-        ImageCombine2(noise, dither, combined);
+        ImageCombine3(noiseDFTMag, noise, dither, combined);
         ImageSave(combined, fileName);
     }
 }
@@ -620,9 +816,14 @@ void DitherWhiteNoiseAnimatedGoldenRatio (const SImageData& ditherImage)
 //======================================================================================
 void DitherInterleavedGradientNoiseAnimatedGoldenRatio (const SImageData& ditherImage)
 {
+    printf("\n%s\n", __FUNCTION__);
+
     // make noise
     SImageData noise;
     GenerateInterleavedGradientNoise(noise, ditherImage.m_width, ditherImage.m_height, 0.0f, 0.0f);
+
+    SImageDataComplex noiseDFT;
+    SImageData noiseDFTMag;
 
     // animate 8 frames
     for (size_t i = 0; i < 8; ++i)
@@ -647,13 +848,25 @@ void DitherInterleavedGradientNoiseAnimatedGoldenRatio (const SImageData& dither
             );
         }
 
+        // DFT the noise
+        if (c_doDFT)
+        {
+            ImageDFT(noise, noiseDFT);
+            GetMagnitudeData(noiseDFT, noiseDFTMag);
+        }
+        else
+        {
+            ImageInit(noiseDFTMag, noise.m_width, noise.m_height);
+            std::fill(noiseDFTMag.m_pixels.begin(), noiseDFTMag.m_pixels.end(), 0);
+        }
+
         // dither the image
         SImageData dither;
         DitherWithTexture(ditherImage, noise, dither);
 
         // save the results
         SImageData combined;
-        ImageCombine2(noise, dither, combined);
+        ImageCombine3(noiseDFTMag, noise, dither, combined);
         ImageSave(combined, fileName);
     }
 }
@@ -661,10 +874,15 @@ void DitherInterleavedGradientNoiseAnimatedGoldenRatio (const SImageData& dither
 //======================================================================================
 void DitherBlueNoiseAnimatedGoldenRatio (const SImageData& ditherImage, const SImageData& blueNoise)
 {
+    printf("\n%s\n", __FUNCTION__);
+
     // copy the blue noise so we can modify it
     SImageData noise;
     ImageInit(noise, blueNoise.m_width, blueNoise.m_height);
     noise.m_pixels = blueNoise.m_pixels;
+
+    SImageDataComplex noiseDFT;
+    SImageData noiseDFTMag;
 
     // animate 8 frames
     for (size_t i = 0; i < 8; ++i)
@@ -689,13 +907,25 @@ void DitherBlueNoiseAnimatedGoldenRatio (const SImageData& ditherImage, const SI
             );
         }
 
+        // DFT the noise
+        if (c_doDFT)
+        {
+            ImageDFT(noise, noiseDFT);
+            GetMagnitudeData(noiseDFT, noiseDFTMag);
+        }
+        else
+        {
+            ImageInit(noiseDFTMag, noise.m_width, noise.m_height);
+            std::fill(noiseDFTMag.m_pixels.begin(), noiseDFTMag.m_pixels.end(), 0);
+        }
+
         // dither the image
         SImageData dither;
         DitherWithTexture(ditherImage, noise, dither);
 
         // save the results
         SImageData combined;
-        ImageCombine2(noise, dither, combined);
+        ImageCombine3(noiseDFTMag, noise, dither, combined);
         ImageSave(combined, fileName);
     }
 }
@@ -703,6 +933,8 @@ void DitherBlueNoiseAnimatedGoldenRatio (const SImageData& ditherImage, const SI
 //======================================================================================
 void DitherWhiteNoiseAnimatedGoldenRatioIntegrated (const SImageData& ditherImage)
 {
+    printf("\n%s\n", __FUNCTION__);
+
     std::vector<float> integration;
     integration.resize(ditherImage.m_width * ditherImage.m_height);
     std::fill(integration.begin(), integration.end(), 0.0f);
@@ -763,6 +995,8 @@ void DitherWhiteNoiseAnimatedGoldenRatioIntegrated (const SImageData& ditherImag
 //======================================================================================
 void DitherInterleavedGradientNoiseAnimatedGoldenRatioIntegrated (const SImageData& ditherImage)
 {
+    printf("\n%s\n", __FUNCTION__);
+
     std::vector<float> integration;
     integration.resize(ditherImage.m_width * ditherImage.m_height);
     std::fill(integration.begin(), integration.end(), 0.0f);
@@ -823,6 +1057,8 @@ void DitherInterleavedGradientNoiseAnimatedGoldenRatioIntegrated (const SImageDa
 //======================================================================================
 void DitherBlueNoiseAnimatedGoldenRatioIntegrated (const SImageData& ditherImage, const SImageData& blueNoise)
 {
+    printf("\n%s\n", __FUNCTION__);
+
     std::vector<float> integration;
     integration.resize(ditherImage.m_width * ditherImage.m_height);
     std::fill(integration.begin(), integration.end(), 0.0f);
@@ -893,7 +1129,7 @@ int main (int argc, char** argv)
     }
     ImageConvertToLuma(ditherImage);
 
-    // load the blue noise images
+    // load the blue noise images.
     SImageData blueNoise[8];
     for (size_t i = 0; i < 8; ++i)
     {
@@ -904,7 +1140,19 @@ int main (int argc, char** argv)
             printf("Could not load %s", buffer);
             return 0;
         }
+
+        // They have different values in R, G, B so make R be the value for all channels
+        ImageForEachPixel(
+            blueNoise[i],
+            [] (SColor& pixel, size_t pixelIndex)
+            {
+                pixel.G = pixel.R;
+                pixel.B = pixel.R;
+            }
+        );
     }
+
+    g_logFile = fopen("log.txt", "w+t");
     
     // still image dither tests
     DitherWhiteNoise(ditherImage);
@@ -931,15 +1179,20 @@ int main (int argc, char** argv)
     DitherInterleavedGradientNoiseAnimatedGoldenRatioIntegrated(ditherImage);
     DitherBlueNoiseAnimatedGoldenRatioIntegrated(ditherImage, blueNoise[0]);
 
+    fclose(g_logFile);
+
     return 0;
 }
 
 /*
 
 TODO:
-* make things use SImageData for each pixel.
+* make blue noise image greyscale. it has different R,G,B values right now.
 
 * csv of integration steps / make graphs
+ * compare vs ground truth. mean / variance of difference between dithered image and ground truth.
+
+* histogram and DFT of noise that has golden ratio added to it.
 
 * the golden ratio animation tests may benefit from showing the DFT, to see if adding GR changes anything?
 
@@ -952,6 +1205,10 @@ TODO:
  ? ask SE if anyone can say how this would compare to having more textures?
 
 * for integration, maybe show stills of higher sample counts, and also show variance etc graph.
+
+* show progess.
+
+? should we generalize ImageCombine somehow?
 
 Blog:
 * show a comparison of dithering the tree image using white noise, blue noise, interleaved gradient noise.
