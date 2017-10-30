@@ -445,6 +445,7 @@ void HistogramTest (const SImageData& noise, size_t frameIndex, const char* labe
 
     size_t minCount = 0;
     size_t maxCount = 0;
+    size_t averageCount = 0;
     for (size_t i = 0; i < 256; ++i)
     {
         if (i == 0 || counts[i] < minCount)
@@ -452,12 +453,23 @@ void HistogramTest (const SImageData& noise, size_t frameIndex, const char* labe
 
         if (i == 0 || counts[i] > maxCount)
             maxCount = counts[i];
+
+        averageCount += counts[i];
     }
 
     fprintf(g_logFile, "%s %zu histogram\n", label, frameIndex);
     fprintf(g_logFile, "  min count: %zu\n", minCount);
     fprintf(g_logFile, "  max count: %zu\n", maxCount);
-    fprintf(g_logFile, "\n");
+    fprintf(g_logFile, "  avg count: %zu\n", averageCount / 256);
+    fprintf(g_logFile, "   counts: ");
+    for (size_t i = 0; i < 256; ++i)
+    {
+        if (i > 0)
+            fprintf(g_logFile, ", ");
+        fprintf(g_logFile, "%zu", counts[i]);
+    }
+
+    fprintf(g_logFile, "\n\n");
 }
 
 //======================================================================================
@@ -1245,14 +1257,13 @@ int main (int argc, char** argv)
 /*
 
 TODO:
-* make blue noise image greyscale. it has different R,G,B values right now.
+* histogram stuff:
+ * show std deviation (variance)
+ * is it weird that average is always the same? if so get rid of it. if not, show expected average? or does it make sense with std deviation even if it's weird.
+ * there looks to be something strange where adding golden ratio makes pure white go away. look into that!
 
 * csv of integration steps / make graphs
  * compare vs ground truth. mean / variance of difference between dithered image and ground truth.
-
-* histogram and DFT of noise that has golden ratio added to it.
-
-* the golden ratio animation tests may benefit from showing the DFT, to see if adding GR changes anything?
 
 * I think i have "ulimited" blue noise textures with those 8.
  * random pixel offset (it tiles well)
@@ -1261,10 +1272,9 @@ TODO:
  * flip x and y
  * invert (1.0 - grey)
  ? ask SE if anyone can say how this would compare to having more textures?
+ * maybe put this on blog post? may also want to compare it vs the others? i dunno
 
 * for integration, maybe show stills of higher sample counts, and also show variance etc graph.
-
-* show progess.
 
 ? should we generalize ImageCombine somehow?
 
@@ -1288,6 +1298,8 @@ Blog:
 ? do we want to show DFT frequency magnitude for any of these?
 
 * R4 unit is the one that suggested adding golden ratio to blue noise.
+
+* adding GR to bn adds low frequency components. Maybe worth it though to make it more LDS over time?
 
 Links:
 * free blue noise textures sit
