@@ -11,11 +11,10 @@
 
 typedef uint8_t uint8;
 
-const float c_goldenRatio = 1.61803398875f;
 const float c_pi = 3.14159265359f;
 
 // settings
-const bool c_doDFT = false; // TODO: true before checkin
+const bool c_doDFT = true; // TODO: true before checkin
 
 // globals 
 FILE* g_logFile = nullptr;
@@ -430,6 +429,12 @@ void ImageCombine3 (const SImageData& imageA, const SImageData& imageB, const SI
 }
 
 //======================================================================================
+float GoldenRatioMultiple (size_t multiple)
+{
+    return float(multiple) * (1.0f + std::sqrtf(5.0f)) / 2.0f;
+}
+
+//======================================================================================
 void HistogramTest (const SImageData& noise, size_t frameIndex, const char* label)
 {
     std::array<size_t, 256> counts;
@@ -461,7 +466,7 @@ void HistogramTest (const SImageData& noise, size_t frameIndex, const char* labe
     fprintf(g_logFile, "  min count: %zu\n", minCount);
     fprintf(g_logFile, "  max count: %zu\n", maxCount);
     fprintf(g_logFile, "  avg count: %zu\n", averageCount / 256);
-    fprintf(g_logFile, "   counts: ");
+    fprintf(g_logFile, "  counts: ");
     for (size_t i = 0; i < 256; ++i)
     {
         if (i > 0)
@@ -507,8 +512,9 @@ void GenerateInterleavedGradientNoise (SImageData& image, size_t width, size_t h
         SColor* pixel = (SColor*)&image.m_pixels[y * image.m_pitch];
         for (size_t x = 0; x < width; ++x)
         {
-            float pixelValue = std::fmod(52.9829189f * std::fmod(0.06711056f*float(x + offsetX) + 0.00583715f*float(y + offsetY), 1.0f), 1.0f);
-            uint8 value = uint8(pixelValue * 255.0f);
+            float valueFloat = std::fmodf(52.9829189f * std::fmod(0.06711056f*float(x + offsetX) + 0.00583715f*float(y + offsetY), 1.0f), 1.0f);
+            size_t valueBig = size_t(valueFloat * 256.0f);
+            uint8 value = uint8(valueBig % 256);
             pixel->R = value;
             pixel->G = value;
             pixel->B = value;
@@ -822,8 +828,11 @@ void DitherWhiteNoiseAnimatedGoldenRatio (const SImageData& ditherImage)
     printf("\n%s\n", __FUNCTION__);
 
     // make noise
+    SImageData noiseSrc;
+    GenerateWhiteNoise(noiseSrc, ditherImage.m_width, ditherImage.m_height);
+
     SImageData noise;
-    GenerateWhiteNoise(noise, ditherImage.m_width, ditherImage.m_height);
+    ImageInit(noise, noiseSrc.m_width, noiseSrc.m_height);
 
     SImageDataComplex noiseDFT;
     SImageData noiseDFTMag;
@@ -835,21 +844,20 @@ void DitherWhiteNoiseAnimatedGoldenRatio (const SImageData& ditherImage)
         sprintf(fileName, "out/animgr_whitenoise%zu.bmp", i);
 
         // add golden ratio to the noise after each frame
-        if (i > 0)
-        {
-            float add = float(i) * c_goldenRatio;
-            ImageForEachPixel(
-                noise,
-                [&] (SColor& pixel, size_t pixelIndex)
-                {
-                    float valueFloat = std::fmodf((float(pixel.R) / 255.0f) + add, 1.0f);
-                    uint8 value = uint8(valueFloat * 255.0f);
-                    pixel.R = value;
-                    pixel.G = value;
-                    pixel.B = value;
-                }
-            );
-        }
+        noise.m_pixels = noiseSrc.m_pixels;
+        float add = GoldenRatioMultiple(i);
+        ImageForEachPixel(
+            noise,
+            [&] (SColor& pixel, size_t pixelIndex)
+            {
+                float valueFloat = (float(pixel.R) / 255.0f) + add;
+                size_t valueBig = size_t(valueFloat * 255.0f);
+                uint8 value = uint8(valueBig % 256);
+                pixel.R = value;
+                pixel.G = value;
+                pixel.B = value;
+            }
+        );
 
         // DFT the noise
         if (c_doDFT)
@@ -883,8 +891,11 @@ void DitherInterleavedGradientNoiseAnimatedGoldenRatio (const SImageData& dither
     printf("\n%s\n", __FUNCTION__);
 
     // make noise
+    SImageData noiseSrc;
+    GenerateInterleavedGradientNoise(noiseSrc, ditherImage.m_width, ditherImage.m_height, 0.0f, 0.0f);
+
     SImageData noise;
-    GenerateInterleavedGradientNoise(noise, ditherImage.m_width, ditherImage.m_height, 0.0f, 0.0f);
+    ImageInit(noise, noiseSrc.m_width, noiseSrc.m_height);
 
     SImageDataComplex noiseDFT;
     SImageData noiseDFTMag;
@@ -896,21 +907,20 @@ void DitherInterleavedGradientNoiseAnimatedGoldenRatio (const SImageData& dither
         sprintf(fileName, "out/animgr_ignoise%zu.bmp", i);
 
         // add golden ratio to the noise after each frame
-        if (i > 0)
-        {
-            float add = float(i) * c_goldenRatio;
-            ImageForEachPixel(
-                noise,
-                [&] (SColor& pixel, size_t pixelIndex)
-                {
-                    float valueFloat = std::fmodf((float(pixel.R) / 255.0f) + add, 1.0f);
-                    uint8 value = uint8(valueFloat * 255.0f);
-                    pixel.R = value;
-                    pixel.G = value;
-                    pixel.B = value;
-                }
-            );
-        }
+        noise.m_pixels = noiseSrc.m_pixels;
+        float add = GoldenRatioMultiple(i);
+        ImageForEachPixel(
+            noise,
+            [&] (SColor& pixel, size_t pixelIndex)
+            {
+                float valueFloat = (float(pixel.R) / 255.0f) + add;
+                size_t valueBig = size_t(valueFloat * 255.0f);
+                uint8 value = uint8(valueBig % 256);
+                pixel.R = value;
+                pixel.G = value;
+                pixel.B = value;
+            }
+        );
 
         // DFT the noise
         if (c_doDFT)
@@ -939,14 +949,12 @@ void DitherInterleavedGradientNoiseAnimatedGoldenRatio (const SImageData& dither
 }
 
 //======================================================================================
-void DitherBlueNoiseAnimatedGoldenRatio (const SImageData& ditherImage, const SImageData& blueNoise)
+void DitherBlueNoiseAnimatedGoldenRatio (const SImageData& ditherImage, const SImageData& noiseSrc)
 {
     printf("\n%s\n", __FUNCTION__);
 
-    // copy the blue noise so we can modify it
     SImageData noise;
-    ImageInit(noise, blueNoise.m_width, blueNoise.m_height);
-    noise.m_pixels = blueNoise.m_pixels;
+    ImageInit(noise, noiseSrc.m_width, noiseSrc.m_height);
 
     SImageDataComplex noiseDFT;
     SImageData noiseDFTMag;
@@ -958,21 +966,20 @@ void DitherBlueNoiseAnimatedGoldenRatio (const SImageData& ditherImage, const SI
         sprintf(fileName, "out/animgr_bluenoise%zu.bmp", i);
 
         // add golden ratio to the noise after each frame
-        if (i > 0)
-        {
-            float add = float(i) * c_goldenRatio;
-            ImageForEachPixel(
-                noise,
-                [&] (SColor& pixel, size_t pixelIndex)
-                {
-                    float valueFloat = std::fmodf((float(pixel.R) / 255.0f) + add, 1.0f);
-                    uint8 value = uint8(valueFloat * 255.0f);
-                    pixel.R = value;
-                    pixel.G = value;
-                    pixel.B = value;
-                }
-            );
-        }
+        noise.m_pixels = noiseSrc.m_pixels;
+        float add = GoldenRatioMultiple(i);
+        ImageForEachPixel(
+            noise,
+            [&] (SColor& pixel, size_t pixelIndex)
+            {
+                float valueFloat = (float(pixel.R) / 255.0f) + add;
+                size_t valueBig = size_t(valueFloat * 255.0f);
+                uint8 value = uint8(valueBig % 256);
+                pixel.R = value;
+                pixel.G = value;
+                pixel.B = value;
+            }
+        );
 
         // DFT the noise
         if (c_doDFT)
@@ -1010,8 +1017,11 @@ void DitherWhiteNoiseAnimatedGoldenRatioIntegrated (const SImageData& ditherImag
     std::fill(integration.begin(), integration.end(), 0.0f);
 
     // make noise
+    SImageData noiseSrc;
+    GenerateWhiteNoise(noiseSrc, ditherImage.m_width, ditherImage.m_height);
+
     SImageData noise;
-    GenerateWhiteNoise(noise, ditherImage.m_width, ditherImage.m_height);
+    ImageInit(noise, noiseSrc.m_width, noiseSrc.m_height);
 
     // animate 8 frames
     for (size_t i = 0; i < 8; ++i)
@@ -1020,21 +1030,20 @@ void DitherWhiteNoiseAnimatedGoldenRatioIntegrated (const SImageData& ditherImag
         sprintf(fileName, "out/animgrint_whitenoise%zu.bmp", i);
 
         // add golden ratio to the noise after each frame
-        if (i > 0)
-        {
-            float add = float(i) * c_goldenRatio;
-            ImageForEachPixel(
-                noise,
-                [&] (SColor& pixel, size_t pixelIndex)
-                {
-                    float valueFloat = std::fmodf((float(pixel.R) / 255.0f) + add, 1.0f);
-                    uint8 value = uint8(valueFloat * 255.0f);
-                    pixel.R = value;
-                    pixel.G = value;
-                    pixel.B = value;
-                }
-            );
-        }
+        noise.m_pixels = noiseSrc.m_pixels;
+        float add = GoldenRatioMultiple(i);
+        ImageForEachPixel(
+            noise,
+            [&] (SColor& pixel, size_t pixelIndex)
+            {
+                float valueFloat = (float(pixel.R) / 255.0f) + add;
+                size_t valueBig = size_t(valueFloat * 255.0f);
+                uint8 value = uint8(valueBig % 256);
+                pixel.R = value;
+                pixel.G = value;
+                pixel.B = value;
+            }
+        );
 
         // dither the image
         SImageData dither;
@@ -1072,8 +1081,11 @@ void DitherInterleavedGradientNoiseAnimatedGoldenRatioIntegrated (const SImageDa
     std::fill(integration.begin(), integration.end(), 0.0f);
 
     // make noise
+    SImageData noiseSrc;
+    GenerateInterleavedGradientNoise(noiseSrc, ditherImage.m_width, ditherImage.m_height, 0.0f, 0.0f);
+
     SImageData noise;
-    GenerateInterleavedGradientNoise(noise, ditherImage.m_width, ditherImage.m_height, 0.0f, 0.0f);
+    ImageInit(noise, noiseSrc.m_width, noiseSrc.m_height);
 
     // animate 8 frames
     for (size_t i = 0; i < 8; ++i)
@@ -1082,21 +1094,20 @@ void DitherInterleavedGradientNoiseAnimatedGoldenRatioIntegrated (const SImageDa
         sprintf(fileName, "out/animgrint_ignoise%zu.bmp", i);
 
         // add golden ratio to the noise after each frame
-        if (i > 0)
-        {
-            float add = float(i) * c_goldenRatio;
-            ImageForEachPixel(
-                noise,
-                [&] (SColor& pixel, size_t pixelIndex)
-                {
-                    float valueFloat = std::fmodf((float(pixel.R) / 255.0f) + add, 1.0f);
-                    uint8 value = uint8(valueFloat * 255.0f);
-                    pixel.R = value;
-                    pixel.G = value;
-                    pixel.B = value;
-                }
-            );
-        }
+        noise.m_pixels = noiseSrc.m_pixels;
+        float add = GoldenRatioMultiple(i);
+        ImageForEachPixel(
+            noise,
+            [&] (SColor& pixel, size_t pixelIndex)
+            {
+                float valueFloat = (float(pixel.R) / 255.0f) + add;
+                size_t valueBig = size_t(valueFloat * 255.0f);
+                uint8 value = uint8(valueBig % 256);
+                pixel.R = value;
+                pixel.G = value;
+                pixel.B = value;
+            }
+        );
 
         // dither the image
         SImageData dither;
@@ -1125,7 +1136,7 @@ void DitherInterleavedGradientNoiseAnimatedGoldenRatioIntegrated (const SImageDa
 }
 
 //======================================================================================
-void DitherBlueNoiseAnimatedGoldenRatioIntegrated (const SImageData& ditherImage, const SImageData& blueNoise)
+void DitherBlueNoiseAnimatedGoldenRatioIntegrated (const SImageData& ditherImage, const SImageData& noiseSrc)
 {
     printf("\n%s\n", __FUNCTION__);
 
@@ -1133,10 +1144,8 @@ void DitherBlueNoiseAnimatedGoldenRatioIntegrated (const SImageData& ditherImage
     integration.resize(ditherImage.m_width * ditherImage.m_height);
     std::fill(integration.begin(), integration.end(), 0.0f);
 
-    // copy the blue noise so we can modify it
     SImageData noise;
-    ImageInit(noise, blueNoise.m_width, blueNoise.m_height);
-    noise.m_pixels = blueNoise.m_pixels;
+    ImageInit(noise, noiseSrc.m_width, noiseSrc.m_height);
 
     // animate 8 frames
     for (size_t i = 0; i < 8; ++i)
@@ -1145,21 +1154,20 @@ void DitherBlueNoiseAnimatedGoldenRatioIntegrated (const SImageData& ditherImage
         sprintf(fileName, "out/animgrint_bluenoise%zu.bmp", i);
 
         // add golden ratio to the noise after each frame
-        if (i > 0)
-        {
-            float add = float(i) * c_goldenRatio;
-            ImageForEachPixel(
-                noise,
-                [&] (SColor& pixel, size_t pixelIndex)
-                {
-                    float valueFloat = std::fmodf((float(pixel.R) / 255.0f) + add, 1.0f);
-                    uint8 value = uint8(valueFloat * 255.0f);
-                    pixel.R = value;
-                    pixel.G = value;
-                    pixel.B = value;
-                }
-            );
-        }
+        noise.m_pixels = noiseSrc.m_pixels;
+        float add = GoldenRatioMultiple(i);
+        ImageForEachPixel(
+            noise,
+            [&] (SColor& pixel, size_t pixelIndex)
+            {
+                float valueFloat = (float(pixel.R) / 255.0f) + add;
+                size_t valueBig = size_t(valueFloat * 255.0f);
+                uint8 value = uint8(valueBig % 256);
+                pixel.R = value;
+                pixel.G = value;
+                pixel.B = value;
+            }
+        );
 
         // dither the image
         SImageData dither;
@@ -1257,10 +1265,10 @@ int main (int argc, char** argv)
 /*
 
 TODO:
-* histogram stuff:
- * show std deviation (variance)
- * is it weird that average is always the same? if so get rid of it. if not, show expected average? or does it make sense with std deviation even if it's weird.
- * there looks to be something strange where adding golden ratio makes pure white go away. look into that!
+
+? should i show std deviation of histogram?
+
+* show std deviation (variance) for integration
 
 * csv of integration steps / make graphs
  * compare vs ground truth. mean / variance of difference between dithered image and ground truth.
@@ -1273,6 +1281,7 @@ TODO:
  * invert (1.0 - grey)
  ? ask SE if anyone can say how this would compare to having more textures?
  * maybe put this on blog post? may also want to compare it vs the others? i dunno
+ * maybe note on blog and say "didn't test"
 
 * for integration, maybe show stills of higher sample counts, and also show variance etc graph.
 
@@ -1300,6 +1309,14 @@ Blog:
 * R4 unit is the one that suggested adding golden ratio to blue noise.
 
 * adding GR to bn adds low frequency components. Maybe worth it though to make it more LDS over time?
+
+? blue noise + golden ratio issues and adding low frequency details: is the problem that we are using an LDR image format and so have just u8 data to start with?
+ * starting with a floating point value for blue noise may make the problem go away?
+ * I didn't test.
+
+* when manually adding golden ratio to noise (or when generating the interleaved gradient noise!), real easy to mess it up and make your histogram not full.
+ * ie if you mod(blah, 1.0) and multiply by 255, you will have no 255!
+ * better to convert it into ints and mod 256. I made that mistake and didn't notice it until i made it spit out histogram data.
 
 Links:
 * free blue noise textures sit
