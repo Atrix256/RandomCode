@@ -1,0 +1,96 @@
+DitherWhiteNoiseAnimatedGoldenRatio 0 histogram
+  min count: 215
+  max count: 301
+
+DitherWhiteNoiseAnimatedGoldenRatio 1 histogram
+  min count: 0
+  max count: 515
+
+DitherWhiteNoiseAnimatedGoldenRatio 2 histogram
+  min count: 0
+  max count: 515
+
+DitherWhiteNoiseAnimatedGoldenRatio 3 histogram
+  min count: 0
+  max count: 515
+
+DitherWhiteNoiseAnimatedGoldenRatio 4 histogram
+  min count: 0
+  max count: 515
+
+DitherWhiteNoiseAnimatedGoldenRatio 5 histogram
+  min count: 0
+  max count: 515
+
+DitherWhiteNoiseAnimatedGoldenRatio 6 histogram
+  min count: 0
+  max count: 515
+
+DitherWhiteNoiseAnimatedGoldenRatio 7 histogram
+  min count: 0
+  max count: 515
+
+DitherInterleavedGradientNoiseAnimatedGoldenRatio 0 histogram
+  min count: 0
+  max count: 265
+
+DitherInterleavedGradientNoiseAnimatedGoldenRatio 1 histogram
+  min count: 0
+  max count: 265
+
+DitherInterleavedGradientNoiseAnimatedGoldenRatio 2 histogram
+  min count: 0
+  max count: 265
+
+DitherInterleavedGradientNoiseAnimatedGoldenRatio 3 histogram
+  min count: 0
+  max count: 265
+
+DitherInterleavedGradientNoiseAnimatedGoldenRatio 4 histogram
+  min count: 0
+  max count: 265
+
+DitherInterleavedGradientNoiseAnimatedGoldenRatio 5 histogram
+  min count: 0
+  max count: 265
+
+DitherInterleavedGradientNoiseAnimatedGoldenRatio 6 histogram
+  min count: 0
+  max count: 265
+
+DitherInterleavedGradientNoiseAnimatedGoldenRatio 7 histogram
+  min count: 0
+  max count: 265
+
+DitherBlueNoiseAnimatedGoldenRatio 0 histogram
+  min count: 256
+  max count: 256
+
+DitherBlueNoiseAnimatedGoldenRatio 1 histogram
+  min count: 0
+  max count: 512
+
+DitherBlueNoiseAnimatedGoldenRatio 2 histogram
+  min count: 0
+  max count: 512
+
+DitherBlueNoiseAnimatedGoldenRatio 3 histogram
+  min count: 0
+  max count: 512
+
+DitherBlueNoiseAnimatedGoldenRatio 4 histogram
+  min count: 0
+  max count: 512
+
+DitherBlueNoiseAnimatedGoldenRatio 5 histogram
+  min count: 0
+  max count: 512
+
+DitherBlueNoiseAnimatedGoldenRatio 6 histogram
+  min count: 0
+  max count: 512
+
+DitherBlueNoiseAnimatedGoldenRatio 7 histogram
+  min count: 0
+  max count: 512
+

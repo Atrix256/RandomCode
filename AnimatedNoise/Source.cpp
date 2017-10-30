@@ -7,6 +7,7 @@
 #include <atomic>
 #include <thread>
 #include <complex>
+#include <array>
 
 typedef uint8_t uint8;
 
@@ -14,7 +15,7 @@ const float c_goldenRatio = 1.61803398875f;
 const float c_pi = 3.14159265359f;
 
 // settings
-const bool c_doDFT = true; // TODO: true before checkin
+const bool c_doDFT = false; // TODO: true before checkin
 
 // globals 
 FILE* g_logFile = nullptr;
@@ -315,6 +316,23 @@ void ImageForEachPixel (SImageData& image, const LAMBDA& lambda)
 }
 
 //======================================================================================
+template <typename LAMBDA>
+void ImageForEachPixel (const SImageData& image, const LAMBDA& lambda)
+{
+    size_t pixelIndex = 0;
+    for (size_t y = 0; y < image.m_height; ++y)
+    {
+        SColor* pixel = (SColor*)&image.m_pixels[y * image.m_pitch];
+        for (size_t x = 0; x < image.m_width; ++x)
+        {
+            lambda(*pixel, pixelIndex);
+            ++pixel;
+            ++pixelIndex;
+        }
+    }
+}
+
+//======================================================================================
 void ImageConvertToLuma (SImageData& image)
 {
     ImageForEachPixel(
@@ -409,6 +427,37 @@ void ImageCombine3 (const SImageData& imageA, const SImageData& imageB, const SI
             ++srcPixel;
         }
     }
+}
+
+//======================================================================================
+void HistogramTest (const SImageData& noise, size_t frameIndex, const char* label)
+{
+    std::array<size_t, 256> counts;
+    std::fill(counts.begin(), counts.end(), 0);
+
+    ImageForEachPixel(
+        noise,
+        [&] (const SColor& pixel, size_t pixelIndex)
+        {
+            counts[pixel.R]++;
+        }
+    );
+
+    size_t minCount = 0;
+    size_t maxCount = 0;
+    for (size_t i = 0; i < 256; ++i)
+    {
+        if (i == 0 || counts[i] < minCount)
+            minCount = counts[i];
+
+        if (i == 0 || counts[i] > maxCount)
+            maxCount = counts[i];
+    }
+
+    fprintf(g_logFile, "%s %zu histogram\n", label, frameIndex);
+    fprintf(g_logFile, "  min count: %zu\n", minCount);
+    fprintf(g_logFile, "  max count: %zu\n", maxCount);
+    fprintf(g_logFile, "\n");
 }
 
 //======================================================================================
@@ -802,6 +851,9 @@ void DitherWhiteNoiseAnimatedGoldenRatio (const SImageData& ditherImage)
             std::fill(noiseDFTMag.m_pixels.begin(), noiseDFTMag.m_pixels.end(), 0);
         }
 
+        // Histogram test the noise
+        HistogramTest(noise, i, __FUNCTION__);
+
         // dither the image
         SImageData dither;
         DitherWithTexture(ditherImage, noise, dither);
@@ -859,6 +911,9 @@ void DitherInterleavedGradientNoiseAnimatedGoldenRatio (const SImageData& dither
             ImageInit(noiseDFTMag, noise.m_width, noise.m_height);
             std::fill(noiseDFTMag.m_pixels.begin(), noiseDFTMag.m_pixels.end(), 0);
         }
+
+        // Histogram test the noise
+        HistogramTest(noise, i, __FUNCTION__);
 
         // dither the image
         SImageData dither;
@@ -918,6 +973,9 @@ void DitherBlueNoiseAnimatedGoldenRatio (const SImageData& ditherImage, const SI
             ImageInit(noiseDFTMag, noise.m_width, noise.m_height);
             std::fill(noiseDFTMag.m_pixels.begin(), noiseDFTMag.m_pixels.end(), 0);
         }
+
+        // Histogram test the noise
+        HistogramTest(noise, i, __FUNCTION__);
 
         // dither the image
         SImageData dither;
