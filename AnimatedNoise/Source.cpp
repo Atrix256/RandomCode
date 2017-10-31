@@ -14,7 +14,7 @@ typedef uint8_t uint8;
 const float c_pi = 3.14159265359f;
 
 // settings
-const bool c_doDFT = false; // TODO: true before checkin
+const bool c_doDFT = true;
 
 // globals 
 FILE* g_logFile = nullptr;
@@ -1359,6 +1359,8 @@ int main (int argc, char** argv)
 }
 
 /*
+
+* does it make sense that variance goes up in some cases? check it out...
 
 Blog:
 * show a comparison of dithering the tree image using white noise, blue noise, interleaved gradient noise.
