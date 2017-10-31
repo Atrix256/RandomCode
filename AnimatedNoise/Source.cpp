@@ -443,9 +443,10 @@ void HistogramTest (const SImageData& noise, size_t frameIndex, const char* labe
         }
     );
 
+    // calculate min, max, total and averag
     size_t minCount = 0;
     size_t maxCount = 0;
-    size_t averageCount = 0;
+    size_t totalCount = 0;
     for (size_t i = 0; i < 256; ++i)
     {
         if (i == 0 || counts[i] < minCount)
@@ -454,14 +455,26 @@ void HistogramTest (const SImageData& noise, size_t frameIndex, const char* labe
         if (i == 0 || counts[i] > maxCount)
             maxCount = counts[i];
 
-        averageCount += counts[i];
+        totalCount += counts[i];
     }
+    float averageCount = float(totalCount) / float(256.0f);
 
+    // calculate standard deviation
+    float sumSquaredDiff = 0.0f;
+    for (size_t i = 0; i < 256; ++i)
+    {
+        float diff = float(counts[i]) - averageCount;
+        sumSquaredDiff += diff*diff;
+    }
+    float stdDev = std::sqrtf(sumSquaredDiff / 255.0f);
+
+    // report results
     fprintf(g_logFile, "%s %zu histogram\n", label, frameIndex);
     fprintf(g_logFile, "  min count: %zu\n", minCount);
     fprintf(g_logFile, "  max count: %zu\n", maxCount);
-    fprintf(g_logFile, "  avg count: %zu\n", averageCount / 256);
-    fprintf(g_logFile, "   counts: ");
+    fprintf(g_logFile, "  avg count: %0.2f\n", averageCount);
+    fprintf(g_logFile, "  stddev: %0.2f\n", stdDev);
+    fprintf(g_logFile, "  counts: ");
     for (size_t i = 0; i < 256; ++i)
     {
         if (i > 0)
@@ -1300,6 +1313,17 @@ Blog:
 * R4 unit is the one that suggested adding golden ratio to blue noise.
 
 * adding GR to bn adds low frequency components. Maybe worth it though to make it more LDS over time?
+
+* Ideal for 2d samples over time is NOT 3d blue noise - show link to that.
+ * it's having each 2d texture be blue noise, but looking at each individual pixel over time is blue over time.
+ * how a 2d blue noise DFT shows a dark circle in noise, 3d blue noise DFT shows a dark orb in noise. This would be more like a dark cylinder in noise i think. (need to experiment)
+
+* How to make?
+ * could try doing 3d blue noise texture then normalize the histogram of each slice
+ * topic of next blog post?
+ * not perfect but maybe reasonable.
+ * could attempt this in 2d. Renormalize each x axis slice.
+ * How would you make this weird blue noise for real in 2d? need x axis and y axis both being blue noise.
 
 Links:
 * free blue noise textures sit
