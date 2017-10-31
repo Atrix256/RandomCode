@@ -14,7 +14,7 @@ typedef uint8_t uint8;
 const float c_pi = 3.14159265359f;
 
 // settings
-const bool c_doDFT = true; // TODO: true before checkin
+const bool c_doDFT = false; // TODO: true before checkin
 
 // globals 
 FILE* g_logFile = nullptr;
@@ -435,6 +435,71 @@ float GoldenRatioMultiple (size_t multiple)
 }
 
 //======================================================================================
+void IntegrationTest (const SImageData& dither, const SImageData& groundTruth, size_t frameIndex, const char* label)
+{
+    // calculate min, max, total and average error
+    size_t minError = 0;
+    size_t maxError = 0;
+    size_t totalError = 0;
+    size_t pixelCount = 0;
+    for (size_t y = 0; y < dither.m_height; ++y)
+    {
+        SColor* ditherPixel = (SColor*)&dither.m_pixels[y * dither.m_pitch];
+        SColor* truthPixel = (SColor*)&groundTruth.m_pixels[y * groundTruth.m_pitch];
+        for (size_t x = 0; x < dither.m_width; ++x)
+        {
+            size_t error = 0;
+            if (ditherPixel->R > truthPixel->R)
+                error = ditherPixel->R - truthPixel->R;
+            else
+                error = truthPixel->R - ditherPixel->R;
+
+            totalError += error;
+
+            if ((x == 0 && y == 0) || error < minError)
+                minError = error;
+
+            if ((x == 0 && y == 0) || error > maxError)
+                maxError = error;
+
+            ++ditherPixel;
+            ++truthPixel;
+            ++pixelCount;
+        }
+    }
+    float averageError = float(totalError) / float(pixelCount);
+
+    // calculate standard deviation
+    float sumSquaredDiff = 0.0f;
+    for (size_t y = 0; y < dither.m_height; ++y)
+    {
+        SColor* ditherPixel = (SColor*)&dither.m_pixels[y * dither.m_pitch];
+        SColor* truthPixel = (SColor*)&groundTruth.m_pixels[y * groundTruth.m_pitch];
+        for (size_t x = 0; x < dither.m_width; ++x)
+        {
+            size_t error = 0;
+            if (ditherPixel->R > truthPixel->R)
+                error = ditherPixel->R - truthPixel->R;
+            else
+                error = truthPixel->R - ditherPixel->R;
+
+            float diff = float(error) - averageError;
+
+            sumSquaredDiff += diff*diff;
+        }
+    }
+    float stdDev = std::sqrtf(sumSquaredDiff / float(pixelCount - 1));
+
+    // report results
+    fprintf(g_logFile, "%s %zu error\n", label, frameIndex);
+    fprintf(g_logFile, "  min error: %zu\n", minError);
+    fprintf(g_logFile, "  max error: %zu\n", maxError);
+    fprintf(g_logFile, "  avg error: %0.2f\n", averageError);
+    fprintf(g_logFile, "  stddev: %0.2f\n", stdDev);
+    fprintf(g_logFile, "\n");
+}
+
+//======================================================================================
 void HistogramTest (const SImageData& noise, size_t frameIndex, const char* label)
 {
     std::array<size_t, 256> counts;
@@ -448,7 +513,7 @@ void HistogramTest (const SImageData& noise, size_t frameIndex, const char* labe
         }
     );
 
-    // calculate min, max, total and averag
+    // calculate min, max, total and average
     size_t minCount = 0;
     size_t maxCount = 0;
     size_t totalCount = 0;
@@ -738,6 +803,9 @@ void DitherWhiteNoiseAnimatedIntegrated (const SImageData& ditherImage)
             }
         );
 
+        // do an integration test
+        IntegrationTest(dither, ditherImage, i, __FUNCTION__);
+
         // save the results
         SImageData combined;
         ImageCombine2(noise, dither, combined);
@@ -787,6 +855,9 @@ void DitherInterleavedGradientNoiseAnimatedIntegrated (const SImageData& ditherI
             }
         );
 
+        // do an integration test
+        IntegrationTest(dither, ditherImage, i, __FUNCTION__);
+
         // save the results
         SImageData combined;
         ImageCombine2(noise, dither, combined);
@@ -827,6 +898,9 @@ void DitherBlueNoiseAnimatedIntegrated (const SImageData& ditherImage, const SIm
                 pixel.B = integratedPixelValue;
             }
         );
+
+        // do an integration test
+        IntegrationTest(dither, ditherImage, i, __FUNCTION__);
 
         // save the results
         SImageData combined;
@@ -1077,6 +1151,9 @@ void DitherWhiteNoiseAnimatedGoldenRatioIntegrated (const SImageData& ditherImag
             }
         );
 
+        // do an integration test
+        IntegrationTest(dither, ditherImage, i, __FUNCTION__);
+
         // save the results
         SImageData combined;
         ImageCombine2(noise, dither, combined);
@@ -1141,6 +1218,9 @@ void DitherInterleavedGradientNoiseAnimatedGoldenRatioIntegrated (const SImageDa
             }
         );
 
+        // do an integration test
+        IntegrationTest(dither, ditherImage, i, __FUNCTION__);
+
         // save the results
         SImageData combined;
         ImageCombine2(noise, dither, combined);
@@ -1200,6 +1280,9 @@ void DitherBlueNoiseAnimatedGoldenRatioIntegrated (const SImageData& ditherImage
                 pixel.B = integratedPixelValue;
             }
         );
+
+        // do an integration test
+        IntegrationTest(dither, ditherImage, i, __FUNCTION__);
 
         // save the results
         SImageData combined;
@@ -1277,14 +1360,10 @@ int main (int argc, char** argv)
 
 /*
 
-TODO:
-
-? should i show std deviation of histogram?
-
-* show std deviation (variance) for integration
-
-* csv of integration steps / make graphs
- * compare vs ground truth. mean / variance of difference between dithered image and ground truth.
+Blog:
+* show a comparison of dithering the tree image using white noise, blue noise, interleaved gradient noise.
+ * maybe put the noise pattern next to the dithered image as a single image
+ * white noise is worst, blue noise is best, interleaved gradient noise is in the middle.
 
 * I think i have "ulimited" blue noise textures with those 8.
  * random pixel offset (it tiles well)
@@ -1296,14 +1375,7 @@ TODO:
  * maybe put this on blog post? may also want to compare it vs the others? i dunno
  * maybe note on blog and say "didn't test"
 
-* for integration, maybe show stills of higher sample counts, and also show variance etc graph.
-
-? should we generalize ImageCombine somehow?
-
-Blog:
-* show a comparison of dithering the tree image using white noise, blue noise, interleaved gradient noise.
- * maybe put the noise pattern next to the dithered image as a single image
- * white noise is worst, blue noise is best, interleaved gradient noise is in the middle.
+* mention that higher sample counts may have different results. white noise beats out LDS / blue noise at higher sample counts i think. (can you re-confirm that?)
 
 * what about animated noise?
  * have an extra dimension of time.
@@ -1343,7 +1415,13 @@ Blog:
  * How would you make this weird blue noise for real in 2d? need x axis and y axis both being blue noise.
 
 Links:
-* free blue noise textures sit
+* free blue noise textures site
+ * and the 3d blue noise one
 * interleaved gradient links
+
+
+Next blog post:
+* taking 2d blue noise, normalizing histogram of each row, seeing how that does for integration & show the 1d DFT's!
+* scale it to 3d blue noise and try the same?
 
 */
