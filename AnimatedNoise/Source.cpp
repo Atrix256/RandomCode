@@ -14,7 +14,7 @@ typedef uint8_t uint8;
 const float c_pi = 3.14159265359f;
 
 // settings
-const bool c_doDFT = true;
+const bool c_doDFT = false; // TODO: true before checkin!
 
 // globals 
 FILE* g_logFile = nullptr;
@@ -1095,6 +1095,191 @@ void DitherBlueNoiseAnimatedGoldenRatio (const SImageData& ditherImage, const SI
 }
 
 //======================================================================================
+void DitherWhiteNoiseAnimatedUniform (const SImageData& ditherImage)
+{
+    printf("\n%s\n", __FUNCTION__);
+
+    // make noise
+    SImageData noiseSrc;
+    GenerateWhiteNoise(noiseSrc, ditherImage.m_width, ditherImage.m_height);
+
+    SImageData noise;
+    ImageInit(noise, noiseSrc.m_width, noiseSrc.m_height);
+
+    SImageDataComplex noiseDFT;
+    SImageData noiseDFTMag;
+
+    // animate 8 frames
+    for (size_t i = 0; i < 8; ++i)
+    {
+        char fileName[256];
+        sprintf(fileName, "out/animuni_whitenoise%zu.bmp", i);
+
+        // add uniform value to the noise after each frame
+        noise.m_pixels = noiseSrc.m_pixels;
+        float add = float(i) / 8.0f;
+        ImageForEachPixel(
+            noise,
+            [&] (SColor& pixel, size_t pixelIndex)
+            {
+                float valueFloat = (float(pixel.R) / 255.0f) + add;
+                size_t valueBig = size_t(valueFloat * 255.0f);
+                uint8 value = uint8(valueBig % 256);
+                pixel.R = value;
+                pixel.G = value;
+                pixel.B = value;
+            }
+        );
+
+        // DFT the noise
+        if (c_doDFT)
+        {
+            ImageDFT(noise, noiseDFT);
+            GetMagnitudeData(noiseDFT, noiseDFTMag);
+        }
+        else
+        {
+            ImageInit(noiseDFTMag, noise.m_width, noise.m_height);
+            std::fill(noiseDFTMag.m_pixels.begin(), noiseDFTMag.m_pixels.end(), 0);
+        }
+
+        // Histogram test the noise
+        HistogramTest(noise, i, __FUNCTION__);
+
+        // dither the image
+        SImageData dither;
+        DitherWithTexture(ditherImage, noise, dither);
+
+        // save the results
+        SImageData combined;
+        ImageCombine3(noiseDFTMag, noise, dither, combined);
+        ImageSave(combined, fileName);
+    }
+}
+
+//======================================================================================
+void DitherInterleavedGradientNoiseAnimatedUniform (const SImageData& ditherImage)
+{
+    printf("\n%s\n", __FUNCTION__);
+
+    // make noise
+    SImageData noiseSrc;
+    GenerateInterleavedGradientNoise(noiseSrc, ditherImage.m_width, ditherImage.m_height, 0.0f, 0.0f);
+
+    SImageData noise;
+    ImageInit(noise, noiseSrc.m_width, noiseSrc.m_height);
+
+    SImageDataComplex noiseDFT;
+    SImageData noiseDFTMag;
+
+    // animate 8 frames
+    for (size_t i = 0; i < 8; ++i)
+    {
+        char fileName[256];
+        sprintf(fileName, "out/animuni_ignoise%zu.bmp", i);
+
+        // add uniform value to the noise after each frame
+        noise.m_pixels = noiseSrc.m_pixels;
+        float add = float(i) / 8.0f;
+        ImageForEachPixel(
+            noise,
+            [&] (SColor& pixel, size_t pixelIndex)
+            {
+                float valueFloat = (float(pixel.R) / 255.0f) + add;
+                size_t valueBig = size_t(valueFloat * 255.0f);
+                uint8 value = uint8(valueBig % 256);
+                pixel.R = value;
+                pixel.G = value;
+                pixel.B = value;
+            }
+        );
+
+        // DFT the noise
+        if (c_doDFT)
+        {
+            ImageDFT(noise, noiseDFT);
+            GetMagnitudeData(noiseDFT, noiseDFTMag);
+        }
+        else
+        {
+            ImageInit(noiseDFTMag, noise.m_width, noise.m_height);
+            std::fill(noiseDFTMag.m_pixels.begin(), noiseDFTMag.m_pixels.end(), 0);
+        }
+
+        // Histogram test the noise
+        HistogramTest(noise, i, __FUNCTION__);
+
+        // dither the image
+        SImageData dither;
+        DitherWithTexture(ditherImage, noise, dither);
+
+        // save the results
+        SImageData combined;
+        ImageCombine3(noiseDFTMag, noise, dither, combined);
+        ImageSave(combined, fileName);
+    }
+}
+
+//======================================================================================
+void DitherBlueNoiseAnimatedUniform (const SImageData& ditherImage, const SImageData& noiseSrc)
+{
+    printf("\n%s\n", __FUNCTION__);
+
+    SImageData noise;
+    ImageInit(noise, noiseSrc.m_width, noiseSrc.m_height);
+
+    SImageDataComplex noiseDFT;
+    SImageData noiseDFTMag;
+
+    // animate 8 frames
+    for (size_t i = 0; i < 8; ++i)
+    {
+        char fileName[256];
+        sprintf(fileName, "out/animuni_bluenoise%zu.bmp", i);
+
+        // add uniform value to the noise after each frame
+        noise.m_pixels = noiseSrc.m_pixels;
+        float add = float(i) / 8.0f;
+        ImageForEachPixel(
+            noise,
+            [&] (SColor& pixel, size_t pixelIndex)
+            {
+                float valueFloat = (float(pixel.R) / 255.0f) + add;
+                size_t valueBig = size_t(valueFloat * 255.0f);
+                uint8 value = uint8(valueBig % 256);
+                pixel.R = value;
+                pixel.G = value;
+                pixel.B = value;
+            }
+        );
+
+        // DFT the noise
+        if (c_doDFT)
+        {
+            ImageDFT(noise, noiseDFT);
+            GetMagnitudeData(noiseDFT, noiseDFTMag);
+        }
+        else
+        {
+            ImageInit(noiseDFTMag, noise.m_width, noise.m_height);
+            std::fill(noiseDFTMag.m_pixels.begin(), noiseDFTMag.m_pixels.end(), 0);
+        }
+
+        // Histogram test the noise
+        HistogramTest(noise, i, __FUNCTION__);
+
+        // dither the image
+        SImageData dither;
+        DitherWithTexture(ditherImage, noise, dither);
+
+        // save the results
+        SImageData combined;
+        ImageCombine3(noiseDFTMag, noise, dither, combined);
+        ImageSave(combined, fileName);
+    }
+}
+
+//======================================================================================
 void DitherWhiteNoiseAnimatedGoldenRatioIntegrated (const SImageData& ditherImage)
 {
     printf("\n%s\n", __FUNCTION__);
@@ -1292,6 +1477,203 @@ void DitherBlueNoiseAnimatedGoldenRatioIntegrated (const SImageData& ditherImage
 }
 
 //======================================================================================
+void DitherWhiteNoiseAnimatedUniformIntegrated (const SImageData& ditherImage)
+{
+    printf("\n%s\n", __FUNCTION__);
+
+    std::vector<float> integration;
+    integration.resize(ditherImage.m_width * ditherImage.m_height);
+    std::fill(integration.begin(), integration.end(), 0.0f);
+
+    // make noise
+    SImageData noiseSrc;
+    GenerateWhiteNoise(noiseSrc, ditherImage.m_width, ditherImage.m_height);
+
+    SImageData noise;
+    ImageInit(noise, noiseSrc.m_width, noiseSrc.m_height);
+
+    // animate 8 frames
+    for (size_t i = 0; i < 8; ++i)
+    {
+        char fileName[256];
+        sprintf(fileName, "out/animuniint_whitenoise%zu.bmp", i);
+
+        // add uniform value to the noise after each frame
+        noise.m_pixels = noiseSrc.m_pixels;
+        float add = float(i) / 8.0f;
+        ImageForEachPixel(
+            noise,
+            [&] (SColor& pixel, size_t pixelIndex)
+            {
+                float valueFloat = (float(pixel.R) / 255.0f) + add;
+                size_t valueBig = size_t(valueFloat * 255.0f);
+                uint8 value = uint8(valueBig % 256);
+                pixel.R = value;
+                pixel.G = value;
+                pixel.B = value;
+            }
+        );
+
+        // dither the image
+        SImageData dither;
+        DitherWithTexture(ditherImage, noise, dither);
+
+        // integrate and put the current integration results into the dither image
+        ImageForEachPixel(
+            dither,
+            [&] (SColor& pixel, size_t pixelIndex)
+            {
+                float pixelValueFloat = float(pixel.R) / 255.0f;
+                integration[pixelIndex] = Lerp(integration[pixelIndex], pixelValueFloat, 1.0f / float(i+1));
+
+                uint8 integratedPixelValue = uint8(integration[pixelIndex] * 255.0f);
+                pixel.R = integratedPixelValue;
+                pixel.G = integratedPixelValue;
+                pixel.B = integratedPixelValue;
+            }
+        );
+
+        // do an integration test
+        IntegrationTest(dither, ditherImage, i, __FUNCTION__);
+
+        // save the results
+        SImageData combined;
+        ImageCombine2(noise, dither, combined);
+        ImageSave(combined, fileName);
+    }
+}
+
+//======================================================================================
+void DitherInterleavedGradientNoiseAnimatedUniformIntegrated (const SImageData& ditherImage)
+{
+    printf("\n%s\n", __FUNCTION__);
+
+    std::vector<float> integration;
+    integration.resize(ditherImage.m_width * ditherImage.m_height);
+    std::fill(integration.begin(), integration.end(), 0.0f);
+
+    // make noise
+    SImageData noiseSrc;
+    GenerateInterleavedGradientNoise(noiseSrc, ditherImage.m_width, ditherImage.m_height, 0.0f, 0.0f);
+
+    SImageData noise;
+    ImageInit(noise, noiseSrc.m_width, noiseSrc.m_height);
+
+    // animate 8 frames
+    for (size_t i = 0; i < 8; ++i)
+    {
+        char fileName[256];
+        sprintf(fileName, "out/animuniint_ignoise%zu.bmp", i);
+
+        // add uniform value to the noise after each frame
+        noise.m_pixels = noiseSrc.m_pixels;
+        float add = float(i) / 8.0f;
+        ImageForEachPixel(
+            noise,
+            [&] (SColor& pixel, size_t pixelIndex)
+            {
+                float valueFloat = (float(pixel.R) / 255.0f) + add;
+                size_t valueBig = size_t(valueFloat * 255.0f);
+                uint8 value = uint8(valueBig % 256);
+                pixel.R = value;
+                pixel.G = value;
+                pixel.B = value;
+            }
+        );
+
+        // dither the image
+        SImageData dither;
+        DitherWithTexture(ditherImage, noise, dither);
+
+        // integrate and put the current integration results into the dither image
+        ImageForEachPixel(
+            dither,
+            [&] (SColor& pixel, size_t pixelIndex)
+            {
+                float pixelValueFloat = float(pixel.R) / 255.0f;
+                integration[pixelIndex] = Lerp(integration[pixelIndex], pixelValueFloat, 1.0f / float(i+1));
+
+                uint8 integratedPixelValue = uint8(integration[pixelIndex] * 255.0f);
+                pixel.R = integratedPixelValue;
+                pixel.G = integratedPixelValue;
+                pixel.B = integratedPixelValue;
+            }
+        );
+
+        // do an integration test
+        IntegrationTest(dither, ditherImage, i, __FUNCTION__);
+
+        // save the results
+        SImageData combined;
+        ImageCombine2(noise, dither, combined);
+        ImageSave(combined, fileName);
+    }
+}
+
+//======================================================================================
+void DitherBlueNoiseAnimatedUniformIntegrated (const SImageData& ditherImage, const SImageData& noiseSrc)
+{
+    printf("\n%s\n", __FUNCTION__);
+
+    std::vector<float> integration;
+    integration.resize(ditherImage.m_width * ditherImage.m_height);
+    std::fill(integration.begin(), integration.end(), 0.0f);
+
+    SImageData noise;
+    ImageInit(noise, noiseSrc.m_width, noiseSrc.m_height);
+
+    // animate 8 frames
+    for (size_t i = 0; i < 8; ++i)
+    {
+        char fileName[256];
+        sprintf(fileName, "out/animuniint_bluenoise%zu.bmp", i);
+
+        // add uniform value to the noise after each frame
+        noise.m_pixels = noiseSrc.m_pixels;
+        float add = float(i) / 8.0f;
+        ImageForEachPixel(
+            noise,
+            [&] (SColor& pixel, size_t pixelIndex)
+            {
+                float valueFloat = (float(pixel.R) / 255.0f) + add;
+                size_t valueBig = size_t(valueFloat * 255.0f);
+                uint8 value = uint8(valueBig % 256);
+                pixel.R = value;
+                pixel.G = value;
+                pixel.B = value;
+            }
+        );
+
+        // dither the image
+        SImageData dither;
+        DitherWithTexture(ditherImage, noise, dither);
+
+        // integrate and put the current integration results into the dither image
+        ImageForEachPixel(
+            dither,
+            [&] (SColor& pixel, size_t pixelIndex)
+            {
+                float pixelValueFloat = float(pixel.R) / 255.0f;
+                integration[pixelIndex] = Lerp(integration[pixelIndex], pixelValueFloat, 1.0f / float(i+1));
+
+                uint8 integratedPixelValue = uint8(integration[pixelIndex] * 255.0f);
+                pixel.R = integratedPixelValue;
+                pixel.G = integratedPixelValue;
+                pixel.B = integratedPixelValue;
+            }
+        );
+
+        // do an integration test
+        IntegrationTest(dither, ditherImage, i, __FUNCTION__);
+
+        // save the results
+        SImageData combined;
+        ImageCombine2(noise, dither, combined);
+        ImageSave(combined, fileName);
+    }
+}
+
+//======================================================================================
 int main (int argc, char** argv)
 {
     // load the dither image and convert it to greyscale (luma)
@@ -1343,6 +1725,11 @@ int main (int argc, char** argv)
     DitherInterleavedGradientNoiseAnimatedGoldenRatio(ditherImage);
     DitherBlueNoiseAnimatedGoldenRatio(ditherImage, blueNoise[0]);
 
+    // Uniform animated dither tests
+    DitherWhiteNoiseAnimatedUniform(ditherImage);
+    DitherInterleavedGradientNoiseAnimatedUniform(ditherImage);
+    DitherBlueNoiseAnimatedUniform(ditherImage, blueNoise[0]);
+
     // Animated dither integration tests
     DitherWhiteNoiseAnimatedIntegrated(ditherImage);
     DitherInterleavedGradientNoiseAnimatedIntegrated(ditherImage);
@@ -1353,6 +1740,11 @@ int main (int argc, char** argv)
     DitherInterleavedGradientNoiseAnimatedGoldenRatioIntegrated(ditherImage);
     DitherBlueNoiseAnimatedGoldenRatioIntegrated(ditherImage, blueNoise[0]);
 
+    // Uniform animated dither integration tests
+    DitherWhiteNoiseAnimatedUniformIntegrated(ditherImage);
+    DitherInterleavedGradientNoiseAnimatedUniformIntegrated(ditherImage);
+    DitherBlueNoiseAnimatedUniformIntegrated(ditherImage, blueNoise[0]);
+
     fclose(g_logFile);
 
     return 0;
@@ -1360,67 +1752,10 @@ int main (int argc, char** argv)
 
 /*
 
-* does it make sense that variance goes up in some cases? check it out...
-
-Blog:
-* show a comparison of dithering the tree image using white noise, blue noise, interleaved gradient noise.
- * maybe put the noise pattern next to the dithered image as a single image
- * white noise is worst, blue noise is best, interleaved gradient noise is in the middle.
-
-* I think i have "ulimited" blue noise textures with those 8.
- * random pixel offset (it tiles well)
- * mirror x axis
- * mirror y axis
- * flip x and y
- * invert (1.0 - grey)
- ? ask SE if anyone can say how this would compare to having more textures?
- * maybe put this on blog post? may also want to compare it vs the others? i dunno
- * maybe note on blog and say "didn't test"
-
-* mention that higher sample counts may have different results. white noise beats out LDS / blue noise at higher sample counts i think. (can you re-confirm that?)
-
-* what about animated noise?
- * have an extra dimension of time.
- * show animations of white noise, blue noise (get 8 from that place?), interleaved gradient noise (choose random offset for each frame?).
-  * should there be slow and fast versions?
- * show the same with golden ratio added each frame.
-
-* maybe also need to show some "integration over time" and graphs of how well it's integrating?
- * maybe a black / white sample per pixel each frame and incrementally average it to get integrated result.
- * should come out to even grey. (or should we do it with the image?)
- * show mean and standard deviation over time (csv)
- * animated gif as appropriate?
-
-? do we want to show DFT frequency magnitude for any of these?
-
-* R4 unit is the one that suggested adding golden ratio to blue noise.
-
-* adding GR to bn adds low frequency components. Maybe worth it though to make it more LDS over time?
-
-? blue noise + golden ratio issues and adding low frequency details: is the problem that we are using an LDR image format and so have just u8 data to start with?
- * starting with a floating point value for blue noise may make the problem go away?
- * I didn't test.
-
-* when manually adding golden ratio to noise (or when generating the interleaved gradient noise!), real easy to mess it up and make your histogram not full.
- * ie if you mod(blah, 1.0) and multiply by 255, you will have no 255!
- * better to convert it into ints and mod 256. I made that mistake and didn't notice it until i made it spit out histogram data.
-
-* Ideal for 2d samples over time is NOT 3d blue noise - show link to that.
- * it's having each 2d texture be blue noise, but looking at each individual pixel over time is blue over time.
- * how a 2d blue noise DFT shows a dark circle in noise, 3d blue noise DFT shows a dark orb in noise. This would be more like a dark cylinder in noise i think. (need to experiment)
-
-* How to make?
- * could try doing 3d blue noise texture then normalize the histogram of each slice
- * topic of next blog post?
- * not perfect but maybe reasonable.
- * could attempt this in 2d. Renormalize each x axis slice.
- * How would you make this weird blue noise for real in 2d? need x axis and y axis both being blue noise.
-
-Links:
-* free blue noise textures site
- * and the 3d blue noise one
-* interleaved gradient links
-
+* instead of golden ratio, do even interval stuff. how does that compare?
+* if good, maybe look at a 1d blue noise sequence?
+* there's maybe more stuff in email / twitter, only a little.
+* anything to be done / fixed about IG noise? spiral stuff maybe?
 
 Next blog post:
 * taking 2d blue noise, normalizing histogram of each row, seeing how that does for integration & show the 1d DFT's!
