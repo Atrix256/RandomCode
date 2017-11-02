@@ -1757,6 +1757,9 @@ int main (int argc, char** argv)
 * there's maybe more stuff in email / twitter, only a little.
 * anything to be done / fixed about IG noise? spiral stuff maybe?
 
+* if this is true about uniform samples being better by the end, maybe try shuffling them to get closer faster? like van der corput maybe. or just try a shuffle. or try to find optimal. like a visual binary search :P
+
+
 Next blog post:
 * taking 2d blue noise, normalizing histogram of each row, seeing how that does for integration & show the 1d DFT's!
 * scale it to 3d blue noise and try the same?
