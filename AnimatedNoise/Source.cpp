@@ -602,6 +602,25 @@ void GenerateInterleavedGradientNoise (SImageData& image, size_t width, size_t h
 }
 
 //======================================================================================
+template <size_t NUM_SAMPLES>
+void GenerateVanDerCoruptSequence (std::array<float, NUM_SAMPLES>& samples, size_t base)
+{
+    for (size_t i = 0; i < NUM_SAMPLES; ++i)
+    {
+        samples[i] = 0.0f;
+        float denominator = float(base);
+        size_t n = i;
+        while (n > 0)
+        {
+            size_t multiplier = n % base;
+            samples[i] += float(multiplier) / denominator;
+            n = n / base;
+            denominator *= base;
+        }
+    }
+}
+
+//======================================================================================
 void DitherWithTexture (const SImageData& ditherImage, const SImageData& noiseImage, SImageData& result)
 {
     // init the result image
@@ -1674,7 +1693,7 @@ void DitherBlueNoiseAnimatedUniformIntegrated (const SImageData& ditherImage, co
 }
 
 //======================================================================================
-void DitherWhiteNoiseAnimatedUniformIntegrated (const SImageData& ditherImage)
+void DitherWhiteNoiseAnimatedVDCIntegrated (const SImageData& ditherImage)
 {
     printf("\n%s\n", __FUNCTION__);
 
@@ -1689,15 +1708,19 @@ void DitherWhiteNoiseAnimatedUniformIntegrated (const SImageData& ditherImage)
     SImageData noise;
     ImageInit(noise, noiseSrc.m_width, noiseSrc.m_height);
 
+    // Make Van Der Corput sequence
+    std::array<float, 8> VDC;
+    GenerateVanDerCoruptSequence(VDC, 2);
+
     // animate 8 frames
     for (size_t i = 0; i < 8; ++i)
     {
         char fileName[256];
-        sprintf(fileName, "out/animuniint_whitenoise%zu.bmp", i);
+        sprintf(fileName, "out/animvdcint_whitenoise%zu.bmp", i);
 
         // add uniform value to the noise after each frame
         noise.m_pixels = noiseSrc.m_pixels;
-        float add = float(i) / 8.0f;
+        float add = VDC[i];
         ImageForEachPixel(
             noise,
             [&] (SColor& pixel, size_t pixelIndex)
@@ -1741,7 +1764,7 @@ void DitherWhiteNoiseAnimatedUniformIntegrated (const SImageData& ditherImage)
 }
 
 //======================================================================================
-void DitherInterleavedGradientNoiseAnimatedUniformIntegrated (const SImageData& ditherImage)
+void DitherInterleavedGradientNoiseAnimatedVDCIntegrated (const SImageData& ditherImage)
 {
     printf("\n%s\n", __FUNCTION__);
 
@@ -1756,15 +1779,19 @@ void DitherInterleavedGradientNoiseAnimatedUniformIntegrated (const SImageData& 
     SImageData noise;
     ImageInit(noise, noiseSrc.m_width, noiseSrc.m_height);
 
+    // Make Van Der Corput sequence
+    std::array<float, 8> VDC;
+    GenerateVanDerCoruptSequence(VDC, 2);
+
     // animate 8 frames
     for (size_t i = 0; i < 8; ++i)
     {
         char fileName[256];
-        sprintf(fileName, "out/animuniint_ignoise%zu.bmp", i);
+        sprintf(fileName, "out/animvdcint_ignoise%zu.bmp", i);
 
         // add uniform value to the noise after each frame
         noise.m_pixels = noiseSrc.m_pixels;
-        float add = float(i) / 8.0f;
+        float add = VDC[i];
         ImageForEachPixel(
             noise,
             [&] (SColor& pixel, size_t pixelIndex)
@@ -1808,7 +1835,7 @@ void DitherInterleavedGradientNoiseAnimatedUniformIntegrated (const SImageData& 
 }
 
 //======================================================================================
-void DitherBlueNoiseAnimatedUniformIntegrated (const SImageData& ditherImage, const SImageData& noiseSrc)
+void DitherBlueNoiseAnimatedVDCIntegrated (const SImageData& ditherImage, const SImageData& noiseSrc)
 {
     printf("\n%s\n", __FUNCTION__);
 
@@ -1819,15 +1846,19 @@ void DitherBlueNoiseAnimatedUniformIntegrated (const SImageData& ditherImage, co
     SImageData noise;
     ImageInit(noise, noiseSrc.m_width, noiseSrc.m_height);
 
+    // Make Van Der Corput sequence
+    std::array<float, 8> VDC;
+    GenerateVanDerCoruptSequence(VDC, 2);
+
     // animate 8 frames
     for (size_t i = 0; i < 8; ++i)
     {
         char fileName[256];
-        sprintf(fileName, "out/animuniint_bluenoise%zu.bmp", i);
+        sprintf(fileName, "out/animvdcint_bluenoise%zu.bmp", i);
 
         // add uniform value to the noise after each frame
         noise.m_pixels = noiseSrc.m_pixels;
-        float add = float(i) / 8.0f;
+        float add = VDC[i];
         ImageForEachPixel(
             noise,
             [&] (SColor& pixel, size_t pixelIndex)

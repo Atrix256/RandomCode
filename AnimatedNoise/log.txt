@@ -765,3 +765,148 @@ DitherBlueNoiseAnimatedUniformIntegrated 7 error
   max error: 33
   avg error: 11.12
   stddev: 7.88
+
+DitherWhiteNoiseAnimatedVDCIntegrated 0 error
+  min error: 0
+  max error: 251
+  avg error: 108.17
+  stddev: 37.37
+
+DitherWhiteNoiseAnimatedVDCIntegrated 1 error
+  min error: 0
+  max error: 128
+  avg error: 36.46
+  stddev: 31.08
+
+DitherWhiteNoiseAnimatedVDCIntegrated 2 error
+  min error: 0
+  max error: 128
+  avg error: 39.39
+  stddev: 25.15
+
+DitherWhiteNoiseAnimatedVDCIntegrated 3 error
+  min error: 0
+  max error: 65
+  avg error: 20.37
+  stddev: 15.08
+
+DitherWhiteNoiseAnimatedVDCIntegrated 4 error
+  min error: 0
+  max error: 88
+  avg error: 24.59
+  stddev: 16.27
+
+DitherWhiteNoiseAnimatedVDCIntegrated 5 error
+  min error: 0
+  max error: 64
+  avg error: 16.77
+  stddev: 12.81
+
+DitherWhiteNoiseAnimatedVDCIntegrated 6 error
+  min error: 0
+  max error: 62
+  avg error: 17.58
+  stddev: 11.30
+
+DitherWhiteNoiseAnimatedVDCIntegrated 7 error
+  min error: 0
+  max error: 33
+  avg error: 11.14
+  stddev: 7.49
+
+DitherInterleavedGradientNoiseAnimatedVDCIntegrated 0 error
+  min error: 0
+  max error: 254
+  avg error: 107.99
+  stddev: 37.45
+
+DitherInterleavedGradientNoiseAnimatedVDCIntegrated 1 error
+  min error: 0
+  max error: 128
+  avg error: 36.44
+  stddev: 31.63
+
+DitherInterleavedGradientNoiseAnimatedVDCIntegrated 2 error
+  min error: 0
+  max error: 128
+  avg error: 39.38
+  stddev: 25.52
+
+DitherInterleavedGradientNoiseAnimatedVDCIntegrated 3 error
+  min error: 0
+  max error: 65
+  avg error: 20.38
+  stddev: 16.57
+
+DitherInterleavedGradientNoiseAnimatedVDCIntegrated 4 error
+  min error: 0
+  max error: 89
+  avg error: 24.62
+  stddev: 16.43
+
+DitherInterleavedGradientNoiseAnimatedVDCIntegrated 5 error
+  min error: 0
+  max error: 64
+  avg error: 16.73
+  stddev: 12.97
+
+DitherInterleavedGradientNoiseAnimatedVDCIntegrated 6 error
+  min error: 0
+  max error: 64
+  avg error: 17.61
+  stddev: 11.93
+
+DitherInterleavedGradientNoiseAnimatedVDCIntegrated 7 error
+  min error: 0
+  max error: 33
+  avg error: 11.10
+  stddev: 8.19
+
+DitherBlueNoiseAnimatedVDCIntegrated 0 error
+  min error: 0
+  max error: 253
+  avg error: 107.86
+  stddev: 38.20
+
+DitherBlueNoiseAnimatedVDCIntegrated 1 error
+  min error: 0
+  max error: 128
+  avg error: 36.31
+  stddev: 30.66
+
+DitherBlueNoiseAnimatedVDCIntegrated 2 error
+  min error: 0
+  max error: 128
+  avg error: 39.41
+  stddev: 24.48
+
+DitherBlueNoiseAnimatedVDCIntegrated 3 error
+  min error: 0
+  max error: 65
+  avg error: 20.35
+  stddev: 15.15
+
+DitherBlueNoiseAnimatedVDCIntegrated 4 error
+  min error: 0
+  max error: 90
+  avg error: 24.67
+  stddev: 16.03
+
+DitherBlueNoiseAnimatedVDCIntegrated 5 error
+  min error: 0
+  max error: 65
+  avg error: 16.76
+  stddev: 12.19
+
+DitherBlueNoiseAnimatedVDCIntegrated 6 error
+  min error: 0
+  max error: 64
+  avg error: 17.55
+  stddev: 11.30
+
+DitherBlueNoiseAnimatedVDCIntegrated 7 error
+  min error: 0
+  max error: 33
+  avg error: 11.12
+  stddev: 7.88
+
