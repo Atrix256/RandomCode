@@ -14,7 +14,7 @@ typedef uint8_t uint8;
 const float c_pi = 3.14159265359f;
 
 // settings
-const bool c_doDFT = false; // TODO: true before checkin!
+const bool c_doDFT = true;
 
 // globals 
 FILE* g_logFile = nullptr;
