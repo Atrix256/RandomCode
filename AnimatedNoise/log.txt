@@ -910,3 +910,32 @@ DitherBlueNoiseAnimatedVDCIntegrated 7 error
   avg error: 11.12
   stddev: 7.88
 
+DitherInterleavedGradientNoiseOffset1AnimatedIntegrated error
+  min error: 0, 0, 0, 0, 0, 0, 0, 0, 
+  max error: 254, 219, 188, 155, 120, 87, 51, 48, 
+  avg error: 107.99, 84.02, 69.08, 53.44, 38.98, 24.71, 13.57, 12.86, 
+  stddev: 37.45, 51.99, 43.21, 36.43, 25.31, 16.98, 9.40, 9.44, 
+
+DitherInterleavedGradientNoiseOffset33AnimatedIntegrated error
+  min error: 0, 0, 0, 0, 0, 0, 0, 0, 
+  max error: 254, 194, 134, 71, 94, 100, 89, 62, 
+  avg error: 107.99, 65.75, 40.55, 20.64, 25.76, 26.89, 22.24, 16.83, 
+  stddev: 37.45, 51.35, 26.33, 16.54, 16.19, 20.24, 15.25, 12.51, 
+
+DitherInterleavedGradientNoiseOffsetGRAnimatedIntegrated error
+  min error: 0, 0, 0, 0, 0, 0, 0, 0, 
+  max error: 254, 189, 125, 70, 94, 100, 85, 62, 
+  avg error: 107.99, 63.40, 37.84, 20.51, 28.05, 27.23, 21.69, 17.90, 
+  stddev: 37.45, 49.43, 24.90, 16.12, 17.51, 19.99, 14.80, 13.44, 
+
+DitherInterleavedGradientNoiseOffsetGR8AnimatedIntegrated error
+  min error: 0, 0, 0, 0, 0, 0, 0, 0, 
+  max error: 254, 172, 102, 112, 87, 112, 102, 80, 
+  avg error: 107.99, 51.88, 32.87, 38.33, 23.99, 31.38, 31.12, 25.05, 
+  stddev: 37.45, 45.13, 20.44, 24.43, 16.35, 20.75, 21.88, 17.61, 
+
+DitherInterleavedGradientNoiseOffsetVDCAnimatedIntegrated error
+  min error: 0, 0, 0, 0, 0, 0, 0, 0, 
+  max error: 254, 138, 120, 76, 87, 68, 51, 48, 
+  avg error: 107.99, 37.33, 36.00, 21.51, 24.81, 17.14, 13.57, 12.86, 
+  stddev: 37.45, 33.16, 22.16, 17.63, 17.88, 13.83, 9.40, 9.44, 
