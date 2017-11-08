@@ -2354,11 +2354,15 @@ int main (int argc, char** argv)
 
     // --------------  PART 3: Interleaved Gradient Noise 
 
+    /*
     DitherInterleavedGradientNoiseOffset1AnimatedIntegrated(ditherImage);
     DitherInterleavedGradientNoiseOffset33AnimatedIntegrated(ditherImage);
     DitherInterleavedGradientNoiseOffsetGRAnimatedIntegrated(ditherImage);
     DitherInterleavedGradientNoiseOffsetGR8AnimatedIntegrated(ditherImage);
     DitherInterleavedGradientNoiseOffsetVDCAnimatedIntegrated(ditherImage);
+    */
+
+    //TODO: exponential decay thing. try a value of 0.9?
 
     fclose(g_logFile);
 
@@ -2378,6 +2382,8 @@ IG Noise stuff:
 * whatever else in email / show jorge / collaborate
 * uncomment the code you commented to make it run faster
 
+? is an exponential value of 0.9 reasonable / decent?
+* shgould vdc be * 9 or *8? look at the other thing that does *9 and make sure that's correct
 
 Next blog post:
 * taking 2d blue noise, normalizing histogram of each row, seeing how that does for integration & show the 1d DFT's!
