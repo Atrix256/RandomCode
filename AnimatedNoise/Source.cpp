@@ -2270,6 +2270,302 @@ void DitherInterleavedGradientNoiseOffsetVDCAnimatedIntegrated (const SImageData
 }
 
 //======================================================================================
+void DitherInterleavedGradientNoiseOffset1AnimatedIntegratedDecay (const SImageData& ditherImage)
+{
+    printf("\n%s\n", __FUNCTION__);
+
+    std::vector<float> integration;
+    integration.resize(ditherImage.m_width * ditherImage.m_height);
+    std::fill(integration.begin(), integration.end(), 0.0f);
+
+    std::array<size_t, 8> minError;
+    std::array<size_t, 8> maxError;
+    std::array<float, 8> averageError;
+    std::array<float, 8> stdDevError;
+
+    // animate 8 frames
+    for (size_t i = 0; i < 8; ++i)
+    {
+        char fileName[256];
+        sprintf(fileName, "out/animintoffsetdec_1_ignoise%zu.bmp", i);
+
+        // make noise, offsetting 1 pixel each frame
+        SImageData noise;
+        GenerateInterleavedGradientNoise(noise, ditherImage.m_width, ditherImage.m_height, float(i), float(i));
+
+        // dither the image
+        SImageData dither;
+        DitherWithTexture(ditherImage, noise, dither);
+
+        // integrate and put the current integration results into the dither image
+        ImageForEachPixel(
+            dither,
+            [&] (SColor& pixel, size_t pixelIndex)
+            {
+                float pixelValueFloat = float(pixel.R) / 255.0f;
+                if (i == 0)
+                    integration[pixelIndex] = pixelValueFloat;
+                else
+                    integration[pixelIndex] = Lerp(integration[pixelIndex], pixelValueFloat, 0.1f);
+
+                uint8 integratedPixelValue = uint8(integration[pixelIndex] * 255.0f);
+                pixel.R = integratedPixelValue;
+                pixel.G = integratedPixelValue;
+                pixel.B = integratedPixelValue;
+            }
+        );
+
+        // do an integration test
+        IntegrationTest2(dither, ditherImage, i, minError, maxError, averageError, stdDevError);
+
+        // save the results
+        SImageData combined;
+        ImageCombine2(noise, dither, combined);
+        ImageSave(combined, fileName);
+    }
+
+    WriteIntegrationTest2(minError, maxError, averageError, stdDevError, __FUNCTION__);
+}
+
+//======================================================================================
+void DitherInterleavedGradientNoiseOffset33AnimatedIntegratedDecay (const SImageData& ditherImage)
+{
+    printf("\n%s\n", __FUNCTION__);
+
+    std::vector<float> integration;
+    integration.resize(ditherImage.m_width * ditherImage.m_height);
+    std::fill(integration.begin(), integration.end(), 0.0f);
+
+    std::array<size_t, 8> minError;
+    std::array<size_t, 8> maxError;
+    std::array<float, 8> averageError;
+    std::array<float, 8> stdDevError;
+
+    // animate 8 frames
+    for (size_t i = 0; i < 8; ++i)
+    {
+        char fileName[256];
+        sprintf(fileName, "out/animintoffsetdec_33_ignoise%zu.bmp", i);
+
+        // make noise, offsetting it each frame
+        SImageData noise;
+        GenerateInterleavedGradientNoise(noise, ditherImage.m_width, ditherImage.m_height, float(i)*3.3f, float(i)*3.3f);
+
+        // dither the image
+        SImageData dither;
+        DitherWithTexture(ditherImage, noise, dither);
+
+        // integrate and put the current integration results into the dither image
+        ImageForEachPixel(
+            dither,
+            [&] (SColor& pixel, size_t pixelIndex)
+            {
+                float pixelValueFloat = float(pixel.R) / 255.0f;
+                if (i == 0)
+                    integration[pixelIndex] = pixelValueFloat;
+                else
+                    integration[pixelIndex] = Lerp(integration[pixelIndex], pixelValueFloat, 0.1f);
+
+                uint8 integratedPixelValue = uint8(integration[pixelIndex] * 255.0f);
+                pixel.R = integratedPixelValue;
+                pixel.G = integratedPixelValue;
+                pixel.B = integratedPixelValue;
+            }
+        );
+
+        // do an integration test
+        IntegrationTest2(dither, ditherImage, i, minError, maxError, averageError, stdDevError);
+
+        // save the results
+        SImageData combined;
+        ImageCombine2(noise, dither, combined);
+        ImageSave(combined, fileName);
+    }
+
+    WriteIntegrationTest2(minError, maxError, averageError, stdDevError, __FUNCTION__);
+}
+
+//======================================================================================
+void DitherInterleavedGradientNoiseOffsetGRAnimatedIntegratedDecay (const SImageData& ditherImage)
+{
+    printf("\n%s\n", __FUNCTION__);
+
+    std::vector<float> integration;
+    integration.resize(ditherImage.m_width * ditherImage.m_height);
+    std::fill(integration.begin(), integration.end(), 0.0f);
+
+    std::array<size_t, 8> minError;
+    std::array<size_t, 8> maxError;
+    std::array<float, 8> averageError;
+    std::array<float, 8> stdDevError;
+
+    // animate 8 frames
+    for (size_t i = 0; i < 8; ++i)
+    {
+        char fileName[256];
+        sprintf(fileName, "out/animintoffsetdec_gr_ignoise%zu.bmp", i);
+
+        // make noise, offsetting it each frame
+        SImageData noise;
+        GenerateInterleavedGradientNoise(noise, ditherImage.m_width, ditherImage.m_height, GoldenRatioMultiple(i), GoldenRatioMultiple(i));
+
+        // dither the image
+        SImageData dither;
+        DitherWithTexture(ditherImage, noise, dither);
+
+        // integrate and put the current integration results into the dither image
+        ImageForEachPixel(
+            dither,
+            [&] (SColor& pixel, size_t pixelIndex)
+            {
+                float pixelValueFloat = float(pixel.R) / 255.0f;
+                if (i == 0)
+                    integration[pixelIndex] = pixelValueFloat;
+                else
+                    integration[pixelIndex] = Lerp(integration[pixelIndex], pixelValueFloat, 0.1f);
+
+                uint8 integratedPixelValue = uint8(integration[pixelIndex] * 255.0f);
+                pixel.R = integratedPixelValue;
+                pixel.G = integratedPixelValue;
+                pixel.B = integratedPixelValue;
+            }
+        );
+
+        // do an integration test
+        IntegrationTest2(dither, ditherImage, i, minError, maxError, averageError, stdDevError);
+
+        // save the results
+        SImageData combined;
+        ImageCombine2(noise, dither, combined);
+        ImageSave(combined, fileName);
+    }
+
+    WriteIntegrationTest2(minError, maxError, averageError, stdDevError, __FUNCTION__);
+}
+
+//======================================================================================
+void DitherInterleavedGradientNoiseOffsetGR8AnimatedIntegratedDecay (const SImageData& ditherImage)
+{
+    printf("\n%s\n", __FUNCTION__);
+
+    std::vector<float> integration;
+    integration.resize(ditherImage.m_width * ditherImage.m_height);
+    std::fill(integration.begin(), integration.end(), 0.0f);
+
+    std::array<size_t, 8> minError;
+    std::array<size_t, 8> maxError;
+    std::array<float, 8> averageError;
+    std::array<float, 8> stdDevError;
+
+    // animate 8 frames
+    for (size_t i = 0; i < 8; ++i)
+    {
+        char fileName[256];
+        sprintf(fileName, "out/animintoffsetdec_gr8_ignoise%zu.bmp", i);
+
+        // make noise, offsetting it each frame
+        SImageData noise;
+        float offset = std::floor(9.0f * std::fmodf(GoldenRatioMultiple(i), 1.0f));
+        GenerateInterleavedGradientNoise(noise, ditherImage.m_width, ditherImage.m_height, offset, offset);
+
+        // dither the image
+        SImageData dither;
+        DitherWithTexture(ditherImage, noise, dither);
+
+        // integrate and put the current integration results into the dither image
+        ImageForEachPixel(
+            dither,
+            [&] (SColor& pixel, size_t pixelIndex)
+            {
+                float pixelValueFloat = float(pixel.R) / 255.0f;
+                if (i == 0)
+                    integration[pixelIndex] = pixelValueFloat;
+                else
+                    integration[pixelIndex] = Lerp(integration[pixelIndex], pixelValueFloat, 0.1f);
+
+                uint8 integratedPixelValue = uint8(integration[pixelIndex] * 255.0f);
+                pixel.R = integratedPixelValue;
+                pixel.G = integratedPixelValue;
+                pixel.B = integratedPixelValue;
+            }
+        );
+
+        // do an integration test
+        IntegrationTest2(dither, ditherImage, i, minError, maxError, averageError, stdDevError);
+
+        // save the results
+        SImageData combined;
+        ImageCombine2(noise, dither, combined);
+        ImageSave(combined, fileName);
+    }
+
+    WriteIntegrationTest2(minError, maxError, averageError, stdDevError, __FUNCTION__);
+}
+
+//======================================================================================
+void DitherInterleavedGradientNoiseOffsetVDCAnimatedIntegratedDecay (const SImageData& ditherImage)
+{
+    printf("\n%s\n", __FUNCTION__);
+
+    std::vector<float> integration;
+    integration.resize(ditherImage.m_width * ditherImage.m_height);
+    std::fill(integration.begin(), integration.end(), 0.0f);
+
+    std::array<size_t, 8> minError;
+    std::array<size_t, 8> maxError;
+    std::array<float, 8> averageError;
+    std::array<float, 8> stdDevError;
+
+    // Make Van Der Corput sequence
+    std::array<float, 8> VDC;
+    GenerateVanDerCoruptSequence(VDC, 2);
+
+    // animate 8 frames
+    for (size_t i = 0; i < 8; ++i)
+    {
+        char fileName[256];
+        sprintf(fileName, "out/animintoffsetdec_vdc_ignoise%zu.bmp", i);
+
+        // make noise, offsetting it each frame
+        SImageData noise;
+        float offset = std::floor(8.0f * VDC[i]);
+        GenerateInterleavedGradientNoise(noise, ditherImage.m_width, ditherImage.m_height, offset, offset);
+
+        // dither the image
+        SImageData dither;
+        DitherWithTexture(ditherImage, noise, dither);
+
+        // integrate and put the current integration results into the dither image
+        ImageForEachPixel(
+            dither,
+            [&] (SColor& pixel, size_t pixelIndex)
+            {
+                float pixelValueFloat = float(pixel.R) / 255.0f;
+                if (i == 0)
+                    integration[pixelIndex] = pixelValueFloat;
+                else
+                    integration[pixelIndex] = Lerp(integration[pixelIndex], pixelValueFloat, 0.1f);
+
+                uint8 integratedPixelValue = uint8(integration[pixelIndex] * 255.0f);
+                pixel.R = integratedPixelValue;
+                pixel.G = integratedPixelValue;
+                pixel.B = integratedPixelValue;
+            }
+        );
+
+        // do an integration test
+        IntegrationTest2(dither, ditherImage, i, minError, maxError, averageError, stdDevError);
+
+        // save the results
+        SImageData combined;
+        ImageCombine2(noise, dither, combined);
+        ImageSave(combined, fileName);
+    }
+
+    WriteIntegrationTest2(minError, maxError, averageError, stdDevError, __FUNCTION__);
+}
+
+//======================================================================================
 int main (int argc, char** argv)
 {
     // load the dither image and convert it to greyscale (luma)
@@ -2350,11 +2646,10 @@ int main (int argc, char** argv)
     DitherWhiteNoiseAnimatedVDCIntegrated(ditherImage);
     DitherInterleavedGradientNoiseAnimatedVDCIntegrated(ditherImage);
     DitherBlueNoiseAnimatedVDCIntegrated(ditherImage, blueNoise[0]);
-    */
 
     // --------------  PART 3: Interleaved Gradient Noise 
 
-    /*
+    // offsets
     DitherInterleavedGradientNoiseOffset1AnimatedIntegrated(ditherImage);
     DitherInterleavedGradientNoiseOffset33AnimatedIntegrated(ditherImage);
     DitherInterleavedGradientNoiseOffsetGRAnimatedIntegrated(ditherImage);
@@ -2362,7 +2657,12 @@ int main (int argc, char** argv)
     DitherInterleavedGradientNoiseOffsetVDCAnimatedIntegrated(ditherImage);
     */
 
-    //TODO: exponential decay thing. try a value of 0.9?
+    // exponential decay offsets
+    DitherInterleavedGradientNoiseOffset1AnimatedIntegratedDecay(ditherImage);
+    DitherInterleavedGradientNoiseOffset33AnimatedIntegratedDecay(ditherImage);
+    DitherInterleavedGradientNoiseOffsetGRAnimatedIntegratedDecay(ditherImage);
+    DitherInterleavedGradientNoiseOffsetGR8AnimatedIntegratedDecay(ditherImage);
+    DitherInterleavedGradientNoiseOffsetVDCAnimatedIntegratedDecay(ditherImage);
 
     fclose(g_logFile);
 
@@ -2372,18 +2672,17 @@ int main (int argc, char** argv)
 /*
 
 IG Noise stuff:
-* exponential decay
-* clean up log output to make it put all data together to make it easier to graph?
 
-? do we care that we are starting at 0,0 of ign? maybe different properties at different offsets? kinda think we don't...
-? should you do the same analasys with white and blue noise to show that it is special?
-
-* make animations and graphs to share w/ jorge
+* i think i should do like a 60 frame analasys of the decay things? no need for animation, just do to see how it converges after 1 second.
+ * could show every 5 or 10 images or something maybe? or just last frame perhaps
 * whatever else in email / show jorge / collaborate
-* uncomment the code you commented to make it run faster
+* uncomment the code you commented here to make it run faster
 
-? is an exponential value of 0.9 reasonable / decent?
-* shgould vdc be * 9 or *8? look at the other thing that does *9 and make sure that's correct
+Jorge:
+ * share animations and graphs
+ * starting at (0,0) of IGN.
+ ? is an exponential value of 0.9 reasonable / decent?
+  * is it also ok on i = 0 to take the first sample and use it w/o lerp?
 
 Next blog post:
 * taking 2d blue noise, normalizing histogram of each row, seeing how that does for integration & show the 1d DFT's!
