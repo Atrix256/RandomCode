@@ -2693,6 +2693,11 @@ IG Noise stuff:
  * could show every 5 or 10 images or something maybe? or just last frame perhaps
  * yeah last frame seems reasonable
 * uncomment the code you commented here to make it run faster
+? Could try having VDC do 60 (64?) steps to see how it works / if it makes that error hump go away.
+ * maybe convert the loop to do 64 steps if so.
+ * problem = need to know number of samples though? or let it take a second to do it?
+ * or maybe do 16 or 32 steps of VDC? see what works best perhaps.
+! it would be nice if the error and standard dev graphs could use the same colors. maybe fix that by breaking the data up into 2 sections or something?
 
 Jorge:
  * share animations and graphs
