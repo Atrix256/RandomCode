@@ -2345,7 +2345,7 @@ void DitherInterleavedGradientNoiseOffset33AnimatedIntegratedDecay (const SImage
     std::array<float, 60> stdDevError;
 
     // animate 60 frames, but only write out the first 8
-    for (size_t i = 0; i < 8; ++i)
+    for (size_t i = 0; i < 60; ++i)
     {
         char fileName[256];
         sprintf(fileName, "out/animintoffsetdec_33_ignoise%zu.bmp", i);
@@ -2406,7 +2406,7 @@ void DitherInterleavedGradientNoiseOffsetGRAnimatedIntegratedDecay (const SImage
     std::array<float, 60> stdDevError;
 
     // animate 60 frames, but only write out the first 8
-    for (size_t i = 0; i < 8; ++i)
+    for (size_t i = 0; i < 60; ++i)
     {
         char fileName[256];
         sprintf(fileName, "out/animintoffsetdec_gr_ignoise%zu.bmp", i);
@@ -2467,7 +2467,7 @@ void DitherInterleavedGradientNoiseOffsetGR8AnimatedIntegratedDecay (const SImag
     std::array<float, 60> stdDevError;
 
     // animate 60 frames, but only write out the first 8
-    for (size_t i = 0; i < 8; ++i)
+    for (size_t i = 0; i < 60; ++i)
     {
         char fileName[256];
         sprintf(fileName, "out/animintoffsetdec_gr8_ignoise%zu.bmp", i);
@@ -2533,7 +2533,7 @@ void DitherInterleavedGradientNoiseOffsetVDCAnimatedIntegratedDecay (const SImag
     GenerateVanDerCoruptSequence(VDC, 2);
 
     // animate 60 frames, but only write out the first 8
-    for (size_t i = 0; i < 8; ++i)
+    for (size_t i = 0; i < 60; ++i)
     {
         char fileName[256];
         sprintf(fileName, "out/animintoffsetdec_vdc_ignoise%zu.bmp", i);
@@ -2688,6 +2688,7 @@ int main (int argc, char** argv)
 
 IG Noise stuff:
 
+! you didn't change the for loops to go until 60 . the graphs to 60 are invalid! fix and get last frame images and graphs to 60.
 * i think i should do like a 60 frame analasys of the decay things? no need for animation, just do to see how it converges after 1 second.
  * could show every 5 or 10 images or something maybe? or just last frame perhaps
  * yeah last frame seems reasonable
