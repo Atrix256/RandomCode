@@ -2278,13 +2278,13 @@ void DitherInterleavedGradientNoiseOffset1AnimatedIntegratedDecay (const SImageD
     integration.resize(ditherImage.m_width * ditherImage.m_height);
     std::fill(integration.begin(), integration.end(), 0.0f);
 
-    std::array<size_t, 8> minError;
-    std::array<size_t, 8> maxError;
-    std::array<float, 8> averageError;
-    std::array<float, 8> stdDevError;
+    std::array<size_t, 60> minError;
+    std::array<size_t, 60> maxError;
+    std::array<float, 60> averageError;
+    std::array<float, 60> stdDevError;
 
-    // animate 8 frames
-    for (size_t i = 0; i < 8; ++i)
+    // animate 60 frames, but only write out the first 8
+    for (size_t i = 0; i < 60; ++i)
     {
         char fileName[256];
         sprintf(fileName, "out/animintoffsetdec_1_ignoise%zu.bmp", i);
@@ -2319,9 +2319,12 @@ void DitherInterleavedGradientNoiseOffset1AnimatedIntegratedDecay (const SImageD
         IntegrationTest2(dither, ditherImage, i, minError, maxError, averageError, stdDevError);
 
         // save the results
-        SImageData combined;
-        ImageCombine2(noise, dither, combined);
-        ImageSave(combined, fileName);
+        if (i < 8 || i == 59)
+        {
+            SImageData combined;
+            ImageCombine2(noise, dither, combined);
+            ImageSave(combined, fileName);
+        }
     }
 
     WriteIntegrationTest2(minError, maxError, averageError, stdDevError, __FUNCTION__);
@@ -2336,12 +2339,12 @@ void DitherInterleavedGradientNoiseOffset33AnimatedIntegratedDecay (const SImage
     integration.resize(ditherImage.m_width * ditherImage.m_height);
     std::fill(integration.begin(), integration.end(), 0.0f);
 
-    std::array<size_t, 8> minError;
-    std::array<size_t, 8> maxError;
-    std::array<float, 8> averageError;
-    std::array<float, 8> stdDevError;
+    std::array<size_t, 60> minError;
+    std::array<size_t, 60> maxError;
+    std::array<float, 60> averageError;
+    std::array<float, 60> stdDevError;
 
-    // animate 8 frames
+    // animate 60 frames, but only write out the first 8
     for (size_t i = 0; i < 8; ++i)
     {
         char fileName[256];
@@ -2377,9 +2380,12 @@ void DitherInterleavedGradientNoiseOffset33AnimatedIntegratedDecay (const SImage
         IntegrationTest2(dither, ditherImage, i, minError, maxError, averageError, stdDevError);
 
         // save the results
-        SImageData combined;
-        ImageCombine2(noise, dither, combined);
-        ImageSave(combined, fileName);
+        if (i < 8 || i == 59)
+        {
+            SImageData combined;
+            ImageCombine2(noise, dither, combined);
+            ImageSave(combined, fileName);
+        }
     }
 
     WriteIntegrationTest2(minError, maxError, averageError, stdDevError, __FUNCTION__);
@@ -2394,12 +2400,12 @@ void DitherInterleavedGradientNoiseOffsetGRAnimatedIntegratedDecay (const SImage
     integration.resize(ditherImage.m_width * ditherImage.m_height);
     std::fill(integration.begin(), integration.end(), 0.0f);
 
-    std::array<size_t, 8> minError;
-    std::array<size_t, 8> maxError;
-    std::array<float, 8> averageError;
-    std::array<float, 8> stdDevError;
+    std::array<size_t, 60> minError;
+    std::array<size_t, 60> maxError;
+    std::array<float, 60> averageError;
+    std::array<float, 60> stdDevError;
 
-    // animate 8 frames
+    // animate 60 frames, but only write out the first 8
     for (size_t i = 0; i < 8; ++i)
     {
         char fileName[256];
@@ -2435,9 +2441,12 @@ void DitherInterleavedGradientNoiseOffsetGRAnimatedIntegratedDecay (const SImage
         IntegrationTest2(dither, ditherImage, i, minError, maxError, averageError, stdDevError);
 
         // save the results
-        SImageData combined;
-        ImageCombine2(noise, dither, combined);
-        ImageSave(combined, fileName);
+        if (i < 8 || i == 59)
+        {
+            SImageData combined;
+            ImageCombine2(noise, dither, combined);
+            ImageSave(combined, fileName);
+        }
     }
 
     WriteIntegrationTest2(minError, maxError, averageError, stdDevError, __FUNCTION__);
@@ -2452,12 +2461,12 @@ void DitherInterleavedGradientNoiseOffsetGR8AnimatedIntegratedDecay (const SImag
     integration.resize(ditherImage.m_width * ditherImage.m_height);
     std::fill(integration.begin(), integration.end(), 0.0f);
 
-    std::array<size_t, 8> minError;
-    std::array<size_t, 8> maxError;
-    std::array<float, 8> averageError;
-    std::array<float, 8> stdDevError;
+    std::array<size_t, 60> minError;
+    std::array<size_t, 60> maxError;
+    std::array<float, 60> averageError;
+    std::array<float, 60> stdDevError;
 
-    // animate 8 frames
+    // animate 60 frames, but only write out the first 8
     for (size_t i = 0; i < 8; ++i)
     {
         char fileName[256];
@@ -2494,9 +2503,12 @@ void DitherInterleavedGradientNoiseOffsetGR8AnimatedIntegratedDecay (const SImag
         IntegrationTest2(dither, ditherImage, i, minError, maxError, averageError, stdDevError);
 
         // save the results
-        SImageData combined;
-        ImageCombine2(noise, dither, combined);
-        ImageSave(combined, fileName);
+        if (i < 8 || i == 59)
+        {
+            SImageData combined;
+            ImageCombine2(noise, dither, combined);
+            ImageSave(combined, fileName);
+        }
     }
 
     WriteIntegrationTest2(minError, maxError, averageError, stdDevError, __FUNCTION__);
@@ -2511,16 +2523,16 @@ void DitherInterleavedGradientNoiseOffsetVDCAnimatedIntegratedDecay (const SImag
     integration.resize(ditherImage.m_width * ditherImage.m_height);
     std::fill(integration.begin(), integration.end(), 0.0f);
 
-    std::array<size_t, 8> minError;
-    std::array<size_t, 8> maxError;
-    std::array<float, 8> averageError;
-    std::array<float, 8> stdDevError;
+    std::array<size_t, 60> minError;
+    std::array<size_t, 60> maxError;
+    std::array<float, 60> averageError;
+    std::array<float, 60> stdDevError;
 
     // Make Van Der Corput sequence
     std::array<float, 8> VDC;
     GenerateVanDerCoruptSequence(VDC, 2);
 
-    // animate 8 frames
+    // animate 60 frames, but only write out the first 8
     for (size_t i = 0; i < 8; ++i)
     {
         char fileName[256];
@@ -2557,9 +2569,12 @@ void DitherInterleavedGradientNoiseOffsetVDCAnimatedIntegratedDecay (const SImag
         IntegrationTest2(dither, ditherImage, i, minError, maxError, averageError, stdDevError);
 
         // save the results
-        SImageData combined;
-        ImageCombine2(noise, dither, combined);
-        ImageSave(combined, fileName);
+        if (i < 8 || i == 59)
+        {
+            SImageData combined;
+            ImageCombine2(noise, dither, combined);
+            ImageSave(combined, fileName);
+        }
     }
 
     WriteIntegrationTest2(minError, maxError, averageError, stdDevError, __FUNCTION__);
@@ -2675,7 +2690,7 @@ IG Noise stuff:
 
 * i think i should do like a 60 frame analasys of the decay things? no need for animation, just do to see how it converges after 1 second.
  * could show every 5 or 10 images or something maybe? or just last frame perhaps
-* whatever else in email / show jorge / collaborate
+ * yeah last frame seems reasonable
 * uncomment the code you commented here to make it run faster
 
 Jorge:
@@ -2683,6 +2698,19 @@ Jorge:
  * starting at (0,0) of IGN.
  ? is an exponential value of 0.9 reasonable / decent?
   * is it also ok on i = 0 to take the first sample and use it w/o lerp?
+ ? what is "NoiseTemporalDither(-1,1)" ? from function you shared
+ ? "8 uniform steps, then some random noise as you did, but small offset, and possibly horizontally to get new values outside of the diaagonal"
+ ? how would adding the 1/8 scaled blue noise work.
+
+Data Observations:
+ * Non decay in 8 frames, VDC seems to be the winner!
+ * Decay 0.9, around frame 44 the variance of error goes to zero but error jumps up. uniform sampling? ):
+
+* BLOG:
+ * show major and minor axis of noise.
+ * "that is why it converges better than blue noise because it's just perfectly uniform and allows to get 8 steps" - jorge about diagonal
+ * "Forgotten to mention that IGN has a very sough-after property for TAA: for a given pixel if you take the 3x3 neighborhood, it pretty much covers the whole noise dynamic range, meaning the neighborhood clamp will do a great job at preserving the history buffer."
+
 
 Next blog post:
 * taking 2d blue noise, normalizing histogram of each row, seeing how that does for integration & show the 1d DFT's!
