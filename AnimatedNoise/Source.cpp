@@ -2827,6 +2827,7 @@ int main (int argc, char** argv)
 IG Noise stuff:
 
 ? should i be doing a floor w/ VDC? if not, maybe VDC32 should still be *8?
+! I think GR8 should be *8 not *9 to make it 0 to 7, not 0 to 8.
 
 * uncomment the code you commented here to make it run faster
 
