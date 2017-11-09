@@ -2540,7 +2540,143 @@ void DitherInterleavedGradientNoiseOffsetVDCAnimatedIntegratedDecay (const SImag
 
         // make noise, offsetting it each frame
         SImageData noise;
-        float offset = std::floor(8.0f * VDC[i]);
+        float offset = std::floor(8.0f * VDC[i % VDC.size()]);
+        GenerateInterleavedGradientNoise(noise, ditherImage.m_width, ditherImage.m_height, offset, offset);
+
+        // dither the image
+        SImageData dither;
+        DitherWithTexture(ditherImage, noise, dither);
+
+        // integrate and put the current integration results into the dither image
+        ImageForEachPixel(
+            dither,
+            [&] (SColor& pixel, size_t pixelIndex)
+            {
+                float pixelValueFloat = float(pixel.R) / 255.0f;
+                if (i == 0)
+                    integration[pixelIndex] = pixelValueFloat;
+                else
+                    integration[pixelIndex] = Lerp(integration[pixelIndex], pixelValueFloat, 0.1f);
+
+                uint8 integratedPixelValue = uint8(integration[pixelIndex] * 255.0f);
+                pixel.R = integratedPixelValue;
+                pixel.G = integratedPixelValue;
+                pixel.B = integratedPixelValue;
+            }
+        );
+
+        // do an integration test
+        IntegrationTest2(dither, ditherImage, i, minError, maxError, averageError, stdDevError);
+
+        // save the results
+        if (i < 8 || i == 59)
+        {
+            SImageData combined;
+            ImageCombine2(noise, dither, combined);
+            ImageSave(combined, fileName);
+        }
+    }
+
+    WriteIntegrationTest2(minError, maxError, averageError, stdDevError, __FUNCTION__);
+}
+
+//======================================================================================
+void DitherInterleavedGradientNoiseOffsetVDC32AnimatedIntegratedDecay (const SImageData& ditherImage)
+{
+    printf("\n%s\n", __FUNCTION__);
+
+    std::vector<float> integration;
+    integration.resize(ditherImage.m_width * ditherImage.m_height);
+    std::fill(integration.begin(), integration.end(), 0.0f);
+
+    std::array<size_t, 60> minError;
+    std::array<size_t, 60> maxError;
+    std::array<float, 60> averageError;
+    std::array<float, 60> stdDevError;
+
+    // Make Van Der Corput sequence
+    std::array<float, 32> VDC;
+    GenerateVanDerCoruptSequence(VDC, 2);
+
+    // animate 60 frames, but only write out the first 8
+    for (size_t i = 0; i < 60; ++i)
+    {
+        char fileName[256];
+        sprintf(fileName, "out/animintoffsetdec_vdc32_ignoise%zu.bmp", i);
+
+        // make noise, offsetting it each frame
+        SImageData noise;
+        float offset = std::floor(8.0f * VDC[i % VDC.size()]);
+        GenerateInterleavedGradientNoise(noise, ditherImage.m_width, ditherImage.m_height, offset, offset);
+
+        // dither the image
+        SImageData dither;
+        DitherWithTexture(ditherImage, noise, dither);
+
+        // integrate and put the current integration results into the dither image
+        ImageForEachPixel(
+            dither,
+            [&] (SColor& pixel, size_t pixelIndex)
+            {
+                float pixelValueFloat = float(pixel.R) / 255.0f;
+                if (i == 0)
+                    integration[pixelIndex] = pixelValueFloat;
+                else
+                    integration[pixelIndex] = Lerp(integration[pixelIndex], pixelValueFloat, 0.1f);
+
+                uint8 integratedPixelValue = uint8(integration[pixelIndex] * 255.0f);
+                pixel.R = integratedPixelValue;
+                pixel.G = integratedPixelValue;
+                pixel.B = integratedPixelValue;
+            }
+        );
+
+        // do an integration test
+        IntegrationTest2(dither, ditherImage, i, minError, maxError, averageError, stdDevError);
+
+        // save the results
+        if (i < 8 || i == 59)
+        {
+            SImageData combined;
+            ImageCombine2(noise, dither, combined);
+            ImageSave(combined, fileName);
+        }
+    }
+
+    WriteIntegrationTest2(minError, maxError, averageError, stdDevError, __FUNCTION__);
+}
+
+//======================================================================================
+void DitherInterleavedGradientNoiseOffsetVDCJitteredAnimatedIntegratedDecay (const SImageData& ditherImage)
+{
+    printf("\n%s\n", __FUNCTION__);
+
+    std::vector<float> integration;
+    integration.resize(ditherImage.m_width * ditherImage.m_height);
+    std::fill(integration.begin(), integration.end(), 0.0f);
+
+    std::array<size_t, 60> minError;
+    std::array<size_t, 60> maxError;
+    std::array<float, 60> averageError;
+    std::array<float, 60> stdDevError;
+
+    // Make Van Der Corput sequence
+    std::array<float, 8> VDC;
+    GenerateVanDerCoruptSequence(VDC, 2);
+
+    std::random_device rd;
+    std::mt19937 rng(rd());
+    std::uniform_real_distribution<float> dist(0, 1.0f / 8.0f);
+
+    // animate 60 frames, but only write out the first 8
+    for (size_t i = 0; i < 60; ++i)
+    {
+        char fileName[256];
+        sprintf(fileName, "out/animintoffsetdec_vdcjit_ignoise%zu.bmp", i);
+
+        // make noise, offsetting it each frame
+        SImageData noise;
+        float offset = std::floor(8.0f * VDC[i % VDC.size()]) + dist(rng);
         GenerateInterleavedGradientNoise(noise, ditherImage.m_width, ditherImage.m_height, offset, offset);
 
         // dither the image
@@ -2678,6 +2814,8 @@ int main (int argc, char** argv)
     DitherInterleavedGradientNoiseOffsetGRAnimatedIntegratedDecay(ditherImage);
     DitherInterleavedGradientNoiseOffsetGR8AnimatedIntegratedDecay(ditherImage);
     DitherInterleavedGradientNoiseOffsetVDCAnimatedIntegratedDecay(ditherImage);
+    DitherInterleavedGradientNoiseOffsetVDC32AnimatedIntegratedDecay(ditherImage);
+    DitherInterleavedGradientNoiseOffsetVDCJitteredAnimatedIntegratedDecay(ditherImage);
 
     fclose(g_logFile);
 
@@ -2688,29 +2826,23 @@ int main (int argc, char** argv)
 
 IG Noise stuff:
 
-! you didn't change the for loops to go until 60 . the graphs to 60 are invalid! fix and get last frame images and graphs to 60.
-* i think i should do like a 60 frame analasys of the decay things? no need for animation, just do to see how it converges after 1 second.
- * could show every 5 or 10 images or something maybe? or just last frame perhaps
- * yeah last frame seems reasonable
+* make gif / final images / log & graphs for VDC jit and VDC32
 * uncomment the code you commented here to make it run faster
-? Could try having VDC do 60 (64?) steps to see how it works / if it makes that error hump go away.
- * maybe convert the loop to do 64 steps if so.
- * problem = need to know number of samples though? or let it take a second to do it?
- * or maybe do 16 or 32 steps of VDC? see what works best perhaps.
 ! it would be nice if the error and standard dev graphs could use the same colors. maybe fix that by breaking the data up into 2 sections or something?
+
 
 Jorge:
  * share animations and graphs
  * starting at (0,0) of IGN.
- ? is an exponential value of 0.9 reasonable / decent?
-  * is it also ok on i = 0 to take the first sample and use it w/o lerp?
- ? what is "NoiseTemporalDither(-1,1)" ? from function you shared
+ * using alpha of 0.9 for lerp. First sample is taken without lerping from anything.
+ ? what is "NoiseTemporalDither(-1,1)" ? from function you shared. Is that adding the 1/8 scaled blue noise? Think it'd be worth while to do?
  ? "8 uniform steps, then some random noise as you did, but small offset, and possibly horizontally to get new values outside of the diaagonal"
- ? how would adding the 1/8 scaled blue noise work.
+ * no camera jittering in these tests, and no new data / history rejection obviously.
+ ? compare vs white / blue noise? or no?
 
 Data Observations:
  * Non decay in 8 frames, VDC seems to be the winner!
- * Decay 0.9, around frame 44 the variance of error goes to zero but error jumps up. uniform sampling? ):
+ * in the long run with decay, 3.3 is the winner.
 
 * BLOG:
  * show major and minor axis of noise.
