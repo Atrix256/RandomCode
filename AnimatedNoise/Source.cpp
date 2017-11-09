@@ -2606,7 +2606,7 @@ void DitherInterleavedGradientNoiseOffsetVDC32AnimatedIntegratedDecay (const SIm
 
         // make noise, offsetting it each frame
         SImageData noise;
-        float offset = std::floor(8.0f * VDC[i % VDC.size()]);
+        float offset = std::floor(32.0f * VDC[i % VDC.size()]);
         GenerateInterleavedGradientNoise(noise, ditherImage.m_width, ditherImage.m_height, offset, offset);
 
         // dither the image
@@ -2826,11 +2826,9 @@ int main (int argc, char** argv)
 
 IG Noise stuff:
 
-* uncomment the code you commented here to make it run faster
-* remake graphs, including vdcjit/vdc32 and make sure stddev/avgerr use same colors.
- * including the non decay version!
- * maybe make decay graphs a little larger than the other so you can see more, since there are more lines
+? should i be doing a floor w/ VDC? if not, maybe VDC32 should still be *8?
 
+* uncomment the code you commented here to make it run faster
 
 Jorge:
  * share animations and graphs
