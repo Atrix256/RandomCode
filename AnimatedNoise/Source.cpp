@@ -2826,9 +2826,10 @@ int main (int argc, char** argv)
 
 IG Noise stuff:
 
-* make gif / final images / log & graphs for VDC jit and VDC32
 * uncomment the code you commented here to make it run faster
-! it would be nice if the error and standard dev graphs could use the same colors. maybe fix that by breaking the data up into 2 sections or something?
+* remake graphs, including vdcjit/vdc32 and make sure stddev/avgerr use same colors.
+ * including the non decay version!
+ * maybe make decay graphs a little larger than the other so you can see more, since there are more lines
 
 
 Jorge:
@@ -2842,7 +2843,7 @@ Jorge:
 
 Data Observations:
  * Non decay in 8 frames, VDC seems to be the winner!
- * in the long run with decay, 3.3 is the winner.
+ * with decay, 3.3 is the winner. it performs well in the short term, and best in the long term.
 
 * BLOG:
  * show major and minor axis of noise.
