@@ -1,0 +1,169 @@
+<a target="_blank" href="http://blog.demofox.org/2012/05/03/morirt-pixel-and-geometry-caching-to-aid-real-time-raytracing/">MoriRT: Pixel and Geometry Caching to Aid Real Time Raytracing</a>
+<a target="_blank" href="http://blog.demofox.org/2012/05/14/diy-synthesizer-chapter-1-sound-output/">DIY Synth 1: Sound Output</a>
+<a target="_blank" href="http://blog.demofox.org/2012/05/19/diy-synthesizer-chapter-2-common-wave-forms/">DIY Synth 2: Common Wave Forms</a>
+<a target="_blank" href="http://blog.demofox.org/2012/06/18/diy-synth-3-sampling-mixing-and-band-limited-wave-forms/">DIY Synth 3:  Sampling, Mixing, and Band Limited Wave Forms</a>
+<a target="_blank" href="http://blog.demofox.org/2012/09/09/recording-perfectly-lagless-audio-synchronized-video-of-your-game/">Recording lagless demo videos of a laggy game</a>
+<a target="_blank" href="http://blog.demofox.org/2012/09/12/cryptography-101-hashing/">Cryptography 101: Hashing</a>
+<a target="_blank" href="http://blog.demofox.org/2012/09/15/cryptography-101-encryption-one-time-pad/">Cryptography 101: Encryption - One Time Pad</a>
+<a target="_blank" href="http://blog.demofox.org/2012/09/15/cryptography-101-encryption-symmetric-keys/">Cryptography 101: Encryption - Symmetric Keys</a>
+<a target="_blank" href="http://blog.demofox.org/2012/09/16/cryptography-101-encryption-asymmetric-keys/">Cryptography 101: Encryption - Asymmetric Keys</a>
+<a target="_blank" href="http://blog.demofox.org/2012/09/17/encryption-101-realistic-security/">Encryption 101: Realistic Security</a>
+<a target="_blank" href="http://blog.demofox.org/2012/09/21/anatomy-of-a-skeletal-animation-system-part-1/">Anatomy of a Skeletal Animation System Part 1</a>
+<a target="_blank" href="http://blog.demofox.org/2012/09/21/anatomy-of-a-skeletal-animation-system-part-2/">Anatomy of a Skeletal Animation System Part 2</a>
+<a target="_blank" href="http://blog.demofox.org/2012/09/21/anatomy-of-a-skeletal-animation-system-part-3/">Anatomy of a Skeletal Animation System Part 3</a>
+<a target="_blank" href="http://blog.demofox.org/2012/09/24/bias-and-gain-are-your-friend/">Bias And Gain Are Your Friend</a>
+<a target="_blank" href="http://blog.demofox.org/2012/09/25/how-to-render-the-mandelbrot-set/">How to Render the Mandelbrot Set</a>
+<a target="_blank" href="http://blog.demofox.org/2012/10/23/bam-neural-networks/">B.A.M. Neural Networks</a>
+<a target="_blank" href="http://blog.demofox.org/2012/11/28/mechanical-computer-quest-part-i/">Mechanical Computer Quest Part I</a>
+<a target="_blank" href="http://blog.demofox.org/2013/05/01/permutation-programming-without-maintenance-nightmares/">Permutation Programming Without Maintenance Nightmares</a>
+<a target="_blank" href="http://blog.demofox.org/2013/05/03/macro-lists-for-the-win/">Macro Lists For The Win</a>
+<a target="_blank" href="http://blog.demofox.org/2013/05/07/macro-lists-for-the-win-side-b/">Macro Lists For The Win - Side B</a>
+<a target="_blank" href="http://blog.demofox.org/2013/05/11/lists-of-macro-lists/">Lists of Macro Lists</a>
+<a target="_blank" href="http://blog.demofox.org/2013/05/21/the-black-art-of-sizeof-aka-compile-time-type-deduction/">The Black Art of sizeof() aka Compile Time Type Deduction</a>
+<a target="_blank" href="http://blog.demofox.org/2013/06/05/is-pre-increment-really-faster-than-post-increment-part-1/">Is pre-increment really faster than post increment?  Part 1</a>
+<a target="_blank" href="http://blog.demofox.org/2013/06/08/random-numbers-without-repeats/">Efficiently Generate Random Numbers Without Repeats</a>
+<a target="_blank" href="http://blog.demofox.org/2013/06/08/fast-lightweight-random-shuffle-functionality/">Fast &#038; Lightweight Random &quot;Shuffle&quot; Functionality</a>
+<a target="_blank" href="http://blog.demofox.org/2013/06/18/wtf-rand/">Why do you hate me rand()?!</a>
+<a target="_blank" href="http://blog.demofox.org/2013/07/06/the-incredible-time-traveling-random-number-generator/">The Incredible Time Traveling Random Number Generator</a>
+<a target="_blank" href="http://blog.demofox.org/2013/07/06/fast-lightweight-random-shuffle-functionality-fixed/">Fast &#038; Lightweight Random “Shuffle” Functionality - FIXED!</a>
+<a target="_blank" href="http://blog.demofox.org/2013/07/07/a-super-tiny-random-number-generator/">A Super Tiny Random Number Generator</a>
+<a target="_blank" href="http://blog.demofox.org/2013/07/08/is-pre-increment-really-faster-than-post-increment-part-2/">Is pre-increment really faster than post increment? Part 2</a>
+<a target="_blank" href="http://blog.demofox.org/2013/09/09/alloca-and-realloc-useful-tools-not-ancient-relics/">Alloca and Realloc - Useful Tools, Not Ancient Relics</a>
+<a target="_blank" href="http://blog.demofox.org/2013/09/13/external-c-header-guards/">External C++ Header Guards</a>
+<a target="_blank" href="http://blog.demofox.org/2013/09/17/how-to-test-randomness-of-numbers/">How to Test Randomness of Numbers</a>
+<a target="_blank" href="http://blog.demofox.org/2013/10/12/converting-to-and-from-polar-spherical-coordinates-made-easy/">Converting To and From Polar / Spherical Coordinates Made Easy</a>
+<a target="_blank" href="http://blog.demofox.org/2013/11/13/transformation-matrix-basics/">Transformation Matrix Basics</a>
+<a target="_blank" href="http://blog.demofox.org/2014/01/11/getting-ideal-disk-reads-on-the-cheap/">Getting Ideal Disk Reads on the Cheap</a>
+<a target="_blank" href="http://blog.demofox.org/2014/01/22/shadertoy-webglsl-pixel-shaders/">Shadertoy - WebGLSL pixel shaders</a>
+<a target="_blank" href="http://blog.demofox.org/2014/01/27/a-trip-through-the-graphics-pipeline/">A trip through the Graphics Pipeline</a>
+<a target="_blank" href="http://blog.demofox.org/2014/02/03/converting-rgb-to-grayscale/">Converting RGB to Grayscale</a>
+<a target="_blank" href="http://blog.demofox.org/2014/02/07/lots-of-free-skyboxes/">Lots of Skyboxes!</a>
+<a target="_blank" href="http://blog.demofox.org/2014/02/20/soft-maximum-vs-hard-maximum/">Soft Maximum vs Hard Maximum</a>
+<a target="_blank" href="http://blog.demofox.org/2014/03/04/bezier-curves/">Bezier Curves</a>
+<a target="_blank" href="http://blog.demofox.org/2014/03/09/implicit-vs-parametric-vs-explicit-surfaces/">Implicit vs Parametric vs Explicit Surfaces</a>
+<a target="_blank" href="http://blog.demofox.org/2014/03/22/bezier-curves-part-2-and-bezier-surfaces/">Bezier Curves Part 2 (and Bezier Surfaces)</a>
+<a target="_blank" href="http://blog.demofox.org/2014/05/18/feistel-networks-does-they-have-to-use-xor/">Feistel Networks - Do They Have to use XOR?</a>
+<a target="_blank" href="http://blog.demofox.org/2014/06/22/analytic-fog-density/">Analytic Fog Density</a>
+<a target="_blank" href="http://blog.demofox.org/2014/06/30/distance-field-textures/">Distance Field Textures</a>
+<a target="_blank" href="http://blog.demofox.org/2014/07/21/situational-leadership/">Situational Leadership</a>
+<a target="_blank" href="http://blog.demofox.org/2014/08/10/what-if-my-equation-doesnt-equal-zero/">What if My Equation DOESN&#039;T Equal Zero??</a>
+<a target="_blank" href="http://blog.demofox.org/2014/08/11/temporal-supersampling-flipquads-and-real-time-raytracing/">Temporal supersampling, flipquads and real time raytracing</a>
+<a target="_blank" href="http://blog.demofox.org/2014/08/13/wang-tiling/">Wang Tiling</a>
+<a target="_blank" href="http://blog.demofox.org/2014/08/14/counting-in-binary-is-a-fractal/">Counting in Binary is a Fractal</a>
+<a target="_blank" href="http://blog.demofox.org/2014/08/28/one-dimensional-bezier-curves/">One Dimensional Bezier Curves</a>
+<a target="_blank" href="http://blog.demofox.org/2014/11/04/four-ways-to-calculate-sine-without-trig/">Four Ways to Calculate Sine Without Trig</a>
+<a target="_blank" href="http://blog.demofox.org/2014/12/27/using-imaginary-numbers-to-rotate-2d-vectors/">Using Imaginary Numbers To Rotate 2D Vectors</a>
+<a target="_blank" href="http://blog.demofox.org/2014/12/30/dual-numbers-automatic-differentiation/">Dual Numbers &#038; Automatic Differentiation</a>
+<a target="_blank" href="http://blog.demofox.org/2015/01/17/bresenhams-drawing-algorithms/">Bresenham&#039;s Drawing Algorithms</a>
+<a target="_blank" href="http://blog.demofox.org/2015/01/24/dapse-preview/">DAPSE Preview</a>
+<a target="_blank" href="http://blog.demofox.org/2015/01/24/programmatically-calculating-gcd-and-lcm/">Programmatically Calculating GCD and LCM</a>
+<a target="_blank" href="http://blog.demofox.org/2015/02/03/estimating-counts-of-distinct-values-with-kmv/">Estimating Counts of Distinct Values with KMV</a>
+<a target="_blank" href="http://blog.demofox.org/2015/02/08/estimating-set-membership-with-a-bloom-filter/">Estimating Set Membership With a Bloom Filter</a>
+<a target="_blank" href="http://blog.demofox.org/2015/02/05/getting-strongly-typed-typedefs-using-phantom-types/">Getting Strongly Typed Typedefs Using Phantom Types</a>
+<a target="_blank" href="http://blog.demofox.org/2015/02/22/count-min-sketch-a-probabilistic-histogram/">Count Min Sketch: A Probabilistic Histogram</a>
+<a target="_blank" href="http://blog.demofox.org/2015/02/13/writing-a-basic-search-engine-aka-calculating-similarity-of-histograms-with-dot-product/">Writing a Basic Search Engine AKA Calculating Similarity of Histograms with Dot Product</a>
+<a target="_blank" href="http://blog.demofox.org/2015/02/25/avoiding-the-performance-hazzards-of-stdfunction/">Avoiding The Performance Hazzards of std::function</a>
+<a target="_blank" href="http://blog.demofox.org/2015/03/09/hyperloglog-estimate-unique-value-counts-like-the-pros/">HyperLogLog: Estimate Unique Value Counts Like The Pros</a>
+<a target="_blank" href="http://blog.demofox.org/2015/03/14/diy-synth-basic-drum/">DIY Synth: Basic Drum</a>
+<a target="_blank" href="http://blog.demofox.org/2015/03/16/diy-synth-flange-effect/">DIY Synth: Flange Effect</a>
+<a target="_blank" href="http://blog.demofox.org/2015/03/17/diy-synth-delay-effect-echo/">DIY Synth: Delay Effect (Echo)</a>
+<a target="_blank" href="http://blog.demofox.org/2015/03/17/diy-synth-multitap-reverb/">DIY Synth: Multitap Reverb</a>
+<a target="_blank" href="http://blog.demofox.org/2015/03/23/diy-synth-convolution-reverb-1d-discrete-convolution-of-audio-samples/">DIY Synth: Convolution Reverb &#038; 1D Discrete Convolution of Audio Samples</a>
+<a target="_blank" href="http://blog.demofox.org/2015/04/14/decibels-db-and-amplitude/">Decibels (dB) and Amplitude</a>
+<a target="_blank" href="http://blog.demofox.org/2015/04/19/frequency-domain-audio-synthesis-with-ifft-and-oscillators/">Frequency Domain Audio Synthesis - With IFFT and Oscillators</a>
+<a target="_blank" href="http://blog.demofox.org/2015/04/22/quincunx-antialiasing/">Quincunx Antialiasing</a>
+<a target="_blank" href="http://blog.demofox.org/2015/04/23/4-rook-antialiasing-rgss/">4-Rook Antialiasing (RGSS)</a>
+<a target="_blank" href="http://blog.demofox.org/2015/04/23/flipquad-fliptri-antialiasing/">FlipQuad &#038; FlipTri Antialiasing</a>
+<a target="_blank" href="http://blog.demofox.org/2015/04/30/bilinear-filtering-bilinear-interpolation/">Bilinear Filtering &#038; Bilinear Interpolation</a>
+<a target="_blank" href="http://blog.demofox.org/2015/05/24/no-bad-code-creeping-normality-and-social-structure-code-organization/">No Bad Code, Creeping Normality and Social Structure Code Organization</a>
+<a target="_blank" href="http://blog.demofox.org/2015/05/25/easy-binomial-expansion-bezier-curve-formulas/">Easy Binomial Expansion &#038; Bezier Curve Formulas</a>
+<a target="_blank" href="http://blog.demofox.org/2015/06/14/a-fifth-way-to-calculate-sine-without-trig/">A Fifth Way to Calculate Sine Without Trig</a>
+<a target="_blank" href="http://blog.demofox.org/2015/06/18/adventures-in-learning-how-to-publish-a-research-paper/">Adventures in Learning How to Publish a Research Paper Part 1</a>
+<a target="_blank" href="http://blog.demofox.org/2015/06/19/what-is-pre-multiplied-alpha-and-why-does-it-matter/">What is Pre-multiplied Alpha and Why Does it Matter?</a>
+<a target="_blank" href="http://blog.demofox.org/2015/07/05/the-de-casteljeau-algorithm-for-evaluating-bezier-curves/">The De Casteljau Algorithm for Evaluating Bezier Curves</a>
+<a target="_blank" href="http://blog.demofox.org/2015/07/08/lagrange-interpolation/">Lagrange Interpolation</a>
+<a target="_blank" href="http://blog.demofox.org/2015/07/28/rectangular-bezier-patches/">Rectangular Bezier Patches</a>
+<a target="_blank" href="http://blog.demofox.org/2015/08/02/finite-differences/">Finite Differences</a>
+<a target="_blank" href="http://blog.demofox.org/2015/08/05/lagrange-rectangles/">Lagrange Rectangles</a>
+<a target="_blank" href="http://blog.demofox.org/2015/08/08/cubic-hermite-interpolation/">Cubic Hermite Interpolation</a>
+<a target="_blank" href="http://blog.demofox.org/2015/08/09/cubic-hermite-rectangles/">Cubic Hermite Rectangles</a>
+<a target="_blank" href="http://blog.demofox.org/2015/08/15/resizing-images-with-bicubic-interpolation/">Resizing Images With Bicubic Interpolation</a>
+<a target="_blank" href="http://blog.demofox.org/2015/08/19/gaussian-blur/">Gaussian Blur</a>
+<a target="_blank" href="http://blog.demofox.org/2015/08/18/box-blur/">Box Blur</a>
+<a target="_blank" href="http://blog.demofox.org/2015/09/05/super-simple-symmetric-leveled-homomorphic-encryption-implementation/">Super Simple Symmetric Leveled Homomorphic Encryption Implementation</a>
+<a target="_blank" href="http://blog.demofox.org/2015/09/05/improving-the-security-of-the-super-simple-symmetric-leveled-homomorphic-encryption-implementation/">Improving the Security of the Super Simple Symmetric Leveled Homomorphic Encryption Implementation</a>
+<a target="_blank" href="http://blog.demofox.org/2015/09/10/modular-multiplicative-inverse/">Modular Multiplicative Inverse</a>
+<a target="_blank" href="http://blog.demofox.org/2015/09/12/solving-simultaneous-congruences-chinese-remainder-theorem/">Solving Simultaneous Congruences (Chinese Remainder Theorem)</a>
+<a target="_blank" href="http://blog.demofox.org/2015/09/15/solving-nested-modulus-equations/">Solving Nested Modulus Equations</a>
+<a target="_blank" href="http://blog.demofox.org/2015/10/12/quantum-computing-references/">Quantum Computing References</a>
+<a target="_blank" href="http://blog.demofox.org/2015/10/17/quantum-computing-for-programmers-part-i-one-qubit/">Quantum Computing For Programmers Part I: One Qubit</a>
+<a target="_blank" href="http://blog.demofox.org/2015/10/17/quantum-computing-for-programmers-part-ib-bloch-sphere/">Quantum Computing For Programmers Part Ib: Bloch Sphere</a>
+<a target="_blank" href="http://blog.demofox.org/2015/11/06/quantum-computing-for-programmers-part-2-multiple-qubits/">Quantum Computing For Programmers Part 2: Multiple Qubits</a>
+<a target="_blank" href="http://blog.demofox.org/2015/11/13/hiding-a-lookup-table-in-a-modulus-operation/">Hiding a Lookup Table in a Modulus Operation</a>
+<a target="_blank" href="http://blog.demofox.org/2015/12/14/o1-data-lookups-with-minimal-perfect-hashing/">O(1) Data Lookups With Minimal Perfect Hashing</a>
+<a target="_blank" href="http://blog.demofox.org/2015/12/18/what-happens-when-you-mix-hash-tables-and-binary-searching/">What Happens When you Mix Hash Tables and Binary Searching?</a>
+<a target="_blank" href="http://blog.demofox.org/2015/12/20/simplifying-boolean-expressions-with-karnaugh-maps/">Simplifying Boolean Expressions With Karnaugh Maps</a>
+<a target="_blank" href="http://blog.demofox.org/2016/01/16/making-a-ray-traced-snake-game-in-shadertoy/">Making a Ray Traced Snake Game in Shadertoy</a>
+<a target="_blank" href="http://blog.demofox.org/2016/02/03/failed-shadertoy-dust-game-browsers-need-to-compile-shaders-off-the-main-thread/">Failed Shadertoy &quot;Dust&quot; Game - Browsers Need To Compile Shaders Off the Main Thread!</a>
+<a target="_blank" href="http://blog.demofox.org/2016/02/09/how-and-why-cleaning-up-code-or-processes-gives-multiplicative-benefits/">How and Why Cleaning Up Code or Processes Gives Multiplicative Benefits</a>
+<a target="_blank" href="http://blog.demofox.org/2016/02/19/normalized-vector-interpolation-tldr/">Normalized Vector Interpolation TL;DR</a>
+<a target="_blank" href="http://blog.demofox.org/2016/02/21/g-buffer-upsizing/">G-Buffer Upsizing</a>
+<a target="_blank" href="http://blog.demofox.org/2016/02/22/gpu-texture-sampler-bezier-curve-evaluation/">GPU Texture Sampler Bezier Curve Evaluation</a>
+<a target="_blank" href="http://blog.demofox.org/2016/02/29/fast-voronoi-diagrams-and-distance-dield-textures-on-the-gpu-with-the-jump-flooding-algorithm/">Fast Voronoi Diagrams and Distance Field Textures on the GPU With the Jump Flooding Algorithm</a>
+<a target="_blank" href="http://blog.demofox.org/2016/03/02/actually-making-signed-distance-field-textures-with-jfa/">Actually Making Signed Distance Field Textures With JFA</a>
+<a target="_blank" href="http://blog.demofox.org/2016/03/05/matrix-form-of-bezier-curves/">Matrix Form of Bezier Curves</a>
+<a target="_blank" href="http://blog.demofox.org/2016/03/11/a-sixth-way-to-calculate-sine-without-trig/">A Sixth Way To Calculate Sine Without Trig</a>
+<a target="_blank" href="http://blog.demofox.org/2016/03/14/computation-with-wang-tile/">Using Wang Tiles to Simulate Turing Machines</a>
+<a target="_blank" href="http://blog.demofox.org/2016/04/01/game-development-needs-data-pipeline-middleware/">Game Development Needs Data Pipeline Middleware</a>
+<a target="_blank" href="http://blog.demofox.org/2016/04/09/turning-a-truth-table-into-a-digital-circuit-anf/">Turning a Truth Table Into A digital Circuit (ANF)</a>
+<a target="_blank" href="http://blog.demofox.org/2016/04/30/shamirs-quest-collect-any-3-keys-to-unlock-the-secret/">Shamir&#039;s Quest: Collect Any 3 Keys To Unlock The Secret!</a>
+<a target="_blank" href="http://blog.demofox.org/2016/05/18/who-cares-about-dynamic-array-growth-strategies/">Who Cares About Dynamic Array Growth Strategies?</a>
+<a target="_blank" href="http://blog.demofox.org/2016/06/16/synthesizing-a-pluked-string-sound-with-the-karplus-strong-algorithm/">Synthesizing a Plucked String Sound With the Karplus-Strong Algorithm</a>
+<a target="_blank" href="http://blog.demofox.org/2016/06/23/the-beating-effect/">The Beating Effect</a>
+<a target="_blank" href="http://blog.demofox.org/2016/07/01/intro-to-audio-synthesis-for-music-presentation/">Intro To Audio Synthesis For Music Presentation</a>
+<a target="_blank" href="http://blog.demofox.org/2016/07/28/fourier-transform-and-inverse-of-images/">Fourier Transform (And Inverse) Of Images</a>
+<a target="_blank" href="http://blog.demofox.org/2016/08/11/understanding-the-discrete-fourier-transform/">Understanding The Discrete Fourier Transform</a>
+<a target="_blank" href="http://blog.demofox.org/2016/08/23/incremental-averaging/">Incremental Averaging</a>
+<a target="_blank" href="http://blog.demofox.org/2016/09/21/path-tracing-getting-started-with-diffuse-and-emissive/">Path Tracing - Getting Started With Diffuse and Emissive</a>
+<a target="_blank" href="http://blog.demofox.org/2016/09/23/exploring-compile-time-hashing/">Exploring Compile Time Hashing</a>
+<a target="_blank" href="http://blog.demofox.org/2016/09/26/is-code-faster-than-data-switch-statements-vs-arrays/">Is Code Faster Than Data? Switch Statements vs. Arrays</a>
+<a target="_blank" href="http://blog.demofox.org/2016/10/03/is-code-faster-than-data-examining-hash-tables/">Is Code Faster Than Data? Examining Hash Tables</a>
+<a target="_blank" href="http://blog.demofox.org/2016/10/14/a-data-point-for-msvc-vs-clang-code-generation/">A Data Point for MSVC vs Clang Code Generation</a>
+<a target="_blank" href="http://blog.demofox.org/2016/10/19/low-tech-homomorphic-encryption/">Low Tech Homomorphic Encryption</a>
+<a target="_blank" href="http://blog.demofox.org/2016/11/13/minimizing-code-complexity-by-programming-declaratively/">Minimizing Code Complexity by Programming Declaratively</a>
+<a target="_blank" href="http://blog.demofox.org/2016/12/06/the-secret-to-writing-fast-code-how-fast-code-gets-slow/">The Secret to Writing Fast Code / How Fast Code Gets Slow</a>
+<a target="_blank" href="http://blog.demofox.org/2016/12/08/evaluating-polynomials-with-the-gpu-texture-sampler/">Evaluating Polynomials with the GPU Texture Sampler</a>
+<a target="_blank" href="http://blog.demofox.org/2016/12/10/failed-experiment-the-gpu-texture-sampler-is-turing-complete-but-that-fact-is-pretty-useless/">Failed Experiment: The GPU Texture Sampler is Turing Complete But That Fact is Pretty Useless</a>
+<a target="_blank" href="http://blog.demofox.org/2016/12/16/analyticsurfacesvolumesgpu/">Evaluating Points on Analytical Surfaces and in Analytical Volumes Using the GPU Texture Sampler</a>
+<a target="_blank" href="http://blog.demofox.org/2016/12/22/incremental-least-squares-curve-fitting/">Incremental Least Squares Curve Fitting</a>
+<a target="_blank" href="http://blog.demofox.org/2017/01/02/incremental-least-squares-surface-and-hyper-volume-fitting/">Incremental Least Squares Surface and Hyper-Volume Fitting</a>
+<a target="_blank" href="http://blog.demofox.org/2017/01/09/raytracing-reflection-refraction-fresnel-total-internal-reflection-and-beers-law/">Raytracing Reflection, Refraction, Fresnel, Total Internal Reflection, and Beer&#039;s Law</a>
+<a target="_blank" href="http://blog.demofox.org/2017/01/24/my-old-master-how-to-correct-as-a-mentor-or-a-teacher/">My Old Master: How to Correct as a Mentor or a Teacher</a>
+<a target="_blank" href="http://blog.demofox.org/2017/02/07/a-geometric-interpretation-of-neural-networks/">A Geometric Interpretation of Neural Networks</a>
+<a target="_blank" href="http://blog.demofox.org/2017/02/20/multivariable-dual-numbers-automatic-differentiation/">Multivariable Dual Numbers &#038; Automatic Differentiation</a>
+<a target="_blank" href="http://blog.demofox.org/2017/03/09/how-to-train-neural-networks-with-backpropagation/">How to Train Neural Networks With Backpropagation</a>
+<a target="_blank" href="http://blog.demofox.org/2017/03/13/neural-network-gradients-backpropagation-dual-numbers-finite-differences/">Neural Network Gradients: Backpropagation, Dual Numbers, Finite Differences</a>
+<a target="_blank" href="http://blog.demofox.org/2017/03/15/neural-network-recipe-recognize-handwritten-digits-with-95-accuracy/">Neural Network Recipe: Recognize Handwritten Digits With 95% Accuracy</a>
+<a target="_blank" href="http://blog.demofox.org/2017/03/17/plastic-bag-ban-semi-reusable-bag-kiosks-a-better-solution/">Plastic Bag Ban - Semi Reusable Bag Kiosks a Better Solution?</a>
+<a target="_blank" href="http://blog.demofox.org/2017/03/31/orthogonal-projection-matrix-plainly-explained/">Orthogonal Projection Matrix Plainly Explained</a>
+<a target="_blank" href="http://blog.demofox.org/2017/04/10/solving-n-equations-and-n-unknowns-the-fine-print-gauss-jordan-elimination/">Solving N equations and N unknowns: The Fine Print (Gauss Jordan Elimination)</a>
+<a target="_blank" href="http://blog.demofox.org/2017/05/07/improved-storage-space-efficiency-of-gpu-texture-sampler-bezier-curve-evaluation/">Improved Storage Space Efficiency of GPU Texture Sampler Bezier Curve Evaluation</a>
+<a target="_blank" href="http://blog.demofox.org/2017/05/29/when-random-numbers-are-too-random-low-discrepancy-sequences/">When Random Numbers Are Too Random: Low Discrepancy Sequences</a>
+<a target="_blank" href="http://blog.demofox.org/2017/06/20/simd-gpu-friendly-branchless-binary-search/">SIMD / GPU Friendly Branchless Binary Search</a>
+<a target="_blank" href="http://blog.demofox.org/2017/07/01/why-are-some-shadows-soft-and-other-shadows-hard/">Why Are Some Shadows Soft And Other Shadows Hard?</a>
+<a target="_blank" href="http://blog.demofox.org/2017/07/03/a-tool-to-debug-teams-knoster/">A Tool To Debug Teams (Knoster)</a>
+<a target="_blank" href="http://blog.demofox.org/2017/07/10/webgl-pbr-implementation/">WebGL PBR Implementation</a>
+<a target="_blank" href="http://blog.demofox.org/2017/07/25/counting-bits-the-normal-distribution/">Counting Bits &#038; The Normal Distribution</a>
+<a target="_blank" href="http://blog.demofox.org/2017/08/05/generating-random-numbers-from-a-specific-distribution-by-inverting-the-cdf/">Generating Random Numbers From a Specific Distribution By Inverting the CDF</a>
+<a target="_blank" href="http://blog.demofox.org/2017/08/08/generating-random-numbers-from-a-specific-distribution-with-rejection-sampling/">Generating Random Numbers From a Specific Distribution With Rejection Sampling</a>
+<a target="_blank" href="http://blog.demofox.org/2017/09/30/half-tile-offset-streaming-world-grids/">Half Tile Offset Streaming World Grids</a>
+<a target="_blank" href="http://blog.demofox.org/2017/10/01/calculating-the-distance-between-points-in-wrap-around-toroidal-space/">Calculating the Distance Between Points in &quot;Wrap Around&quot; (Toroidal) Space</a>
+<a target="_blank" href="http://blog.demofox.org/2017/10/20/generating-blue-noise-sample-points-with-mitchells-best-candidate-algorithm/">Generating Blue Noise Sample Points With Mitchell&#039;s Best Candidate Algorithm</a>
+<a target="_blank" href="http://blog.demofox.org/2017/10/25/transmuting-white-noise-to-blue-red-green-purple/">Transmuting White Noise To Blue, Red, Green, Purple</a>
+<a target="_blank" href="http://blog.demofox.org/2017/10/31/animating-noise-for-integration-over-time/">Animating Noise For Integration Over Time</a>
+<a target="_blank" href="http://blog.demofox.org/2017/11/03/animating-noise-for-integration-over-time-2-uniform-over-time/">Animating Noise For Integration Over Time 2: Uniform Over Time</a>
+<a target="_blank" href="http://blog.demofox.org/2017/11/21/floating-point-precision/">Demystifying Floating Point Precision</a>
+<a target="_blank" href="http://blog.demofox.org/2017/11/16/my-old-master-on-optimism/">My Old Master: On Optimism</a>
+<a target="_blank" href="http://blog.demofox.org/2017/11/26/dissecting-tiny-clouds/">Dissecting &quot;Tiny Clouds&quot;</a>
+<a target="_blank" href="http://blog.demofox.org/2017/12/23/c-differentiable-programming-searching-for-an-optimal-dither-pattern/">C++ Differentiable Programming: Searching For An Optimal Dither Pattern</a>
+<a target="_blank" href="http://blog.demofox.org/2018/01/30/what-the-heck-is-blue-noise/">What the Heck is Blue Noise?</a>
