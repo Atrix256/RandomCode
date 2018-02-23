@@ -3,6 +3,8 @@
 #include <string.h>
 #include <assert.h>
 #include <string>
+#include <vector>
+#include <algorithm>
 
 #define STRING_SIZE 102400
 
@@ -37,12 +39,13 @@ int main(int argc, char** argv)
     if (!outFile)
         return 2;
 
-
-    // 0 = finding title
-    // 1 = finding link
-    // 2 = verifying that it's a post
-    // 3 = verifying that it's published
-   // int step = 0;
+    struct Item
+    {
+        std::string title;
+        std::string link;
+        std::string postDate;
+    };
+    std::vector<Item> items;
 
     std::string line;
 
@@ -57,6 +60,9 @@ int main(int argc, char** argv)
 
     std::string status;
     bool hasStatus = false;
+
+    std::string postDate;
+    bool hasPostDate = false;
 
     if (ReadLine(inFile, line))
     {
@@ -130,20 +136,65 @@ int main(int argc, char** argv)
                 }
             }
 
-            if (hasTitle && hasLink && hasPostType && hasStatus)
+            if (!hasPostDate)
             {
-                if (!strcmp(postType.c_str(), "post") && !strcmp(status.c_str(), "publish"))
-                {
-                    fprintf(outFile, "<a target=\"_blank\" href=\"%s\">%s</a>\r\n", link.c_str(), title.c_str());
-                }
+                const char* find1 = "<wp:post_date>";
+                const char* find2 = "</wp:post_date>";
 
+                const char* start = strstr(line.c_str(), find1);
+                const char* end = strstr(line.c_str(), find2);
+
+                assert((start == nullptr && end == nullptr) || (start != nullptr && end != nullptr));
+
+                if (start)
+                {
+                    const char* end = strstr(line.c_str(), " ");
+                    assert(end);
+                    postDate = line.substr(start - line.c_str() + strlen(find1), end - start - strlen(find1));
+                    hasPostDate = true;
+                }
+            }
+
+
+            if (strstr(line.c_str(), "</item>"))
+            {
+                if (hasTitle && hasLink && hasPostType && hasStatus && hasPostDate)
+                {
+                    if (!strcmp(postType.c_str(), "post") && !strcmp(status.c_str(), "publish"))
+                    {
+                        items.push_back(
+                            {
+                                title,
+                                link,
+                                postDate
+                            }
+                        );
+                    }
+                }
+                else
+                {
+                    assert(false);
+                }
                 hasTitle = false;
                 hasLink = false;
                 hasPostType = false;
                 hasStatus = false;
+                hasPostDate = false;
             }
         }
         while (ReadLine(inFile, line));
+    }
+
+    std::sort(items.begin(), items.end(),
+        [] (const Item& a, const Item& b) -> bool
+        {
+            return a.postDate.compare(b.postDate) > 0;
+        }
+    );
+
+    for (Item& item : items)
+    {
+        fprintf(outFile, "<a target=\"_blank\" href=\"%s\">%s %s</a>\r\n", item.link.c_str(), item.postDate.c_str(), item.title.c_str());
     }
 
     fclose(inFile);
