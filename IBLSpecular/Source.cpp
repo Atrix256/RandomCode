@@ -4,9 +4,17 @@
 #include <stdint.h>
 #include <vector>
 #include <array>
-#include <windows.h>  // for bitmap headers.  Sorry non windows people!
 #include <thread>
 #include <atomic>
+
+// stb_image is an amazing header only image library (aka no linking, just include the headers!).  http://nothings.org/stb
+#pragma warning( disable : 4996 ) 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
+#pragma warning( default : 4996 ) 
 
 // Whether to make the splitsum texture or not (speeds it up if you don't need it)
 #define MAKE_SPLITSUM() 1
@@ -26,8 +34,8 @@
 // Source images will be resized to this width and height in memory if they are larger than this
 #define MAX_SOURCE_IMAGE_SIZE() 128
 
-// If true, assumes skybox source images are sRGB, and will write results as sRGB as well. If 0, assumes source is linear and also writes out linear results.
-#define DO_SRGB_CORRECTIONS() 1
+// If true, converts source images to linear before doing work. Output files are linear.
+#define SOURCE_IS_SRGB() 1
 
 // ==================================================================================================================
 const float c_pi = 3.14159265359f;
@@ -40,6 +48,24 @@ using TVector = std::array<float, N>;
 
 typedef TVector<3> TVector3;
 typedef TVector<2> TVector2;
+
+// ==================================================================================================================
+
+float sRGBToLinear(float value)
+{
+    if (value < 0.04045f)
+        return value / 12.92f;
+    else
+        return std::powf(((value + 0.055f) / 1.055f), 2.4f);
+}
+
+float LinearTosRGB(float value)
+{
+    if (value < 0.0031308f)
+        return value * 12.92f;
+    else
+        return std::powf(value, 1.0f / 2.4f) *  1.055f - 0.055f;
+}
 
 // ==================================================================================================================
 TVector3 Cross (const TVector3&a, const TVector3& b)
@@ -172,11 +198,12 @@ struct SBlockTimer
         : m_width(0)
         , m_height(0)
     { }
+
+    size_t Pitch() const { return m_width * 3; }
   
     size_t m_width;
     size_t m_height;
-    size_t m_pitch;
-    std::vector<uint8> m_pixels;
+    std::vector<float> m_pixels;
 };
 
  // ==================================================================================================================
@@ -195,15 +222,15 @@ float CubicHermite (float A, float B, float C, float D, float t)
 }
 
 // ==================================================================================================================
-const uint8* GetPixelClamped (const SImageData& image, int x, int y)
+const float* GetPixelClamped (const SImageData& image, int x, int y)
 {
     x = Clamp<int>(x, 0, (int)image.m_width - 1);
     y = Clamp<int>(y, 0, (int)image.m_height - 1);
-    return &image.m_pixels[(y * image.m_pitch) + x * 3];
+    return &image.m_pixels[(y * image.Pitch()) + x * 3];
 }
 
 // ==================================================================================================================
-std::array<uint8, 3> SampleBicubic (const SImageData& image, float u, float v)
+std::array<float, 3> SampleBicubic (const SImageData& image, float u, float v)
 {
     // calculate coordinates -> also need to offset by half a pixel to keep image from shifting down and left half a pixel
     float x = (u * image.m_width) - 0.5f;
@@ -239,8 +266,8 @@ std::array<uint8, 3> SampleBicubic (const SImageData& image, float u, float v)
     auto p33 = GetPixelClamped(image, xint + 2, yint + 2);
 
     // interpolate bi-cubically!
-    // Clamp the values since the curve can put the value below 0 or above 255
-    std::array<uint8, 3> ret;
+    // Clamp the values since the curve can put the value below 0 or above 1
+    std::array<float, 3> ret;
     for (int i = 0; i < 3; ++i)
     {
         float col0 = CubicHermite(p00[i], p10[i], p20[i], p30[i], xfract);
@@ -248,8 +275,7 @@ std::array<uint8, 3> SampleBicubic (const SImageData& image, float u, float v)
         float col2 = CubicHermite(p02[i], p12[i], p22[i], p32[i], xfract);
         float col3 = CubicHermite(p03[i], p13[i], p23[i], p33[i], xfract);
         float value = CubicHermite(col0, col1, col2, col3, yfract);
-        value = Clamp(value, 0.0f, 255.0f);
-        ret[i] = uint8(value);
+        ret[i] = Clamp(value, 0.0f, 1.0f);
     }
     return ret;
 }
@@ -257,78 +283,43 @@ std::array<uint8, 3> SampleBicubic (const SImageData& image, float u, float v)
  // ==================================================================================================================
 bool LoadImage (const char *fileName, SImageData& imageData)
 {
-    // open the file if we can
-    FILE *file;
-    file = fopen(fileName, "rb");
-    if (!file)
+    // load the image if we can
+    int channels, width, height;
+    stbi_uc* pixels = stbi_load(fileName, &width, &height, &channels, 3);
+    if (!pixels)
         return false;
-  
-    // read the headers if we can
-    BITMAPFILEHEADER header;
-    BITMAPINFOHEADER infoHeader;
-    if (fread(&header, sizeof(header), 1, file) != 1 ||
-        fread(&infoHeader, sizeof(infoHeader), 1, file) != 1 ||
-        header.bfType != 0x4D42 || infoHeader.biBitCount != 24)
+
+    // convert the pixels to float, and linear if they aren't already
+    imageData.m_width = width;
+    imageData.m_height = height;
+    imageData.m_pixels.resize(imageData.Pitch()*imageData.m_height);
+
+    for (size_t i = 0; i < imageData.m_pixels.size(); ++i)
     {
-        fclose(file);
-        return false;
+        imageData.m_pixels[i] = float(pixels[i]) / 255.0f;
+
+        #if SOURCE_IS_SRGB()
+        imageData.m_pixels[i] = sRGBToLinear(imageData.m_pixels[i]);
+        #endif
     }
-  
-    // read in our pixel data if we can. Note that it's in BGR order, and width is padded to the next power of 4
-    imageData.m_pixels.resize(infoHeader.biSizeImage);
-    fseek(file, header.bfOffBits, SEEK_SET);
-    if (fread(&imageData.m_pixels[0], imageData.m_pixels.size(), 1, file) != 1)
-    {
-        fclose(file);
-        return false;
-    }
-  
-    imageData.m_width = infoHeader.biWidth;
-    imageData.m_height = infoHeader.biHeight;
-    imageData.m_pitch = 4 * ((imageData.m_width * 24 + 31) / 32);
-  
-    fclose(file);
+
+    // free the source image and return success
+    stbi_image_free(pixels);
     return true;
 }
 
 // ==================================================================================================================
 bool SaveImage (const char *fileName, const SImageData &image)
 {
-    // open the file if we can
-    FILE *file;
-    file = fopen(fileName, "wb");
-    if (!file)
-        return false;
-  
-    // make the header info
-    BITMAPFILEHEADER header;
-    BITMAPINFOHEADER infoHeader;
-  
-    header.bfType = 0x4D42;
-    header.bfReserved1 = 0;
-    header.bfReserved2 = 0;
-    header.bfOffBits = 54;
-  
-    infoHeader.biSize = 40;
-    infoHeader.biWidth = (long)image.m_width;
-    infoHeader.biHeight = (long)image.m_height;
-    infoHeader.biPlanes = 1;
-    infoHeader.biBitCount = 24;
-    infoHeader.biCompression = 0;
-    infoHeader.biSizeImage = (DWORD)image.m_pixels.size();
-    infoHeader.biXPelsPerMeter = 0;
-    infoHeader.biYPelsPerMeter = 0;
-    infoHeader.biClrUsed = 0;
-    infoHeader.biClrImportant = 0;
-  
-    header.bfSize = infoHeader.biSizeImage + header.bfOffBits;
-  
-    // write the data and close the file
-    fwrite(&header, sizeof(header), 1, file);
-    fwrite(&infoHeader, sizeof(infoHeader), 1, file);
-    fwrite(&image.m_pixels[0], infoHeader.biSizeImage, 1, file);
-    fclose(file);
-    return true;
+    std::vector<uint8> outPixels;
+    outPixels.resize(image.m_pixels.size());
+    for (size_t i = 0; i < image.m_pixels.size(); ++i)
+    {
+        float value = image.m_pixels[i];
+        outPixels[i] = uint8(value * 255.0f);
+    }
+
+    return stbi_write_png(fileName, (int)image.m_width, (int)image.m_height, 3, &outPixels[0], (int)image.Pitch()) == 1;
 }
 
 // ==================================================================================================================
@@ -347,20 +338,19 @@ void DownsizeImage (SImageData& image, size_t imageSize)
         SImageData newImage;
         newImage.m_width = newImageSize;
         newImage.m_height = newImageSize;
-        newImage.m_pitch = 4 * ((newImage.m_width * 24 + 31) / 32);
-        newImage.m_pixels.resize(newImage.m_height * newImage.m_pitch);
+        newImage.m_pixels.resize(newImage.m_height * newImage.Pitch());
 
         // sample pixels
         for (size_t iy = 0, iyc = newImage.m_height; iy < iyc; ++iy)
         {
             float percentY = float(iy) / float(iyc);
 
-            uint8* destPixel = &newImage.m_pixels[iy * newImage.m_pitch];
+            float* destPixel = &newImage.m_pixels[iy * newImage.Pitch()];
             for (size_t ix = 0, ixc = newImage.m_width; ix < ixc; ++ix)
             {
                 float percentX = float(ix) / float(ixc);
 
-                std::array<uint8, 3> srcSample = SampleBicubic(image, percentX, percentY);
+                std::array<float, 3> srcSample = SampleBicubic(image, percentX, percentY);
                 destPixel[0] = srcSample[0];
                 destPixel[1] = srcSample[1];
                 destPixel[2] = srcSample[2];
@@ -429,8 +419,8 @@ float GeometrySchlickGGX (float NdotV, float roughness)
 // ==================================================================================================================
 float GeometrySmith (const TVector3& N, const TVector3& V, const TVector3& L, float roughness)
 {
-    float NdotV = max(Dot(N, V), 0.0f);
-    float NdotL = max(Dot(N, L), 0.0f);
+    float NdotV = std::max(Dot(N, V), 0.0f);
+    float NdotL = std::max(Dot(N, L), 0.0f);
     float ggx2 = GeometrySchlickGGX(NdotV, roughness);
     float ggx1 = GeometrySchlickGGX(NdotL, roughness);
 
@@ -457,9 +447,9 @@ TVector2 IntegrateBRDF (float NdotV, float roughness)
         TVector3 H = ImportanceSampleGGX(Xi, N, roughness);
         TVector3 L = Normalize(H * 2.0 * Dot(V, H) - V);
 
-        float NdotL = max(L[2], 0.0f);
-        float NdotH = max(H[2], 0.0f);
-        float VdotH = max(Dot(V, H), 0.0f);
+        float NdotL = std::max(L[2], 0.0f);
+        float NdotH = std::max(H[2], 0.0f);
+        float VdotH = std::max(Dot(V, H), 0.0f);
 
         if (NdotL > 0.0)
         {
@@ -523,7 +513,7 @@ void GenerateSplitSumTextureThreadFunc (SImageData& splitSumTexture)
     while (rowIndex < SPLIT_SUM_SIZE())
     {
         // get the pixel at the start of this row
-        uint8* pixel = &splitSumTexture.m_pixels[rowIndex * splitSumTexture.m_pitch];
+        float* pixel = &splitSumTexture.m_pixels[rowIndex * splitSumTexture.Pitch()];
 
         float roughness = float(rowIndex) / float(SPLIT_SUM_SIZE()) + c_halfAPixel;
 
@@ -532,9 +522,9 @@ void GenerateSplitSumTextureThreadFunc (SImageData& splitSumTexture)
             float NdotV = float(ix) / float(SPLIT_SUM_SIZE()) + c_halfAPixel;
 
             TVector2 integratedBRDF = IntegrateBRDF(NdotV, roughness);
-            pixel[2] = uint8(integratedBRDF[0] * 255.0f);
-            pixel[1] = uint8(integratedBRDF[1] * 255.0f);
-            pixel[0] = 0;
+            pixel[0] = integratedBRDF[0];
+            pixel[1] = integratedBRDF[1];
+            pixel[2] = 0;
 
             // move to the next pixel
             pixel += 3;
@@ -553,8 +543,7 @@ void GenerateSplitSumTexture ()
     SImageData splitSumTexture;
     splitSumTexture.m_width = SPLIT_SUM_SIZE();
     splitSumTexture.m_height = SPLIT_SUM_SIZE();
-    splitSumTexture.m_pitch = 4 * ((splitSumTexture.m_width * 24 + 31) / 32);
-    splitSumTexture.m_pixels.resize(splitSumTexture.m_height * splitSumTexture.m_pitch);
+    splitSumTexture.m_pixels.resize(splitSumTexture.m_height * splitSumTexture.Pitch());
 
     RunMultiThreaded(
         "Generating Split Sum Texture",
@@ -562,10 +551,10 @@ void GenerateSplitSumTexture ()
         true
     );
 
-    if (SaveImage("SplitSum.bmp", splitSumTexture))
-        printf("Saved: SplitSum.bmp\n\n");
+    if (SaveImage("SplitSum.png", splitSumTexture))
+        printf("Saved: SplitSum.png\n\n");
     else
-        printf("Could not save image: SplitSum.bmp\n\n");
+        printf("Could not save image: SplitSum.png\n\n");
 }
 
 // ==================================================================================================================
@@ -620,7 +609,7 @@ float DistributionGGX (TVector3 N, TVector3 H, float roughness)
 {
     float a = roughness*roughness;
     float a2 = a*a;
-    float NdotH = max(Dot(N, H), 0.0f);
+    float NdotH = std::max(Dot(N, H), 0.0f);
     float NdotH2 = NdotH*NdotH;
 
     float nom = a2;
@@ -688,22 +677,7 @@ TVector3 SampleCubeMap (const std::array<SImageData, 6>& srcImages, const TVecto
     uv = uv / dir[maxComponent];
     uv = uv * 0.5f + 0.5f;
 
-    std::array<uint8, 3> sample = SampleBicubic(srcImages[face], uv[0], uv[1]);
-
-    TVector3 pixelColor =
-    {
-        float(sample[0]) / 255.0f,
-        float(sample[1]) / 255.0f,
-        float(sample[2]) / 255.0f,
-    };
-
-    #if DO_SRGB_CORRECTIONS()
-        pixelColor[0] = std::pow(pixelColor[0], 2.2f);
-        pixelColor[1] = std::pow(pixelColor[1], 2.2f);
-        pixelColor[2] = std::pow(pixelColor[2], 2.2f);
-    #endif
-
-    return pixelColor;
+    return SampleBicubic(srcImages[face], uv[0], uv[1]);
 }
 
 // ==================================================================================================================
@@ -729,13 +703,13 @@ TVector3 SpecularIrradianceForNormal (const std::array<SImageData, 6>& srcImages
         TVector3 H = ImportanceSampleGGX(Xi, normal, roughness);
         TVector3 L = Normalize(H * Dot(V, H) * 2.0f - V);
 
-        float NdotL = max(Dot(normal, L), 0.0f);
+        float NdotL = std::max(Dot(normal, L), 0.0f);
         if (NdotL > 0.0)
         {
             // sample from the environment's mip level based on roughness/pdf
             float D = DistributionGGX(normal, H, roughness);
-            float NdotH = max(Dot(normal, H), 0.0f);
-            float HdotV = max(Dot(H, V), 0.0f);
+            float NdotH = std::max(Dot(normal, H), 0.0f);
+            float HdotV = std::max(Dot(H, V), 0.0f);
             float pdf = D * NdotH / (4.0f * HdotV) + 0.0001f;
 
             float resolution = float(srcImages[0].m_width); // resolution of source cubemap (per face)
@@ -754,108 +728,91 @@ TVector3 SpecularIrradianceForNormal (const std::array<SImageData, 6>& srcImages
 
     prefilteredColor = prefilteredColor / totalWeight;
 
-    #if DO_SRGB_CORRECTIONS()
-        prefilteredColor[0] = std::pow(prefilteredColor[0], 1.0f / 2.2f);
-        prefilteredColor[1] = std::pow(prefilteredColor[1], 1.0f / 2.2f);
-        prefilteredColor[2] = std::pow(prefilteredColor[2], 1.0f / 2.2f);
-    #endif
-
     return prefilteredColor;
 
 #if 0
+    // NOTE: this code is stale.It is from before pixels were float values and sRGB (instead of gamma 2.2) and before the output was kept linear
     // loop through every pixel in the source cube map and add that pixel's contribution to the diffuse irradiance
     float totalWeight = 0.0f;
     TVector3 irradiance = { 0.0f, 0.0f, 0.0f };
     for (size_t faceIndex = 0; faceIndex < 6; ++faceIndex)
     {
-        const SImageData& src = srcImages[faceIndex];
-        TVector3 facePlane, uAxis, vAxis;
-        GetFaceBasis(faceIndex, facePlane, uAxis, vAxis);
+const SImageData& src = srcImages[faceIndex];
+TVector3 facePlane, uAxis, vAxis;
+GetFaceBasis(faceIndex, facePlane, uAxis, vAxis);
 
-        float invResolution = 1.0f / src.m_width;
+float invResolution = 1.0f / src.m_width;
 
-        for (size_t iy = 0, iyc = src.m_height; iy < iyc; ++iy)
+for (size_t iy = 0, iyc = src.m_height; iy < iyc; ++iy)
+{
+    TVector2 uv;
+    uv[1] = (float(iy) / float(iyc - 1)) * 2.0f - 1.0f;
+
+    const uint8* pixel = &src.m_pixels[iy * src.m_pitch];
+    for (size_t ix = 0, ixc = src.m_width; ix < ixc; ++ix)
+    {
+        uv[0] = (float(ix) / float(ixc - 1)) * 2.0f - 1.0f;
+
+        // only accept directions where dot product greater than 0
+        TVector3 sampleDir =
+            facePlane +
+            uAxis * uv[0] +
+            vAxis * uv[1];
+        Normalize(sampleDir);
+        float cosTheta = Dot(normal, sampleDir);
+        if (cosTheta <= 0.0f)
+            continue;
+
+        // get the pixel color and move to the next pixel
+        TVector3 pixelColor =
         {
-            TVector2 uv;
-            uv[1] = (float(iy) / float(iyc - 1)) * 2.0f - 1.0f;
+            float(pixel[0]) / 255.0f,
+            float(pixel[1]) / 255.0f,
+            float(pixel[2]) / 255.0f,
+        };
+        pixel += 3;
 
-            const uint8* pixel = &src.m_pixels[iy * src.m_pitch];
-            for (size_t ix = 0, ixc = src.m_width; ix < ixc; ++ix)
-            {
-                uv[0] = (float(ix) / float(ixc - 1)) * 2.0f - 1.0f;
+        // calculate solid angle (size) of the pixel
+        float x0 = uv[0] - invResolution;
+        float y0 = uv[1] - invResolution;
+        float x1 = uv[0] + invResolution;
+        float y1 = uv[1] + invResolution;
+        float solidAngle = AreaElement(x0, y0) - AreaElement(x0, y1) - AreaElement(x1, y0) + AreaElement(x1, y1);
 
-                // only accept directions where dot product greater than 0
-                TVector3 sampleDir =
-                    facePlane +
-                    uAxis * uv[0] +
-                    vAxis * uv[1];
-                Normalize(sampleDir);
-                float cosTheta = Dot(normal, sampleDir);
-                if (cosTheta <= 0.0f)
-                    continue;
+        // add this pixel's contribution into the radiance
+        irradiance = irradiance + pixelColor * solidAngle * cosTheta;
 
-                // get the pixel color and move to the next pixel
-                TVector3 pixelColor =
-                {
-                    float(pixel[0]) / 255.0f,
-                    float(pixel[1]) / 255.0f,
-                    float(pixel[2]) / 255.0f,
-                };
-                pixel += 3;
+        /*
+        // sample from the environment's mip level based on roughness/pdf
+        float D = DistributionGGX(N, H, roughness);
+        float NdotH = max(dot(N, H), 0.0);
+        float HdotV = max(dot(H, V), 0.0);
+        float pdf = D * NdotH / (4.0 * HdotV) + 0.0001;
 
-                #if DO_SRGB_CORRECTIONS()
-                    pixelColor[0] = std::pow(pixelColor[0], 2.2f);
-                    pixelColor[1] = std::pow(pixelColor[1], 2.2f);
-                    pixelColor[2] = std::pow(pixelColor[2], 2.2f);
-                #endif
+        float resolution = 512.0; // resolution of source cubemap (per face)
+        float saTexel = 4.0 * PI / (6.0 * resolution * resolution);
+        float saSample = 1.0 / (float(SAMPLE_COUNT) * pdf + 0.0001);
 
-                // calculate solid angle (size) of the pixel
-                float x0 = uv[0] - invResolution;
-                float y0 = uv[1] - invResolution;
-                float x1 = uv[0] + invResolution;
-                float y1 = uv[1] + invResolution;
-                float solidAngle = AreaElement(x0, y0) - AreaElement(x0, y1) - AreaElement(x1, y0) + AreaElement(x1, y1);
+        float mipLevel = roughness == 0.0 ? 0.0 : 0.5 * log2(saSample / saTexel);
 
-                // add this pixel's contribution into the radiance
-                irradiance = irradiance + pixelColor * solidAngle * cosTheta;
+        prefilteredColor += textureLod(environmentMap, L, mipLevel).rgb * NdotL;
+        totalWeight += NdotL;
+        */
 
-                /*
-                // sample from the environment's mip level based on roughness/pdf
-                float D = DistributionGGX(N, H, roughness);
-                float NdotH = max(dot(N, H), 0.0);
-                float HdotV = max(dot(H, V), 0.0);
-                float pdf = D * NdotH / (4.0 * HdotV) + 0.0001;
-
-                float resolution = 512.0; // resolution of source cubemap (per face)
-                float saTexel = 4.0 * PI / (6.0 * resolution * resolution);
-                float saSample = 1.0 / (float(SAMPLE_COUNT) * pdf + 0.0001);
-
-                float mipLevel = roughness == 0.0 ? 0.0 : 0.5 * log2(saSample / saTexel);
-
-                prefilteredColor += textureLod(environmentMap, L, mipLevel).rgb * NdotL;
-                totalWeight += NdotL;
-                */
-
-                // keep track of the total weight so we can normalize later
-                totalWeight += solidAngle;                
-            }
-        }
+        // keep track of the total weight so we can normalize later
+        totalWeight += solidAngle;
     }
-    
-    irradiance = irradiance * 4.0f / totalWeight;
+}
+    }
 
-    #if DO_SRGB_CORRECTIONS()
-        irradiance[0] = std::pow(irradiance[0], 1.0f / 2.2f);
-        irradiance[1] = std::pow(irradiance[1], 1.0f / 2.2f);
-        irradiance[2] = std::pow(irradiance[2], 1.0f / 2.2f);
-    #endif
+    irradiance = irradiance * 4.0f / totalWeight;
 
     return irradiance;
 #endif
 }
 
 // ==================================================================================================================
-void ProcessRow (const std::array<SImageData, 6>& srcImages, std::array<SImageData, 6 * MAX_MIP_LEVELS()>& destImages, size_t rowIndex)
+void ProcessRow(const std::array<SImageData, 6>& srcImages, std::array<SImageData, 6 * MAX_MIP_LEVELS()>& destImages, size_t rowIndex)
 {
     // calculate which image we are on, while also making sure our row index is correct within that image.
     size_t imageIndex = 0;
@@ -876,27 +833,28 @@ void ProcessRow (const std::array<SImageData, 6>& srcImages, std::array<SImageDa
     GetFaceBasis(faceIndex, facePlane, uAxis, vAxis);
 
     SImageData &destData = destImages[mipIndex * 6 + faceIndex];
-    uint8* pixel = &destData.m_pixels[rowIndex * destData.m_pitch];
+    float* pixel = &destData.m_pixels[rowIndex * destData.Pitch()];
+
     TVector2 uv;
-    uv[1] = (float(rowIndex) / float(destData.m_height - 1));
+    uv[1] = ((float(rowIndex) + 0.5f) / float(destData.m_height));
     for (size_t ix = 0; ix < destData.m_width; ++ix)
     {
-        uv[0] = (float(ix) / float(destData.m_width - 1));
+        uv[0] = ((float(ix) + 0.5f) / float(destData.m_width));
 
         // calculate the position of the pixel on the cube
         TVector3 normalDir =
             facePlane +
             uAxis * (uv[0] * 2.0f - 1.0f) +
             vAxis * (uv[1] * 2.0f - 1.0f);
-        Normalize(normalDir);
+        normalDir=Normalize(normalDir);
 
         // get the specular irradiance for this direction
         TVector3 specularIrradiance = SpecularIrradianceForNormal(srcImages, normalDir, roughness);
 
         // store the resulting color
-        pixel[0] = (uint8)Clamp(specularIrradiance[0] * 255.0f, 0.0f, 255.0f);
-        pixel[1] = (uint8)Clamp(specularIrradiance[1] * 255.0f, 0.0f, 255.0f);
-        pixel[2] = (uint8)Clamp(specularIrradiance[2] * 255.0f, 0.0f, 255.0f);
+        pixel[0] = Clamp(specularIrradiance[0], 0.0f, 1.0f);
+        pixel[1] = Clamp(specularIrradiance[1], 0.0f, 1.0f);
+        pixel[2] = Clamp(specularIrradiance[2], 0.0f, 1.0f);
         pixel += 3;
     }
 }
@@ -932,12 +890,12 @@ void GenerateCubeMap (const char* src)
     };
 
     const char* destPatterns[6] = {
-        "%s%iSpecularLeft.bmp",
-        "%s%iSpecularDown.bmp",
-        "%s%iSpecularBack.bmp",
-        "%s%iSpecularRight.bmp",
-        "%s%iSpecularUp.bmp",
-        "%s%iSpecularFront.bmp",
+        "%s%iSpecularLeft.png",
+        "%s%iSpecularDown.png",
+        "%s%iSpecularBack.png",
+        "%s%iSpecularRight.png",
+        "%s%iSpecularUp.png",
+        "%s%iSpecularFront.png",
     };
 
     // load the source images
@@ -997,8 +955,7 @@ void GenerateCubeMap (const char* src)
 
             destImage.m_width = imageSize;
             destImage.m_height = imageSize;
-            destImage.m_pitch = 4 * ((destImage.m_width * 24 + 31) / 32);
-            destImage.m_pixels.resize(destImage.m_height * destImage.m_pitch);
+            destImage.m_pixels.resize(destImage.m_height * destImage.Pitch());
         }
         imageSize /= 2;
     }
@@ -1051,6 +1008,7 @@ int main (int argc, char **argcv)
 }
 
 /*
+
 
 TODO:
 ! it looks like the website starts with images that are 128x128
