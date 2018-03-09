@@ -508,18 +508,22 @@ void GenerateSplitSumTextureThreadFunc (SImageData& splitSumTexture)
     static std::atomic<size_t> s_rowIndex(0);
     size_t rowIndex = s_rowIndex.fetch_add(1);
 
-    const float c_halfAPixel = 0.5f / SPLIT_SUM_SIZE();
-
     while (rowIndex < SPLIT_SUM_SIZE())
     {
         // get the pixel at the start of this row
         float* pixel = &splitSumTexture.m_pixels[rowIndex * splitSumTexture.Pitch()];
 
-        float roughness = float(rowIndex) / float(SPLIT_SUM_SIZE()) + c_halfAPixel;
+        float roughness = (float(rowIndex) + 0.5f) / float(SPLIT_SUM_SIZE());
+
+        // avoid roughness asymptotes. Totally a legit, industry standard thing to do!
+        if (roughness < 0.01f)
+            roughness = 0.01f;
+        else if (roughness > 1.0f - 0.01f)
+            roughness = 1.0f - 0.01f;
 
         for (size_t ix = 0; ix < SPLIT_SUM_SIZE(); ++ix)
         {
-            float NdotV = float(ix) / float(SPLIT_SUM_SIZE()) + c_halfAPixel;
+            float NdotV = (float(ix) + 0.5f) / float(SPLIT_SUM_SIZE());
 
             TVector2 integratedBRDF = IntegrateBRDF(NdotV, roughness);
             pixel[0] = integratedBRDF[0];
@@ -716,9 +720,8 @@ TVector3 SpecularIrradianceForNormal (const std::array<SImageData, 6>& srcImages
             float saTexel = 4.0f * c_pi / (6.0f * resolution * resolution);
             float saSample = 1.0f / (float(SAMPLE_COUNT) * pdf + 0.0001f);
 
-            float mipLevel = roughness == 0.0f ? 0.0f : 0.5f * log2(saSample / saTexel);
-
             // TODO: sample the cube map at a specific mip level
+            //float mipLevel = (roughness == 0.0f) ? 0.0f : 0.5f * log2(saSample / saTexel);
             //prefilteredColor += textureLod(environmentMap, L, mipLevel).rgb * NdotL;
 
             prefilteredColor = prefilteredColor + SampleCubeMap(srcImages, L) * NdotL;
@@ -828,6 +831,12 @@ void ProcessRow(const std::array<SImageData, 6>& srcImages, std::array<SImageDat
 
     // calculate roughness
     float roughness = (float)mipIndex / (float)(MAX_MIP_LEVELS() - 1);
+    
+    // avoid roughness asymptotes. Totally a legit, industry standard thing to do!
+    if (roughness < 0.01f)
+        roughness = 0.01f;
+    else if (roughness > 1.0f - 0.01f)
+        roughness = 1.0f - 0.01f;
 
     TVector3 facePlane, uAxis, vAxis;
     GetFaceBasis(faceIndex, facePlane, uAxis, vAxis);
@@ -990,11 +999,11 @@ void GenerateCubeMap (const char* src)
 // ==================================================================================================================
 int main (int argc, char **argcv)
 {
-    //const char* src = "Vasa\\Vasa";
+    const char* src = "Vasa\\Vasa";
     //const char* src = "ame_ash\\ashcanyon";
     //const char* src = "DallasW\\dallas";
     //const char* src = "MarriottMadisonWest\\Marriot";
-    const char* src = "mnight\\mnight";
+    //const char* src = "mnight\\mnight";
 
     #if MAKE_SPLITSUM()
         GenerateSplitSumTexture();
