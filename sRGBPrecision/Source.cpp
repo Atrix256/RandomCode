@@ -134,6 +134,7 @@ void ImageTest (const char* fileName, const char* outFileNamePattern)
             imageData[i] = imageData[i] - pixels[i];
         else
             imageData[i] = pixels[i] - imageData[i];
+        imageData[i] *= 8;
     }
     sprintf(outFileName, outFileNamePattern, "_18_error");
     stbi_write_png(outFileName, width, height, 3, &imageData[0], width * 3);
@@ -157,6 +158,7 @@ void ImageTest (const char* fileName, const char* outFileNamePattern)
             imageData[i] = imageData[i] - pixels[i];
         else
             imageData[i] = pixels[i] - imageData[i];
+        imageData[i] *= 8;
     }
     sprintf(outFileName, outFileNamePattern, "_20_error");
     stbi_write_png(outFileName, width, height, 3, &imageData[0], width * 3);
@@ -180,6 +182,7 @@ void ImageTest (const char* fileName, const char* outFileNamePattern)
             imageData[i] = imageData[i] - pixels[i];
         else
             imageData[i] = pixels[i] - imageData[i];
+        imageData[i] *= 8;
     }
     sprintf(outFileName, outFileNamePattern, "_22_error");
     stbi_write_png(outFileName, width, height, 3, &imageData[0], width * 3);
@@ -203,6 +206,7 @@ void ImageTest (const char* fileName, const char* outFileNamePattern)
             imageData[i] = imageData[i] - pixels[i];
         else
             imageData[i] = pixels[i] - imageData[i];
+        imageData[i] *= 8;
     }
     sprintf(outFileName, outFileNamePattern, "_sRGB_error");
     stbi_write_png(outFileName, width, height, 3, &imageData[0], width * 3);
