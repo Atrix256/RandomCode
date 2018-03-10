@@ -4,9 +4,17 @@
 #include <stdint.h>
 #include <vector>
 #include <array>
-#include <windows.h>  // for bitmap headers.  Sorry non windows people!
 #include <thread>
 #include <atomic>
+
+// stb_image is an amazing header only image library (aka no linking, just include the headers!).  http://nothings.org/stb
+#pragma warning( disable : 4996 ) 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
+#pragma warning( default : 4996 ) 
 
 // for debugging. Set to 1 to make it all run on the main thread.
 #define FORCE_SINGLETHREADED() 0
@@ -15,10 +23,10 @@
 #define MAX_SOURCE_IMAGE_SIZE() 64
 
 // Destination images will be resized to this width and height in memory if they are larger than this, after convolution
-#define MAX_OUTPUT_IMAGE_SIZE() 32
+#define MAX_OUTPUT_IMAGE_SIZE() 64 // TODO: temp!
 
-// If true, assumes source images are sRGB, and will write results as sRGB as well. If 0, assumes source is linear and also writes out linear results.
-#define DO_SRGB_CORRECTIONS() 1
+// If true, converts source images to linear before doing work. Output files are linear.
+#define SOURCE_IS_SRGB() 1
 
 // ==================================================================================================================
 const float c_pi = 3.14159265359f;
@@ -31,6 +39,24 @@ using TVector = std::array<float, N>;
 
 typedef TVector<3> TVector3;
 typedef TVector<2> TVector2;
+
+// ==================================================================================================================
+
+float sRGBToLinear(float value)
+{
+    if (value < 0.04045f)
+        return value / 12.92f;
+    else
+        return std::powf(((value + 0.055f) / 1.055f), 2.4f);
+}
+
+float LinearTosRGB(float value)
+{
+    if (value < 0.0031308f)
+        return value * 12.92f;
+    else
+        return std::powf(value, 1.0f / 2.4f) *  1.055f - 0.055f;
+}
 
 // ==================================================================================================================
 template <size_t N>
@@ -150,17 +176,18 @@ struct SBlockTimer
 };
 
 // ==================================================================================================================
- struct SImageData
+struct SImageData
 {
     SImageData ()
         : m_width(0)
         , m_height(0)
     { }
+
+    size_t Pitch() const { return m_width * 3; }
   
     size_t m_width;
     size_t m_height;
-    size_t m_pitch;
-    std::vector<uint8> m_pixels;
+    std::vector<float> m_pixels;
 };
 
 // ==================================================================================================================
@@ -183,15 +210,15 @@ float CubicHermite (float A, float B, float C, float D, float t)
 }
 
 // ==================================================================================================================
-const uint8* GetPixelClamped (const SImageData& image, int x, int y)
+const float* GetPixelClamped (const SImageData& image, int x, int y)
 {
     x = Clamp<int>(x, 0, (int)image.m_width - 1);
     y = Clamp<int>(y, 0, (int)image.m_height - 1);
-    return &image.m_pixels[(y * image.m_pitch) + x * 3];
+    return &image.m_pixels[(y * image.Pitch()) + x * 3];
 }
 
 // ==================================================================================================================
-std::array<uint8, 3> SampleBicubic (const SImageData& image, float u, float v)
+std::array<float, 3> SampleBicubic (const SImageData& image, float u, float v)
 {
     // calculate coordinates -> also need to offset by half a pixel to keep image from shifting down and left half a pixel
     float x = (u * image.m_width) - 0.5f;
@@ -227,8 +254,8 @@ std::array<uint8, 3> SampleBicubic (const SImageData& image, float u, float v)
     auto p33 = GetPixelClamped(image, xint + 2, yint + 2);
 
     // interpolate bi-cubically!
-    // Clamp the values since the curve can put the value below 0 or above 255
-    std::array<uint8, 3> ret;
+    // Clamp the values since the curve can put the value below 0 or above 1
+    std::array<float, 3> ret;
     for (int i = 0; i < 3; ++i)
     {
         float col0 = CubicHermite(p00[i], p10[i], p20[i], p30[i], xfract);
@@ -236,8 +263,7 @@ std::array<uint8, 3> SampleBicubic (const SImageData& image, float u, float v)
         float col2 = CubicHermite(p02[i], p12[i], p22[i], p32[i], xfract);
         float col3 = CubicHermite(p03[i], p13[i], p23[i], p33[i], xfract);
         float value = CubicHermite(col0, col1, col2, col3, yfract);
-        value = Clamp(value, 0.0f, 255.0f);
-        ret[i] = uint8(value);
+        ret[i] = Clamp(value, 0.0f, 1.0f);
     }
     return ret;
 }
@@ -250,81 +276,46 @@ void WaitForEnter ()
     getchar();
 }
 
-// ==================================================================================================================
+ // ==================================================================================================================
 bool LoadImage (const char *fileName, SImageData& imageData)
 {
-    // open the file if we can
-    FILE *file;
-    file = fopen(fileName, "rb");
-    if (!file)
+    // load the image if we can
+    int channels, width, height;
+    stbi_uc* pixels = stbi_load(fileName, &width, &height, &channels, 3);
+    if (!pixels)
         return false;
-  
-    // read the headers if we can
-    BITMAPFILEHEADER header;
-    BITMAPINFOHEADER infoHeader;
-    if (fread(&header, sizeof(header), 1, file) != 1 ||
-        fread(&infoHeader, sizeof(infoHeader), 1, file) != 1 ||
-        header.bfType != 0x4D42 || infoHeader.biBitCount != 24)
+
+    // convert the pixels to float, and linear if they aren't already
+    imageData.m_width = width;
+    imageData.m_height = height;
+    imageData.m_pixels.resize(imageData.Pitch()*imageData.m_height);
+
+    for (size_t i = 0; i < imageData.m_pixels.size(); ++i)
     {
-        fclose(file);
-        return false;
+        imageData.m_pixels[i] = float(pixels[i]) / 255.0f;
+
+        #if SOURCE_IS_SRGB()
+        imageData.m_pixels[i] = sRGBToLinear(imageData.m_pixels[i]);
+        #endif
     }
-  
-    // read in our pixel data if we can. Note that it's in BGR order, and width is padded to the next power of 4
-    imageData.m_pixels.resize(infoHeader.biSizeImage);
-    fseek(file, header.bfOffBits, SEEK_SET);
-    if (fread(&imageData.m_pixels[0], imageData.m_pixels.size(), 1, file) != 1)
-    {
-        fclose(file);
-        return false;
-    }
-  
-    imageData.m_width = infoHeader.biWidth;
-    imageData.m_height = infoHeader.biHeight;
-    imageData.m_pitch = 4 * ((imageData.m_width * 24 + 31) / 32);
-  
-    fclose(file);
+
+    // free the source image and return success
+    stbi_image_free(pixels);
     return true;
 }
 
 // ==================================================================================================================
-bool SaveImage (const char *fileName, const SImageData &image)
+bool SaveImage(const char *fileName, const SImageData &image)
 {
-    // open the file if we can
-    FILE *file;
-    file = fopen(fileName, "wb");
-    if (!file)
-        return false;
-  
-    // make the header info
-    BITMAPFILEHEADER header;
-    BITMAPINFOHEADER infoHeader;
-  
-    header.bfType = 0x4D42;
-    header.bfReserved1 = 0;
-    header.bfReserved2 = 0;
-    header.bfOffBits = 54;
-  
-    infoHeader.biSize = 40;
-    infoHeader.biWidth = (long)image.m_width;
-    infoHeader.biHeight = (long)image.m_height;
-    infoHeader.biPlanes = 1;
-    infoHeader.biBitCount = 24;
-    infoHeader.biCompression = 0;
-    infoHeader.biSizeImage = (DWORD)image.m_pixels.size();
-    infoHeader.biXPelsPerMeter = 0;
-    infoHeader.biYPelsPerMeter = 0;
-    infoHeader.biClrUsed = 0;
-    infoHeader.biClrImportant = 0;
-  
-    header.bfSize = infoHeader.biSizeImage + header.bfOffBits;
-  
-    // write the data and close the file
-    fwrite(&header, sizeof(header), 1, file);
-    fwrite(&infoHeader, sizeof(infoHeader), 1, file);
-    fwrite(&image.m_pixels[0], infoHeader.biSizeImage, 1, file);
-    fclose(file);
-    return true;
+    std::vector<uint8> outPixels;
+    outPixels.resize(image.m_pixels.size());
+    for (size_t i = 0; i < image.m_pixels.size(); ++i)
+    {
+        float value = image.m_pixels[i];
+        outPixels[i] = uint8(value * 255.0f);
+    }
+
+    return stbi_write_png(fileName, (int)image.m_width, (int)image.m_height, 3, &outPixels[0], (int)image.Pitch()) == 1;
 }
 
 // ==================================================================================================================
@@ -356,7 +347,19 @@ void GetFaceBasis (size_t faceIndex, TVector3& facePlane, TVector3& uAxis, TVect
     }
 
     if ((faceIndex % 3) == 2)
+    {
         facePlane[2] *= -1.0f;
+    }
+
+    /*
+    "%sLeft.bmp",
+    "%sDown.bmp",
+    "%sBack.bmp",
+    "%sRight.bmp",
+    "%sUp.bmp",
+    "%sFront.bmp",
+
+    */
 }
 
 // ==================================================================================================================
@@ -371,41 +374,39 @@ TVector3 DiffuseIrradianceForNormal (const TVector3& normal)
         TVector3 facePlane, uAxis, vAxis;
         GetFaceBasis(faceIndex, facePlane, uAxis, vAxis);
 
-        float invResolution = 1.0f / src.m_width;
+        float invResolution = 1.0f / float(src.m_width);
 
         for (size_t iy = 0, iyc = src.m_height; iy < iyc; ++iy)
         {
             TVector2 uv;
-            uv[1] = (float(iy) / float(iyc - 1)) * 2.0f - 1.0f;
+            uv[1] = ((float(iy) + 0.5f) / float(iyc));
 
             for (size_t ix = 0, ixc = src.m_width; ix < ixc; ++ix)
             {
-                uv[0] = (float(ix) / float(ixc - 1)) * 2.0f - 1.0f;
+                const float* pixel = &src.m_pixels[iy * src.Pitch() + ix * 3];
+
+                uv[0] = ((float(ix) + 0.5f) / float(ixc));
 
                 // only accept directions where dot product greater than 0
                 TVector3 sampleDir =
                     facePlane +
-                    uAxis * uv[0] +
-                    vAxis * uv[1];
+                    uAxis * (uv[0] * 2.0f - 1.0f) +
+                    vAxis * (uv[1] * 2.0f - 1.0f);
                 Normalize(sampleDir);
+
                 float cosTheta = Dot(normal, sampleDir);
                 if (cosTheta <= 0.0f)
+                {
                     continue;
+                }
 
-                // get the pixel color and move to the next pixel
-                const uint8* pixel = &src.m_pixels[iy * src.m_pitch + ix * 3];
+                // get the pixel color
                 TVector3 pixelColor =
                 {
-                    float(pixel[0]) / 255.0f,
-                    float(pixel[1]) / 255.0f,
-                    float(pixel[2]) / 255.0f,
+                    pixel[0],
+                    pixel[1],
+                    pixel[2],
                 };
-
-                #if DO_SRGB_CORRECTIONS()
-                    pixelColor[0] = std::pow(pixelColor[0], 2.2f);
-                    pixelColor[1] = std::pow(pixelColor[1], 2.2f);
-                    pixelColor[2] = std::pow(pixelColor[2], 2.2f);
-                #endif
 
                 // calculate solid angle (size) of the pixel
                 float x0 = uv[0] - invResolution;
@@ -415,10 +416,10 @@ TVector3 DiffuseIrradianceForNormal (const TVector3& normal)
                 float solidAngle = AreaElement(x0, y0) - AreaElement(x0, y1) - AreaElement(x1, y0) + AreaElement(x1, y1);
 
                 // add this pixel's contribution into the radiance
-                irradiance = irradiance + pixelColor * solidAngle * cosTheta;
+                irradiance = irradiance + pixelColor *solidAngle * cosTheta;
 
                 // keep track of the total weight so we can normalize later
-                totalWeight += solidAngle;                
+                totalWeight += solidAngle;
             }
         }
     }
@@ -452,12 +453,11 @@ void ProcessRow (size_t rowIndex)
     GetFaceBasis(faceIndex, facePlane, uAxis, vAxis);
 
     SImageData &destData = g_destImages[faceIndex];
-    uint8* pixel = &destData.m_pixels[rowIndex * destData.m_pitch];
     TVector2 uv;
-    uv[1] = (float(rowIndex) / float(destData.m_height - 1));
+    uv[1] = ((float(rowIndex) + 0.5f) / float(destData.m_height));
     for (size_t ix = 0; ix < destData.m_width; ++ix)
     {
-        uv[0] = (float(ix) / float(destData.m_width - 1));
+        uv[0] = ((float(ix) + 0.5f) / float(destData.m_width));
 
         // calculate the position of the pixel on the cube
         TVector3 normalDir =
@@ -470,10 +470,10 @@ void ProcessRow (size_t rowIndex)
         TVector3 diffuseIrradiance = DiffuseIrradianceForNormal(normalDir);
 
         // store the resulting color
-        pixel[0] = (uint8)Clamp(diffuseIrradiance[0] * 255.0f, 0.0f, 255.0f);
-        pixel[1] = (uint8)Clamp(diffuseIrradiance[1] * 255.0f, 0.0f, 255.0f);
-        pixel[2] = (uint8)Clamp(diffuseIrradiance[2] * 255.0f, 0.0f, 255.0f);
-        pixel += 3;
+        float* pixel = &destData.m_pixels[rowIndex * destData.Pitch() + ix * 3];
+        pixel[0] = Clamp(diffuseIrradiance[0], 0.0f, 1.0f);
+        pixel[1] = Clamp(diffuseIrradiance[1], 0.0f, 1.0f);
+        pixel[2] = Clamp(diffuseIrradiance[2], 0.0f, 1.0f);
     }
 }
 
@@ -511,20 +511,19 @@ void DownsizeImage (SImageData& image, size_t imageSize)
         SImageData newImage;
         newImage.m_width = newImageSize;
         newImage.m_height = newImageSize;
-        newImage.m_pitch = 4 * ((newImage.m_width * 24 + 31) / 32);
-        newImage.m_pixels.resize(newImage.m_height * newImage.m_pitch);
+        newImage.m_pixels.resize(newImage.m_height * newImage.Pitch());
 
         // sample pixels
         for (size_t iy = 0, iyc = newImage.m_height; iy < iyc; ++iy)
         {
             float percentY = float(iy) / float(iyc);
 
-            uint8* destPixel = &newImage.m_pixels[iy * newImage.m_pitch];
+            float* destPixel = &newImage.m_pixels[iy * newImage.Pitch()];
             for (size_t ix = 0, ixc = newImage.m_width; ix < ixc; ++ix)
             {
                 float percentX = float(ix) / float(ixc);
 
-                std::array<uint8, 3> srcSample = SampleBicubic(image, percentX, percentY);
+                std::array<float, 3> srcSample = SampleBicubic(image, percentX, percentY);
                 destPixel[0] = srcSample[0];
                 destPixel[1] = srcSample[1];
                 destPixel[2] = srcSample[2];
@@ -551,8 +550,7 @@ void DownsizeSourceThreadFunc ()
         // initialize destination image
         g_destImages[imageIndex].m_width = g_srcImages[imageIndex].m_width;
         g_destImages[imageIndex].m_height = g_srcImages[imageIndex].m_height;
-        g_destImages[imageIndex].m_pitch = g_srcImages[imageIndex].m_pitch;
-        g_destImages[imageIndex].m_pixels.resize(g_destImages[imageIndex].m_height * g_destImages[imageIndex].m_pitch);
+        g_destImages[imageIndex].m_pixels.resize(g_destImages[imageIndex].m_height * g_destImages[imageIndex].Pitch());
 
         // get next image to process
         imageIndex = s_imageIndex.fetch_add(1);
@@ -618,12 +616,12 @@ int main (int argc, char **argv)
     };
 
     const char* destPatterns[6] = {
-        "%sDiffuseLeft.bmp",
-        "%sDiffuseDown.bmp",
-        "%sDiffuseBack.bmp",
-        "%sDiffuseRight.bmp",
-        "%sDiffuseUp.bmp",
-        "%sDiffuseFront.bmp",
+        "%sDiffuseLeft.png",
+        "%sDiffuseDown.png",
+        "%sDiffuseBack.png",
+        "%sDiffuseRight.png",
+        "%sDiffuseUp.png",
+        "%sDiffuseFront.png",
     };
 
     // try and load the source images, while initializing the destination images
