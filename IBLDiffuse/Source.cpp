@@ -8,6 +8,15 @@
 #include <thread>
 #include <atomic>
 
+// stb_image is an amazing header only image library (aka no linking, just include the headers!).  http://nothings.org/stb
+#pragma warning( disable : 4996 ) 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
+#pragma warning( default : 4996 ) 
+
 // for debugging. Set to 1 to make it all run on the main thread.
 #define FORCE_SINGLETHREADED() 0
 
@@ -157,9 +166,10 @@ struct SBlockTimer
         , m_height(0)
     { }
   
+    size_t Pitch() const { return m_width * 3; }
+
     size_t m_width;
     size_t m_height;
-    size_t m_pitch;
     std::vector<uint8> m_pixels;
 };
 
@@ -187,7 +197,7 @@ const uint8* GetPixelClamped (const SImageData& image, int x, int y)
 {
     x = Clamp<int>(x, 0, (int)image.m_width - 1);
     y = Clamp<int>(y, 0, (int)image.m_height - 1);
-    return &image.m_pixels[(y * image.m_pitch) + x * 3];
+    return &image.m_pixels[(y * image.Pitch()) + x * 3];
 }
 
 // ==================================================================================================================
@@ -281,7 +291,6 @@ bool LoadImage (const char *fileName, SImageData& imageData)
   
     imageData.m_width = infoHeader.biWidth;
     imageData.m_height = infoHeader.biHeight;
-    imageData.m_pitch = 4 * ((imageData.m_width * 24 + 31) / 32);
   
     fclose(file);
     return true;
@@ -393,7 +402,7 @@ TVector3 DiffuseIrradianceForNormal (const TVector3& normal)
                     continue;
 
                 // get the pixel color and move to the next pixel
-                const uint8* pixel = &src.m_pixels[iy * src.m_pitch + ix * 3];
+                const uint8* pixel = &src.m_pixels[iy * src.Pitch() + ix * 3];
                 TVector3 pixelColor =
                 {
                     float(pixel[0]) / 255.0f,
@@ -452,7 +461,7 @@ void ProcessRow (size_t rowIndex)
     GetFaceBasis(faceIndex, facePlane, uAxis, vAxis);
 
     SImageData &destData = g_destImages[faceIndex];
-    uint8* pixel = &destData.m_pixels[rowIndex * destData.m_pitch];
+    uint8* pixel = &destData.m_pixels[rowIndex * destData.Pitch()];
     TVector2 uv;
     uv[1] = (float(rowIndex) / float(destData.m_height - 1));
     for (size_t ix = 0; ix < destData.m_width; ++ix)
@@ -511,15 +520,14 @@ void DownsizeImage (SImageData& image, size_t imageSize)
         SImageData newImage;
         newImage.m_width = newImageSize;
         newImage.m_height = newImageSize;
-        newImage.m_pitch = 4 * ((newImage.m_width * 24 + 31) / 32);
-        newImage.m_pixels.resize(newImage.m_height * newImage.m_pitch);
+        newImage.m_pixels.resize(newImage.m_height * newImage.Pitch());
 
         // sample pixels
         for (size_t iy = 0, iyc = newImage.m_height; iy < iyc; ++iy)
         {
             float percentY = float(iy) / float(iyc);
 
-            uint8* destPixel = &newImage.m_pixels[iy * newImage.m_pitch];
+            uint8* destPixel = &newImage.m_pixels[iy * newImage.Pitch()];
             for (size_t ix = 0, ixc = newImage.m_width; ix < ixc; ++ix)
             {
                 float percentX = float(ix) / float(ixc);
@@ -551,8 +559,7 @@ void DownsizeSourceThreadFunc ()
         // initialize destination image
         g_destImages[imageIndex].m_width = g_srcImages[imageIndex].m_width;
         g_destImages[imageIndex].m_height = g_srcImages[imageIndex].m_height;
-        g_destImages[imageIndex].m_pitch = g_srcImages[imageIndex].m_pitch;
-        g_destImages[imageIndex].m_pixels.resize(g_destImages[imageIndex].m_height * g_destImages[imageIndex].m_pitch);
+        g_destImages[imageIndex].m_pixels.resize(g_destImages[imageIndex].m_height * g_destImages[imageIndex].Pitch());
 
         // get next image to process
         imageIndex = s_imageIndex.fetch_add(1);
