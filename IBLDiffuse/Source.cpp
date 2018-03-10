@@ -530,7 +530,7 @@ void ProcessRow (size_t rowIndex)
     SImageData &destData = g_destImages[faceIndex];
     float* pixel = &destData.m_pixels[rowIndex * destData.Pitch()];
     TVector2 uv;
-    uv[1] = (float(rowIndex) / float(destData.m_height - 1));
+    uv[1] = 1.0f - (float(rowIndex) / float(destData.m_height - 1));
     for (size_t ix = 0; ix < destData.m_width; ++ix)
     {
         uv[0] = (float(ix) / float(destData.m_width - 1));
