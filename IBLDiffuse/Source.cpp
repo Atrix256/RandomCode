@@ -310,6 +310,13 @@ bool LoadImage (const char *fileName, SImageData& imageData)
     imageData.m_width = infoHeader.biWidth;
     imageData.m_height = infoHeader.biHeight;
   
+    for (size_t i = 0; i < imageData.m_pixels.size(); ++i)
+    {
+        float value = float(imageData.m_pixels[i]) / 255.0f;
+        value = sRGBToLinear(value);
+        imageData.m_pixels[i] = uint8(value*255.0f);
+    }
+
     fclose(file);
     return true;
 }
@@ -427,12 +434,6 @@ TVector3 DiffuseIrradianceForNormal (const TVector3& normal)
                     float(pixel[1]) / 255.0f,
                     float(pixel[2]) / 255.0f,
                 };
-
-                #if SOURCE_IS_SRGB()
-                    pixelColor[0] = sRGBToLinear(pixelColor[0]);
-                    pixelColor[1] = sRGBToLinear(pixelColor[1]);
-                    pixelColor[2] = sRGBToLinear(pixelColor[2]);
-                #endif
 
                 // calculate solid angle (size) of the pixel
                 float x0 = uv[0] - invResolution;
