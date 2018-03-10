@@ -323,11 +323,55 @@ bool LoadImage (const char *fileName, SImageData& imageData)
 
     fclose(file);
     return true;
+
+    /*
+    // load the image if we can
+    int channels, width, height;
+    stbi_uc* pixels = stbi_load(fileName, &width, &height, &channels, 3);
+    if (!pixels)
+        return false;
+
+    // convert the pixels to float, and linear if they aren't already
+    imageData.m_width = width;
+    imageData.m_height = height;
+    imageData.m_pixels.resize(imageData.Pitch()*imageData.m_height);
+
+    for (size_t i = 0; i < imageData.m_pixels.size(); ++i)
+    {
+        imageData.m_pixels[i] = float(pixels[i]) / 255.0f;
+
+        #if SOURCE_IS_SRGB()
+        imageData.m_pixels[i] = sRGBToLinear(imageData.m_pixels[i]);
+        #endif
+    }
+
+    // free the source image and return success
+    stbi_image_free(pixels);
+    return true;
+    */
 }
 
 // ==================================================================================================================
 bool SaveImage (const char *fileName, const SImageData &image)
 {
+    std::vector<uint8> tempPixels;
+    tempPixels.resize(image.Pitch() * image.m_height);
+    for (size_t i = 0; i < tempPixels.size(); ++i)
+        tempPixels[i] = uint8(image.m_pixels[i] * 255.0f);
+
+    for (size_t i = 0; i < tempPixels.size(); i += 3)
+    {
+        std::swap(tempPixels[i + 0], tempPixels[i + 2]);
+    }
+
+    // TODO: need to flip image over!
+    // TODO: don't need to flip it if we use the commented LoadImage code, but then the image doesn't come out right!
+    // TODO: replace all out bmp's with generated pngs when things are working!
+
+    //return stbi_write_bmp(fileName, (int)image.m_width, (int)image.m_height, 3, &tempPixels[0]) == 1;
+
+    return stbi_write_png(fileName, (int)image.m_width, (int)image.m_height, 3, &tempPixels[0], (int)image.Pitch()) == 1;
+
     // open the file if we can
     FILE *file;
     file = fopen(fileName, "wb");
@@ -356,11 +400,6 @@ bool SaveImage (const char *fileName, const SImageData &image)
     infoHeader.biClrImportant = 0;
   
     header.bfSize = infoHeader.biSizeImage + header.bfOffBits;
-  
-    std::vector<uint8> tempPixels;
-    tempPixels.resize(image.Pitch() * image.m_height);
-    for (size_t i = 0; i < tempPixels.size(); ++i)
-        tempPixels[i] = uint8(image.m_pixels[i] * 255.0f);
 
     // write the data and close the file
     fwrite(&header, sizeof(header), 1, file);
@@ -653,12 +692,12 @@ int main (int argc, char **argv)
     };
 
     const char* destPatterns[6] = {
-        "%sDiffuseLeft.bmp",
-        "%sDiffuseDown.bmp",
-        "%sDiffuseBack.bmp",
-        "%sDiffuseRight.bmp",
-        "%sDiffuseUp.bmp",
-        "%sDiffuseFront.bmp",
+        "%sDiffuseLeft.png",
+        "%sDiffuseDown.png",
+        "%sDiffuseBack.png",
+        "%sDiffuseRight.png",
+        "%sDiffuseUp.png",
+        "%sDiffuseFront.png",
     };
 
     // try and load the source images, while initializing the destination images
