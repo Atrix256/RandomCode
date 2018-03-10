@@ -102,7 +102,7 @@ void GammaTest(const char* fileName, float gamma)
     printf("%s written.\n", fileName);
 }
 
-void ImageTest (const char* fileName)
+void ImageTest (const char* fileName, const char* outFileNamePattern)
 {
     // load the image if we can
     int channels, width, height;
@@ -122,8 +122,10 @@ void ImageTest (const char* fileName)
         uint8 sRGBu8 = uint8(std::powf(float(linearu8) / 255.0f, 1.0f / 1.8f)*255.0f);
         imageData[i] = sRGBu8;
     }
-    stbi_write_png("out_18.png", width, height, 3, &imageData[0], width*3);
-    printf("out_18.png written\n");
+    char outFileName[1024];
+    sprintf(outFileName, outFileNamePattern, "_18");
+    stbi_write_png(outFileName, width, height, 3, &imageData[0], width*3);
+    printf("%s written\n", outFileName);
 
     // write error image
     for (size_t i = 0; i < imageData.size(); ++i)
@@ -133,8 +135,32 @@ void ImageTest (const char* fileName)
         else
             imageData[i] = pixels[i] - imageData[i];
     }
-    stbi_write_png("out_18_error.png", width, height, 3, &imageData[0], width * 3);
-    printf("out_18_error.png written\n");
+    sprintf(outFileName, outFileNamePattern, "_18_error");
+    stbi_write_png(outFileName, width, height, 3, &imageData[0], width * 3);
+    printf("%s written\n", outFileName);
+
+    // do a gamma 2.0 lossy conversion
+    for (size_t i = 0; i < imageData.size(); ++i)
+    {
+        uint8 linearu8 = uint8(std::powf(float(pixels[i]) / 255.0f, 2.0f)*255.0f);
+        uint8 sRGBu8 = uint8(std::powf(float(linearu8) / 255.0f, 1.0f / 2.0f)*255.0f);
+        imageData[i] = sRGBu8;
+    }
+    sprintf(outFileName, outFileNamePattern, "_20");
+    stbi_write_png(outFileName, width, height, 3, &imageData[0], width*3);
+    printf("%s written\n", outFileName);
+
+    // write error image
+    for (size_t i = 0; i < imageData.size(); ++i)
+    {
+        if (imageData[i] > pixels[i])
+            imageData[i] = imageData[i] - pixels[i];
+        else
+            imageData[i] = pixels[i] - imageData[i];
+    }
+    sprintf(outFileName, outFileNamePattern, "_20_error");
+    stbi_write_png(outFileName, width, height, 3, &imageData[0], width * 3);
+    printf("%s written\n", outFileName);
 
     // do a gamma 2.2 lossy conversion
     for (size_t i = 0; i < imageData.size(); ++i)
@@ -143,8 +169,9 @@ void ImageTest (const char* fileName)
         uint8 sRGBu8 = uint8(std::powf(float(linearu8) / 255.0f, 1.0f / 2.2f)*255.0f);
         imageData[i] = sRGBu8;
     }
-    stbi_write_png("out_22.png", width, height, 3, &imageData[0], width * 3);
-    printf("out_22.png written\n");
+    sprintf(outFileName, outFileNamePattern, "_22");
+    stbi_write_png(outFileName, width, height, 3, &imageData[0], width * 3);
+    printf("%s written\n", outFileName);
 
     // write error image
     for (size_t i = 0; i < imageData.size(); ++i)
@@ -154,8 +181,9 @@ void ImageTest (const char* fileName)
         else
             imageData[i] = pixels[i] - imageData[i];
     }
-    stbi_write_png("out_22_error.png", width, height, 3, &imageData[0], width * 3);
-    printf("out_22_error.png written\n");
+    sprintf(outFileName, outFileNamePattern, "_22_error");
+    stbi_write_png(outFileName, width, height, 3, &imageData[0], width * 3);
+    printf("%s written\n", outFileName);
 
     // do a sRGB lossy conversion
     for (size_t i = 0; i < imageData.size(); ++i)
@@ -164,8 +192,9 @@ void ImageTest (const char* fileName)
         uint8 sRGBu8 = uint8(std::powf(float(linearu8) / 255.0f, 1.0f / 2.2f)*255.0f);
         imageData[i] = sRGBu8;
     }
-    stbi_write_png("out_sRGB.png", width, height, 3, &imageData[0], width * 3);
-    printf("out_sRGB.png written\n");
+    sprintf(outFileName, outFileNamePattern, "_sRGB");
+    stbi_write_png(outFileName, width, height, 3, &imageData[0], width * 3);
+    printf("%s written\n", outFileName);
 
     // write error image
     for (size_t i = 0; i < imageData.size(); ++i)
@@ -175,8 +204,9 @@ void ImageTest (const char* fileName)
         else
             imageData[i] = pixels[i] - imageData[i];
     }
-    stbi_write_png("out_sRGB_error.png", width, height, 3, &imageData[0], width * 3);
-    printf("out_sRGB_error.png written\n");
+    sprintf(outFileName, outFileNamePattern, "_sRGB_error");
+    stbi_write_png(outFileName, width, height, 3, &imageData[0], width * 3);
+    printf("%s written\n", outFileName);
 
     // free the source image
     stbi_image_free(pixels);
@@ -199,12 +229,13 @@ void MakeGradients()
             float red = percent;
             float green = 1.0f - percent;
 
-            switch ((y * 4) / c_height)
+            switch ((y * 5) / c_height)
             {
                 case 0: break;
                 case 1: red = LinearToGamma(red, 1.8f); green = LinearToGamma(green, 1.8f); break;
-                case 2: red = LinearToGamma(red, 2.2f); green = LinearToGamma(green, 2.2f); break;
-                case 3: red = LinearTosRGB(red); green = LinearTosRGB(green); break;
+                case 2: red = LinearToGamma(red, 2.0f); green = LinearToGamma(green, 2.0f); break;
+                case 3: red = LinearToGamma(red, 2.2f); green = LinearToGamma(green, 2.2f); break;
+                case 4: red = LinearTosRGB(red); green = LinearTosRGB(green); break;
             }
             
             pixel[0] = uint8(red*255.0f);
@@ -223,39 +254,13 @@ int main(int argc, char** argv)
     MakeGradients();
 
     GammaTest("out_18.csv", 1.8f);
+    GammaTest("out_20.csv", 2.0f);
     GammaTest("out_22.csv", 2.2f);
     sRGBTest("out_sRGB.csv");
 
-    ImageTest("scenery.png");
+    ImageTest("scenery.png", "out_scenery%s.png");
+    ImageTest("darker.png", "out_darker%s.png");
 
     system("pause");
     return 0;
 }
-
-/*
-
-BLOG:
-
-thanks to https://twitter.com/romainguy for suggesting red to green gradient!
-
-* present the images and the error images
-? make a gif flipping through the images, with a label on each frame?
-
-* This is like the reverse of the toe in tone mapping right? it crushes the dark colors and is bad news.
-
-sRGB formula
-http://entropymine.com/imageworsener/srgbformula/
-
-More info on sRGB in general:
-Part 2 - https://bartwronski.com/2016/09/01/dynamic-range-and-evs/
-Part 1 - https://bartwronski.com/2016/08/29/localized-tonemapping/
-
-Timothy Lottes " Advanced Techniques and Optimization of HDR Color Pipelines"
-https://gpuopen.com/gdc16-wrapup-presentations/
-
-images made using stb_image -> http://nothings.org/stb
-
-! do manually convert before calculating mips, but work in floating point to avoid the issue.
-* can manually convert if you aren't going down to u8 again. that's where the problem comes in.
-
-*/
