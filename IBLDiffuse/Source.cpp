@@ -26,8 +26,8 @@
 // Destination images will be resized to this width and height in memory if they are larger than this, after convolution
 #define MAX_OUTPUT_IMAGE_SIZE() 32
 
-// If true, assumes source images are sRGB, and will write results as sRGB as well. If 0, assumes source is linear and also writes out linear results.
-#define DO_SRGB_CORRECTIONS() 1
+// If true, converts source images to linear before doing work. Output files are linear.
+#define SOURCE_IS_SRGB() 1
 
 // ==================================================================================================================
 const float c_pi = 3.14159265359f;
@@ -40,6 +40,24 @@ using TVector = std::array<float, N>;
 
 typedef TVector<3> TVector3;
 typedef TVector<2> TVector2;
+
+// ==================================================================================================================
+
+float sRGBToLinear(float value)
+{
+    if (value < 0.04045f)
+        return value / 12.92f;
+    else
+        return std::powf(((value + 0.055f) / 1.055f), 2.4f);
+}
+
+float LinearTosRGB(float value)
+{
+    if (value < 0.0031308f)
+        return value * 12.92f;
+    else
+        return std::powf(value, 1.0f / 2.4f) *  1.055f - 0.055f;
+}
 
 // ==================================================================================================================
 template <size_t N>
@@ -410,10 +428,10 @@ TVector3 DiffuseIrradianceForNormal (const TVector3& normal)
                     float(pixel[2]) / 255.0f,
                 };
 
-                #if DO_SRGB_CORRECTIONS()
-                    pixelColor[0] = std::pow(pixelColor[0], 2.2f);
-                    pixelColor[1] = std::pow(pixelColor[1], 2.2f);
-                    pixelColor[2] = std::pow(pixelColor[2], 2.2f);
+                #if SOURCE_IS_SRGB()
+                    pixelColor[0] = sRGBToLinear(pixelColor[0]);
+                    pixelColor[1] = sRGBToLinear(pixelColor[1]);
+                    pixelColor[2] = sRGBToLinear(pixelColor[2]);
                 #endif
 
                 // calculate solid angle (size) of the pixel
