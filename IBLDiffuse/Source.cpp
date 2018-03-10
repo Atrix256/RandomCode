@@ -280,51 +280,6 @@ void WaitForEnter ()
 // ==================================================================================================================
 bool LoadImage (const char *fileName, SImageData& imageData)
 {
-    // open the file if we can
-    FILE *file;
-    file = fopen(fileName, "rb");
-    if (!file)
-        return false;
-  
-    // read the headers if we can
-    BITMAPFILEHEADER header;
-    BITMAPINFOHEADER infoHeader;
-    if (fread(&header, sizeof(header), 1, file) != 1 ||
-        fread(&infoHeader, sizeof(infoHeader), 1, file) != 1 ||
-        header.bfType != 0x4D42 || infoHeader.biBitCount != 24)
-    {
-        fclose(file);
-        return false;
-    }
-  
-    // read in our pixel data if we can. Note that it's in BGR order, and width is padded to the next power of 4
-    imageData.m_pixels.resize(infoHeader.biSizeImage);
-
-    std::vector<uint8> tempPixels;
-    tempPixels.resize(infoHeader.biSizeImage);
-
-    fseek(file, header.bfOffBits, SEEK_SET);
-    if (fread(&tempPixels[0], tempPixels.size(), 1, file) != 1)
-    {
-        fclose(file);
-        return false;
-    }
-  
-    imageData.m_width = infoHeader.biWidth;
-    imageData.m_height = infoHeader.biHeight;
-  
-    for (size_t i = 0; i < imageData.m_pixels.size(); ++i)
-    {
-        float value = float(tempPixels[i]) / 255.0f;
-        #if SOURCE_IS_SRGB()
-            imageData.m_pixels[i] = sRGBToLinear(value);
-        #endif
-    }
-
-    fclose(file);
-    return true;
-
-    /*
     // load the image if we can
     int channels, width, height;
     stbi_uc* pixels = stbi_load(fileName, &width, &height, &channels, 3);
@@ -348,7 +303,6 @@ bool LoadImage (const char *fileName, SImageData& imageData)
     // free the source image and return success
     stbi_image_free(pixels);
     return true;
-    */
 }
 
 // ==================================================================================================================
@@ -359,54 +313,7 @@ bool SaveImage (const char *fileName, const SImageData &image)
     for (size_t i = 0; i < tempPixels.size(); ++i)
         tempPixels[i] = uint8(image.m_pixels[i] * 255.0f);
 
-    for (size_t i = 0; i < tempPixels.size(); i += 3)
-    {
-        std::swap(tempPixels[i + 0], tempPixels[i + 2]);
-    }
-
-    // TODO: need to flip image over!
-    // TODO: don't need to flip it if we use the commented LoadImage code, but then the image doesn't come out right!
-    // TODO: replace all out bmp's with generated pngs when things are working!
-
-    //return stbi_write_bmp(fileName, (int)image.m_width, (int)image.m_height, 3, &tempPixels[0]) == 1;
-
     return stbi_write_png(fileName, (int)image.m_width, (int)image.m_height, 3, &tempPixels[0], (int)image.Pitch()) == 1;
-
-    // open the file if we can
-    FILE *file;
-    file = fopen(fileName, "wb");
-    if (!file)
-        return false;
-  
-    // make the header info
-    BITMAPFILEHEADER header;
-    BITMAPINFOHEADER infoHeader;
-  
-    header.bfType = 0x4D42;
-    header.bfReserved1 = 0;
-    header.bfReserved2 = 0;
-    header.bfOffBits = 54;
-  
-    infoHeader.biSize = 40;
-    infoHeader.biWidth = (long)image.m_width;
-    infoHeader.biHeight = (long)image.m_height;
-    infoHeader.biPlanes = 1;
-    infoHeader.biBitCount = 24;
-    infoHeader.biCompression = 0;
-    infoHeader.biSizeImage = (DWORD)image.m_pixels.size();
-    infoHeader.biXPelsPerMeter = 0;
-    infoHeader.biYPelsPerMeter = 0;
-    infoHeader.biClrUsed = 0;
-    infoHeader.biClrImportant = 0;
-  
-    header.bfSize = infoHeader.biSizeImage + header.bfOffBits;
-
-    // write the data and close the file
-    fwrite(&header, sizeof(header), 1, file);
-    fwrite(&infoHeader, sizeof(infoHeader), 1, file);
-    fwrite(&tempPixels[0], infoHeader.biSizeImage, 1, file);
-    fclose(file);
-    return true;
 }
 
 // ==================================================================================================================
@@ -475,7 +382,7 @@ TVector3 DiffuseIrradianceForNormal (const TVector3& normal)
                     continue;
 
                 // get the pixel color and move to the next pixel
-                const float* pixel = &src.m_pixels[iy * src.Pitch() + ix * 3];
+                const float* pixel = &src.m_pixels[(src.m_height-iy-1) * src.Pitch() + ix * 3];
                 TVector3 pixelColor =
                 {
                     pixel[0],
@@ -677,10 +584,10 @@ void RunMultiThreaded (const char* label, const L& lambda, bool newline)
 int main (int argc, char **argv)
 {
     //const char* src = "Vasa\\Vasa";
-    const char* src = "ame_ash\\ashcanyon";
+    //const char* src = "ame_ash\\ashcanyon";
     //const char* src = "DallasW\\dallas";
     //const char* src = "MarriottMadisonWest\\Marriot";
-    //const char* src = "mnight\\mnight";
+    const char* src = "mnight\\mnight";
 
     const char* srcPatterns[6] = {
         "%sLeft.bmp",
