@@ -34,9 +34,6 @@
 // Source images will be resized to this width and height in memory if they are larger than this
 #define MAX_SOURCE_IMAGE_SIZE() 128
 
-// If true, converts source images to linear before doing work. Output files are linear.
-#define SOURCE_IS_SRGB() 1
-
 // ==================================================================================================================
 const float c_pi = 3.14159265359f;
 
@@ -295,13 +292,7 @@ bool LoadImage (const char *fileName, SImageData& imageData)
     imageData.m_pixels.resize(imageData.Pitch()*imageData.m_height);
 
     for (size_t i = 0; i < imageData.m_pixels.size(); ++i)
-    {
-        imageData.m_pixels[i] = float(pixels[i]) / 255.0f;
-
-        #if SOURCE_IS_SRGB()
-        imageData.m_pixels[i] = sRGBToLinear(imageData.m_pixels[i]);
-        #endif
-    }
+        imageData.m_pixels[i] = sRGBToLinear(float(pixels[i]) / 255.0f);
 
     // free the source image and return success
     stbi_image_free(pixels);
@@ -309,14 +300,16 @@ bool LoadImage (const char *fileName, SImageData& imageData)
 }
 
 // ==================================================================================================================
-bool SaveImage (const char *fileName, const SImageData &image)
+bool SaveImage (const char *fileName, const SImageData &image, bool makesRGB)
 {
     std::vector<uint8> outPixels;
     outPixels.resize(image.m_pixels.size());
     for (size_t i = 0; i < image.m_pixels.size(); ++i)
     {
-        float value = image.m_pixels[i];
-        outPixels[i] = uint8(value * 255.0f);
+        if(makesRGB)
+            outPixels[i] = uint8(LinearTosRGB(image.m_pixels[i]) * 255.0f);
+        else
+            outPixels[i] = uint8(image.m_pixels[i] * 255.0f);
     }
 
     return stbi_write_png(fileName, (int)image.m_width, (int)image.m_height, 3, &outPixels[0], (int)image.Pitch()) == 1;
@@ -555,24 +548,23 @@ void GenerateSplitSumTexture ()
         true
     );
 
-    if (SaveImage("SplitSum.png", splitSumTexture))
+    if (SaveImage("SplitSum.png", splitSumTexture, false))
         printf("Saved: SplitSum.png\n\n");
     else
         printf("Could not save image: SplitSum.png\n\n");
 }
 
 // ==================================================================================================================
-void DownsizeSourceThreadFunc (std::array<SImageData, 6>& srcImages)
+void DownsizeSourceThreadFunc (std::array<SImageData, 6>& srcImages, std::atomic<size_t>& atomicImageIndex)
 {
-    static std::atomic<size_t> s_imageIndex(0);
-    size_t imageIndex = s_imageIndex.fetch_add(1);
+    size_t imageIndex = atomicImageIndex.fetch_add(1);
     while (imageIndex < 6)
     {
         // downsize
         DownsizeImage(srcImages[imageIndex], MAX_SOURCE_IMAGE_SIZE());
 
         // get next image to process
-        imageIndex = s_imageIndex.fetch_add(1);
+        imageIndex = atomicImageIndex.fetch_add(1);
     }
 }
 
@@ -869,20 +861,18 @@ void ProcessRow(const std::array<SImageData, 6>& srcImages, std::array<SImageDat
 }
 
 // ==================================================================================================================
-void ConvolutionThreadFunc (const std::array<SImageData, 6>& srcImages, std::array<SImageData, 6 * MAX_MIP_LEVELS()>& destImages)
+void ConvolutionThreadFunc (const std::array<SImageData, 6>& srcImages, std::array<SImageData, 6 * MAX_MIP_LEVELS()>& destImages, std::atomic<size_t>& atomicRowIndex)
 {
-    static std::atomic<size_t> s_rowIndex(0);
-
     size_t numRows = 0;
     for (const SImageData& image : destImages)
         numRows += image.m_height;
 
-    size_t rowIndex = s_rowIndex.fetch_add(1);
+    size_t rowIndex = atomicRowIndex.fetch_add(1);
     while (rowIndex < numRows)
     {
         ProcessRow(srcImages, destImages, rowIndex);
         OnRowComplete(rowIndex, numRows);
-        rowIndex = s_rowIndex.fetch_add(1);
+        rowIndex = atomicRowIndex.fetch_add(1);
     }
 }
 
@@ -944,10 +934,11 @@ void GenerateCubeMap (const char* src)
     // Resize source images in memory
     if (srcImages[0].m_width > MAX_SOURCE_IMAGE_SIZE())
     {
+        std::atomic<size_t> imageIndex(0);
         printf("\nDownsizing source images in memory to %i x %i\n", MAX_SOURCE_IMAGE_SIZE(), MAX_SOURCE_IMAGE_SIZE());
         RunMultiThreaded(
             "Downsize source image",
-            [&srcImages] () {DownsizeSourceThreadFunc(srcImages); },
+            [&srcImages, &imageIndex] () {DownsizeSourceThreadFunc(srcImages, imageIndex); },
             false
         );
     }
@@ -970,9 +961,10 @@ void GenerateCubeMap (const char* src)
     }
 
     // Do the convolution
+    std::atomic<size_t> rowIndex(0);
     RunMultiThreaded(
         "Doing convolution",
-        [&srcImages, &destImages] () { ConvolutionThreadFunc(srcImages, destImages); },
+        [&srcImages, &destImages, &rowIndex] () { ConvolutionThreadFunc(srcImages, destImages, rowIndex); },
         true
     );
 
@@ -983,7 +975,7 @@ void GenerateCubeMap (const char* src)
         {
             char destFileName[256];
             sprintf(destFileName, destPatterns[faceIndex], src, mipIndex);
-            if (SaveImage(destFileName, destImages[mipIndex*6+faceIndex]))
+            if (SaveImage(destFileName, destImages[mipIndex*6+faceIndex], true))
             {
                 printf("Saved: %s\n", destFileName);
             }
@@ -999,17 +991,21 @@ void GenerateCubeMap (const char* src)
 // ==================================================================================================================
 int main (int argc, char **argcv)
 {
-    const char* src = "Vasa\\Vasa";
-    //const char* src = "ame_ash\\ashcanyon";
-    //const char* src = "DallasW\\dallas";
-    //const char* src = "MarriottMadisonWest\\Marriot";
-    //const char* src = "mnight\\mnight";
+    const char* sources[] =
+    {
+        "Vasa\\Vasa",
+        "ame_ash\\ashcanyon",
+        "DallasW\\dallas",
+        "MarriottMadisonWest\\Marriot",
+        "mnight\\mnight",
+    };
 
     #if MAKE_SPLITSUM()
         GenerateSplitSumTexture();
     #endif
 
-    GenerateCubeMap(src);
+    for (size_t i = 0; i < sizeof(sources) / sizeof(sources[0]); ++i)
+        GenerateCubeMap(sources[i]);
 
     system("pause");
 
