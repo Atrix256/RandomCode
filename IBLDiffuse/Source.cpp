@@ -26,9 +26,6 @@
 // Destination images will be resized to this width and height in memory if they are larger than this, after convolution
 #define MAX_OUTPUT_IMAGE_SIZE() 32
 
-// If true, converts source images to linear before doing work. Output files are linear.
-#define SOURCE_IS_SRGB() 1
-
 // ==================================================================================================================
 const float c_pi = 3.14159265359f;
 
@@ -292,13 +289,7 @@ bool LoadImage (const char *fileName, SImageData& imageData)
     imageData.m_pixels.resize(imageData.Pitch()*imageData.m_height);
 
     for (size_t i = 0; i < imageData.m_pixels.size(); ++i)
-    {
-        imageData.m_pixels[i] = float(pixels[i]) / 255.0f;
-
-        #if SOURCE_IS_SRGB()
-        imageData.m_pixels[i] = sRGBToLinear(imageData.m_pixels[i]);
-        #endif
-    }
+        imageData.m_pixels[i] = sRGBToLinear(float(pixels[i]) / 255.0f);
 
     // free the source image and return success
     stbi_image_free(pixels);
@@ -311,7 +302,7 @@ bool SaveImage (const char *fileName, const SImageData &image)
     std::vector<uint8> tempPixels;
     tempPixels.resize(image.Pitch() * image.m_height);
     for (size_t i = 0; i < tempPixels.size(); ++i)
-        tempPixels[i] = uint8(image.m_pixels[i] * 255.0f);
+        tempPixels[i] = uint8(LinearTosRGB(image.m_pixels[i]) * 255.0f);
 
     return stbi_write_png(fileName, (int)image.m_width, (int)image.m_height, 3, &tempPixels[0], (int)image.Pitch()) == 1;
 }
@@ -461,20 +452,18 @@ void ProcessRow (size_t rowIndex)
 }
 
 // ==================================================================================================================
-void ConvolutionThreadFunc ()
+void ConvolutionThreadFunc (std::atomic<size_t>& atomicRowIndex)
 {
-    static std::atomic<size_t> s_rowIndex(0);
-
     size_t numRows = 0;
     for (const SImageData& image : g_srcImages)
         numRows += image.m_height;
 
-    size_t rowIndex = s_rowIndex.fetch_add(1);
+    size_t rowIndex = atomicRowIndex.fetch_add(1);
     while (rowIndex < numRows)
     {
         ProcessRow(rowIndex);
         OnRowComplete(rowIndex, numRows);
-        rowIndex = s_rowIndex.fetch_add(1);
+        rowIndex = atomicRowIndex.fetch_add(1);
     }
 }
 
@@ -521,10 +510,9 @@ void DownsizeImage (SImageData& image, size_t imageSize)
 }
 
 // ==================================================================================================================
-void DownsizeSourceThreadFunc ()
+void DownsizeSourceThreadFunc (std::atomic<size_t>& atomicImageIndex)
 {
-    static std::atomic<size_t> s_imageIndex(0);
-    size_t imageIndex = s_imageIndex.fetch_add(1);
+    size_t imageIndex = atomicImageIndex.fetch_add(1);
     while (imageIndex < 6)
     {
         // downsize
@@ -536,22 +524,21 @@ void DownsizeSourceThreadFunc ()
         g_destImages[imageIndex].m_pixels.resize(g_destImages[imageIndex].m_height * g_destImages[imageIndex].Pitch());
 
         // get next image to process
-        imageIndex = s_imageIndex.fetch_add(1);
+        imageIndex = atomicImageIndex.fetch_add(1);
     }
 }
 
 // ==================================================================================================================
-void DownsizeOutputThreadFunc ()
+void DownsizeOutputThreadFunc (std::atomic<size_t>& atomicImageIndex)
 {
-    static std::atomic<size_t> s_imageIndex(0);
-    size_t imageIndex = s_imageIndex.fetch_add(1);
+    size_t imageIndex = atomicImageIndex.fetch_add(1);
     while (imageIndex < 6)
     {
         // downsize
         DownsizeImage(g_destImages[imageIndex], MAX_OUTPUT_IMAGE_SIZE());
 
         // get next image to process
-        imageIndex = s_imageIndex.fetch_add(1);
+        imageIndex = atomicImageIndex.fetch_add(1);
     }
 }
 
@@ -559,6 +546,12 @@ void DownsizeOutputThreadFunc ()
 template <typename L>
 void RunMultiThreaded (const char* label, const L& lambda, bool newline)
 {
+    std::atomic<size_t> atomicCounter(0);
+    auto wrapper = [&] ()
+    {
+        lambda(atomicCounter);
+    };
+
     SBlockTimer timer(label);
     size_t numThreads = FORCE_SINGLETHREADED() ? 1 : std::thread::hardware_concurrency();
     printf("Doing %s with %zu threads.\n", label, numThreads);
@@ -568,13 +561,13 @@ void RunMultiThreaded (const char* label, const L& lambda, bool newline)
         threads.resize(numThreads);
         size_t faceIndex = 0;
         for (std::thread& t : threads)
-            t = std::thread(lambda);
+            t = std::thread(wrapper);
         for (std::thread& t : threads)
             t.join();
     }
     else
     {
-        lambda();
+        wrapper();
     }
     if (newline)
         printf("\n");
@@ -583,11 +576,14 @@ void RunMultiThreaded (const char* label, const L& lambda, bool newline)
 // ==================================================================================================================
 int main (int argc, char **argv)
 {
-    //const char* src = "Vasa\\Vasa";
-    //const char* src = "ame_ash\\ashcanyon";
-    //const char* src = "DallasW\\dallas";
-    //const char* src = "MarriottMadisonWest\\Marriot";
-    const char* src = "mnight\\mnight";
+    const char* sources[] =
+    {
+        "Vasa\\Vasa",
+        "ame_ash\\ashcanyon",
+        "DallasW\\dallas",
+        "MarriottMadisonWest\\Marriot",
+        "mnight\\mnight",
+    };
 
     const char* srcPatterns[6] = {
         "%sLeft.bmp",
@@ -607,75 +603,78 @@ int main (int argc, char **argv)
         "%sDiffuseFront.png",
     };
 
-    // try and load the source images, while initializing the destination images
-    for (size_t i = 0; i < 6; ++i)
+    for (size_t sourceIndex = 0; sourceIndex < sizeof(sources) / sizeof(sources[0]); ++sourceIndex)
     {
-        // load source image if we can
-        char srcFileName[256];
-        sprintf(srcFileName, srcPatterns[i], src);
-        if (LoadImage(srcFileName, g_srcImages[i]))
+        // try and load the source images, while initializing the destination images
+        for (size_t i = 0; i < 6; ++i)
         {
-            printf("Loaded: %s (%zu x %zu)\n", srcFileName, g_srcImages[i].m_width, g_srcImages[i].m_height);
-
-            if (g_srcImages[i].m_width != g_srcImages[i].m_height)
+            // load source image if we can
+            char srcFileName[256];
+            sprintf(srcFileName, srcPatterns[i], sources[sourceIndex]);
+            if (LoadImage(srcFileName, g_srcImages[i]))
             {
-                printf("image is not square!\n");
+                printf("Loaded: %s (%zu x %zu)\n", srcFileName, g_srcImages[i].m_width, g_srcImages[i].m_height);
+
+                if (g_srcImages[i].m_width != g_srcImages[i].m_height)
+                {
+                    printf("image is not square!\n");
+                    WaitForEnter();
+                    return 0;
+                }
+            }
+            else
+            {
+                printf("Could not load image: %s\n", srcFileName);
                 WaitForEnter();
                 return 0;
             }
         }
-        else
+
+        // verify that the images are all the same size
+        for (size_t i = 1; i < 6; ++i)
         {
-            printf("Could not load image: %s\n", srcFileName);
-            WaitForEnter();
-            return 0;
+            if (g_srcImages[i].m_width != g_srcImages[0].m_width || g_srcImages[i].m_height != g_srcImages[0].m_height)
+            {
+                printf("images are not all the same size!\n");
+                WaitForEnter();
+                return 0;
+            }
         }
-    }
 
-    // verify that the images are all the same size
-    for (size_t i = 1; i < 6; ++i)
-    {
-        if (g_srcImages[i].m_width != g_srcImages[0].m_width || g_srcImages[i].m_height != g_srcImages[0].m_height)
+        // Resize source images in memory
+        if (g_srcImages[0].m_width > MAX_SOURCE_IMAGE_SIZE())
         {
-            printf("images are not all the same size!\n");
-            WaitForEnter();
-            return 0;
+            printf("\nDownsizing source images in memory to %i x %i\n", MAX_SOURCE_IMAGE_SIZE(), MAX_SOURCE_IMAGE_SIZE());
+            RunMultiThreaded("Downsize source image", DownsizeSourceThreadFunc, false);
         }
-    }
 
-    // Resize source images in memory
-    if (g_srcImages[0].m_width > MAX_SOURCE_IMAGE_SIZE())
-    {
-        printf("\nDownsizing source images in memory to %i x %i\n", MAX_SOURCE_IMAGE_SIZE(), MAX_SOURCE_IMAGE_SIZE());
-        RunMultiThreaded("Downsize source image", DownsizeSourceThreadFunc, false);
-    }
+        // Do the convolution
+        printf("\n");
+        RunMultiThreaded("convolution", ConvolutionThreadFunc, true);
 
-    // Do the convolution
-    printf("\n");
-    RunMultiThreaded("convolution", ConvolutionThreadFunc, true);
-
-    // Resize destination images in memory
-    if (g_srcImages[0].m_width > MAX_OUTPUT_IMAGE_SIZE())
-    {
-        printf("\nDownsizing output images in memory to %i x %i\n", MAX_OUTPUT_IMAGE_SIZE(), MAX_OUTPUT_IMAGE_SIZE());
-        RunMultiThreaded("Downsize output image", DownsizeOutputThreadFunc, false);
-    }
-
-    // save the resulting images
-    printf("\n");
-    for (size_t i = 0; i < 6; ++i)
-    {
-        char destFileName[256];
-        sprintf(destFileName, destPatterns[i], src);
-        if (SaveImage(destFileName, g_destImages[i]))
+        // Resize destination images in memory
+        if (g_srcImages[0].m_width > MAX_OUTPUT_IMAGE_SIZE())
         {
-            printf("Saved: %s\n", destFileName);
+            printf("\nDownsizing output images in memory to %i x %i\n", MAX_OUTPUT_IMAGE_SIZE(), MAX_OUTPUT_IMAGE_SIZE());
+            RunMultiThreaded("Downsize output image", DownsizeOutputThreadFunc, false);
         }
-        else
+
+        // save the resulting images
+        printf("\n");
+        for (size_t i = 0; i < 6; ++i)
         {
-            printf("Could not save image: %s\n", destFileName);
-            WaitForEnter();
-            return 0;
+            char destFileName[256];
+            sprintf(destFileName, destPatterns[i], sources[sourceIndex]);
+            if (SaveImage(destFileName, g_destImages[i]))
+            {
+                printf("Saved: %s\n", destFileName);
+            }
+            else
+            {
+                printf("Could not save image: %s\n", destFileName);
+                WaitForEnter();
+                return 0;
+            }
         }
     }
 
