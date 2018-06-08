@@ -19,9 +19,11 @@ static const size_t c_numSolutions = 10;
 static const float c_minRadius = 0.0f;
 static const float c_maxRadius = 10.0f;
 
-static const float c_worldSize = 100.0f;
+static const float c_worldSize = 10.0f;
 
 static const bool c_useIntegers = true;
+
+static const bool c_zeroRadius = true;
 
 static const bool c_writeDetailedSolutions = true;
 
@@ -121,6 +123,10 @@ TSphere Solve(const std::vector<TSphere>& spheres, size_t solveIndex)
     std::iota(processingOrder.begin(), processingOrder.end(), 0);
     std::shuffle(processingOrder.begin(), processingOrder.end(), g_mt);
 
+    //processingOrder[0] = 1;
+    //processingOrder[1] = 0;
+    //processingOrder[2] = 2;
+
     // incrementally merge spheres
     TSphere result = spheres[processingOrder[0]];
     for (size_t i = 1; i < processingOrder.size(); ++i)
@@ -187,7 +193,9 @@ int main(int argc, char** argv)
     spheres.resize(c_numSpheres);
     for (TSphere& sphere : spheres)
     {
-        if(c_useIntegers)
+        if (c_zeroRadius)
+            sphere.radius = 0.0f;
+        else if(c_useIntegers)
             sphere.radius = (float)g_dist_radiusInt(g_mt);
         else
             sphere.radius = g_dist_radius(g_mt);
@@ -200,6 +208,10 @@ int main(int argc, char** argv)
                 p = g_dist_coordinate(g_mt);
         }
     }
+
+    //spheres[0].position = { 0, 0 };
+    //spheres[1].position = { 2, 0 };
+    //spheres[2].position = { 0, 2 };
 
     // Solve
     std::vector<TSphere> solutions;
