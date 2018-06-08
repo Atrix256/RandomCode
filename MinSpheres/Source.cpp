@@ -10,16 +10,20 @@
 //                                SETTINGS
 //----------------------------------------------------------------------------
 
-static const size_t c_numSpheres = 1000;
+static const size_t c_numSpheres = 3;
 
 static const size_t c_pointDimension = 2;
 
-static const size_t c_numSolutions = 100;
+static const size_t c_numSolutions = 10;
 
 static const float c_minRadius = 0.0f;
-static const float c_maxRadius = 1.0f;
+static const float c_maxRadius = 10.0f;
 
 static const float c_worldSize = 100.0f;
+
+static const bool c_useIntegers = true;
+
+static const bool c_writeDetailedSolutions = true;
 
 //----------------------------------------------------------------------------
 
@@ -38,6 +42,9 @@ std::random_device g_rd;
 std::mt19937 g_mt(g_rd());
 std::uniform_real_distribution<float> g_dist_coordinate(0.0f, c_worldSize);
 std::uniform_real_distribution<float> g_dist_radius(c_minRadius, c_maxRadius);
+
+std::uniform_int_distribution<unsigned int> g_dist_coordinateInt(0, (unsigned int)c_worldSize);
+std::uniform_int_distribution<unsigned int> g_dist_radiusInt((unsigned int)c_minRadius, (unsigned int)c_maxRadius);
 
 //----------------------------------------------------------------------------
 
@@ -96,8 +103,17 @@ TPoint operator * (const TPoint& a, float b)
 
 //----------------------------------------------------------------------------
 
-TSphere Solve(const std::vector<TSphere>& spheres)
+TSphere Solve(const std::vector<TSphere>& spheres, size_t solveIndex)
 {
+
+    FILE* file = nullptr;
+    if (c_writeDetailedSolutions)
+    {
+        char buffer[256];
+        sprintf(buffer, "solve_%zu.txt", solveIndex);
+        file = fopen(buffer, "w+t");
+    }
+
     // choose a random order to process the points in.
     // This isn't a requirement of the algorithm, just here to show whether processing order matters or not
     std::vector<size_t> processingOrder;
@@ -110,6 +126,17 @@ TSphere Solve(const std::vector<TSphere>& spheres)
     for (size_t i = 1; i < processingOrder.size(); ++i)
     {
         const TSphere& sphere = spheres[processingOrder[i]];
+
+        if (c_writeDetailedSolutions)
+        {
+            fprintf(file, "[%zu] Merging \n  Result (", i);
+            for (size_t j = 0; j < c_pointDimension; ++j)
+                fprintf(file, "%s%f", j > 0 ? "," : "", result.position[j]);
+            fprintf(file, ") radius %f\n  With %zu (", result.radius, processingOrder[i]);
+            for (size_t j = 0; j < c_pointDimension; ++j)
+                fprintf(file, "%s%f", j > 0 ? "," : "", sphere.position[j]);
+            fprintf(file, ") radius %f\n", sphere.radius);
+        }        
 
         TPoint direction = normalize(sphere.position - result.position);
 
@@ -128,7 +155,18 @@ TSphere Solve(const std::vector<TSphere>& spheres)
         // make the result be at the center of the min and max, with a radius large enough to encompass both of them
         result.radius = (maxPos - minPos) / 2.0f;
         result.position = result.position + direction * ((maxPos + minPos) / 2.0f);
+
+        if (c_writeDetailedSolutions)
+        {
+            fprintf(file, "  Becomes (");
+            for (size_t j = 0; j < c_pointDimension; ++j)
+                fprintf(file, "%s%f", j > 0 ? "," : "", result.position[j]);
+            fprintf(file, ") radius %f\n\n", result.radius);
+        }
     }
+
+    if (c_writeDetailedSolutions)
+        fclose(file);
 
     // return the results
     return result;
@@ -142,9 +180,18 @@ int main(int argc, char** argv)
     spheres.resize(c_numSpheres);
     for (TSphere& sphere : spheres)
     {
-        sphere.radius = g_dist_radius(g_mt);
+        if(c_useIntegers)
+            sphere.radius = (float)g_dist_radiusInt(g_mt);
+        else
+            sphere.radius = g_dist_radius(g_mt);
+
         for (float& p : sphere.position)
-            p = g_dist_coordinate(g_mt);
+        {
+            if (c_useIntegers)
+                p = (float)g_dist_coordinateInt(g_mt);
+            else
+                p = g_dist_coordinate(g_mt);
+        }
     }
 
     // Solve
@@ -153,7 +200,7 @@ int main(int argc, char** argv)
     size_t solve = 0;
     for (TSphere& solution : solutions)
     {
-        solution = Solve(spheres);
+        solution = Solve(spheres, solve);
         ++solve;
         printf("\rSolution %zu / %zu", solve, c_numSolutions);
     }
@@ -187,6 +234,8 @@ int main(int argc, char** argv)
 TODO:
 * getting inconsistent results need to understand why
 * maybe report the min and max sized solution?
+
+* could make a verbose version and use it with a small point / solution count to understand the issue. also integer only points and smaller arena.
 
 Notes:
 * Share w/ Alan Hickman. Probably blog post, whether or not it works out
