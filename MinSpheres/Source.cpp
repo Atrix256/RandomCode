@@ -158,6 +158,13 @@ TSphere Solve(const std::vector<TSphere>& spheres, size_t solveIndex)
 
         if (c_writeDetailedSolutions)
         {
+            fprintf(file, "    SpherePos (distance) = %f\n", spherePos);
+            fprintf(file, "    Direction = (");
+            for (size_t j = 0; j < c_pointDimension; ++j)
+                fprintf(file, "%s%f", j > 0 ? "," : "", direction[j]);
+            fprintf(file, ")\n");
+            fprintf(file, "    minPos %f, maxPos %f, midPos %f\n", minPos, maxPos, (minPos + maxPos) / 2.0f);
+
             fprintf(file, "  Becomes (");
             for (size_t j = 0; j < c_pointDimension; ++j)
                 fprintf(file, "%s%f", j > 0 ? "," : "", result.position[j]);
@@ -236,6 +243,9 @@ TODO:
 * maybe report the min and max sized solution?
 
 * could make a verbose version and use it with a small point / solution count to understand the issue. also integer only points and smaller arena.
+
+* could have it draw results (and draw each step)
+
 
 Notes:
 * Share w/ Alan Hickman. Probably blog post, whether or not it works out
