@@ -126,11 +126,15 @@ var g_light1Pos = [-5, 5, 5];
 var g_light2Pos = [ 5,-5, 5];
 var g_light3Pos = [ 5, 5, 5];
 
+var g_lightDir = [0.5, 0.2, 0.3];
+
 //lights
 var g_light0ColorA = [300.0, 300.0, 300.0];
 var g_light1ColorA = [300.0, 300.0, 300.0];
 var g_light2ColorA = [300.0, 300.0, 300.0];
 var g_light3ColorA = [300.0, 300.0, 300.0];
+
+var g_lightDirColor = [1.0, 1.0, 1.0];
 
 // colorful lights
 var g_light0ColorB = [300.0,   0.0,   0.0];
@@ -159,6 +163,9 @@ var g_uniforms = {
 
   "u_light3Pos"             : ["vec3",        (key, location, objectValues) => {var pos = GetLightPos(3); gl.uniform3fv(location, pos);}],
   "u_light3Color"           : ["vec3",        (key, location, objectValues) => {var color = GetLightColor(3); gl.uniform3fv(location, color);}],
+
+  "u_lightDir"              : ["vec3",        (key, location, objectValues) => {gl.uniform3fv(location, g_lightDir);}],
+  "u_lightDirColor"         : ["vec3",        (key, location, objectValues) => {var color = GetDirectionalLightColor(); gl.uniform3fv(location, color);}],
 
   "u_normalMapping"         : ["float",       (key, location, objectValues) => {gl.uniform1f(location, GetObjectValue(objectValues, key));}],  
   "u_AO"                    : ["float",       (key, location, objectValues) => {gl.uniform1f(location, GetObjectValue(objectValues, key));}],  
@@ -359,6 +366,34 @@ vec3 PositionalLight (vec3 worldPos, vec3 N, vec3 V, vec3 lightPos, vec3 lightCo
   return (kD * albedo / PI + specular) * radiance * NdotL;  
 }
 
+vec3 DirectionalLight (vec3 worldPos, vec3 N, vec3 V, vec3 lightDir, vec3 lightColor, vec3 albedo, float metallic, float roughness, float scalarF0)
+{
+  vec3 L = normalize(lightDir);  
+
+  vec3 H = normalize(V + L);  
+
+  vec3 radiance     = lightColor;     
+
+  vec3 F0 = vec3(scalarF0); 
+  F0      = mix(F0, albedo, metallic);
+  vec3 F  = fresnelSchlick(max(dot(H, V), 0.0), F0);    
+
+  float NDF = DistributionGGX(N, H, roughness);       
+  float G   = GeometrySmith(N, V, L, roughness);     
+
+  vec3 nominator    = NDF * G * F;
+  float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.001; 
+  vec3 specular     = nominator / denominator;       
+
+  vec3 kS = F;
+  vec3 kD = vec3(1.0) - kS;
+    
+  kD *= 1.0 - metallic;     
+
+  float NdotL = max(dot(N, L), 0.0);        
+  return (kD * albedo / PI + specular) * radiance * NdotL;  
+}
+
 vec3 IBL (vec3 N, vec3 V, vec3 R, vec3 albedo, float metallic, float roughness, float scalarF0)
 {
   vec3 F0 = vec3(scalarF0); 
@@ -446,6 +481,9 @@ void main()
   col += PositionalLight(v_worldPos, N, V, u_light2Pos, u_light2Color, objectAlbedo, objectMetallic, objectRoughness, u_objectF0) * objectAO;
   col += PositionalLight(v_worldPos, N, V, u_light3Pos, u_light3Color, objectAlbedo, objectMetallic, objectRoughness, u_objectF0) * objectAO;
 
+  // directional light
+  col += DirectionalLight(v_worldPos, N, V, u_lightDir, u_lightDirColor, objectAlbedo, objectMetallic, objectRoughness, u_objectF0) * objectAO;
+
   // IBL diffuse and specular
   #if USE_IBL
     col += IBL(N, V, R, objectAlbedo, objectMetallic, objectRoughness, u_objectF0)  * objectAO;
@@ -489,6 +527,19 @@ void main()
   outColor.a = 1.0;   
 }
 `;
+
+//=========================================================================================
+function GetDirectionalLightColor ()
+{
+  if (document.getElementById("Debug_DirectionalLight").checked)
+  {
+    return g_lightDirColor;
+  }
+  else
+  {
+    return [0,0,0];
+  }
+}
 
 //=========================================================================================
 function GetLightColor (lightIndex)
@@ -2334,6 +2385,7 @@ function Initialize ()
             <tr><td><input type="checkbox" id="Debug_PointLight1"/></td><td>Point Light 1</td></tr>
             <tr><td><input type="checkbox" id="Debug_PointLight2"/></td><td>Point Light 2</td></tr>
             <tr><td><input type="checkbox" id="Debug_PointLight3"/></td><td>Point Light 3</td></tr>
+            <tr><td><input type="checkbox" id="Debug_DirectionalLight"/></td><td>Directional Light</td></tr>
             <tr><td><input type="checkbox" id="Debug_AnimateObjects"/></td><td>Animate Objects</td></tr>
             <tr><td><input type="checkbox" id="Debug_NormalMapping" checked="true"/></td><td>Normal Mapping</td></tr>
             <tr><td><input type="checkbox" id="Debug_AO" checked="true"/></td><td>Ambient Occlusion</td></tr>
