@@ -166,6 +166,7 @@ var g_uniforms = {
 
   "u_lightDir"              : ["vec3",        (key, location, objectValues) => {gl.uniform3fv(location, g_lightDir);}],
   "u_lightDirColor"         : ["vec3",        (key, location, objectValues) => {var color = GetDirectionalLightColor(); gl.uniform3fv(location, color);}],
+  "u_lightDirType"          : ["float",       (key, location, objectValues) => {gl.uniform1f(location, GetObjectValue(objectValues, key));}],
 
   "u_normalMapping"         : ["float",       (key, location, objectValues) => {gl.uniform1f(location, GetObjectValue(objectValues, key));}],  
   "u_AO"                    : ["float",       (key, location, objectValues) => {gl.uniform1f(location, GetObjectValue(objectValues, key));}],  
@@ -394,6 +395,53 @@ vec3 DirectionalLight (vec3 worldPos, vec3 N, vec3 V, vec3 lightDir, vec3 lightC
   return (kD * albedo / PI + specular) * radiance * NdotL;  
 }
 
+
+float D_GGX(float NoH, float linearRoughness) {
+    float a = NoH * linearRoughness;
+    float k = linearRoughness / (1.0 - NoH * NoH + a * a);
+    return k * k * (1.0 / PI);
+}
+
+float V_SmithGGXCorrelated(float NoV, float NoL, float linearRoughness) {
+    float a2 = linearRoughness * linearRoughness;
+    float GGXV = NoL * sqrt(NoV * NoV * (1.0 - a2) + a2);
+    float GGXL = NoV * sqrt(NoL * NoL * (1.0 - a2) + a2);
+    return 0.5 / (GGXV + GGXL);
+}
+
+vec3 F_Schlick(float VoH, vec3 f0) {
+    float f = pow(1.0 - VoH, 5.0);
+    return f + f0 * (1.0 - f);
+}
+
+vec3 DirectionalLight2 (vec3 worldPos, vec3 N, vec3 V, vec3 lightDir, vec3 lightColor, vec3 albedo, float metallic, float roughness, float scalarF0)
+{
+  vec3 L = normalize(lightDir);  
+
+  vec3 H = normalize(V + L);  
+
+  vec3 F0 = vec3(scalarF0); 
+  F0      = mix(F0, albedo, metallic);
+
+  float NoH = clamp(dot(N,H), 0.0, 1.0);
+  float NoV = clamp(dot(N,V), 0.0, 1.0);
+  float HoV = clamp(dot(H,V), 0.0, 1.0);
+  float NoL = clamp(dot(N,L), 0.0, 1.0);
+
+  float D = D_GGX(NoH, roughness * roughness);
+  vec3 F = F_Schlick(HoV, F0);
+  float Vis = V_SmithGGXCorrelated(NoV, NoL, roughness*roughness);
+
+  vec3 specular = F * (D * Vis);
+
+  vec3 kS = F;
+  vec3 kD = vec3(1.0) - kS;
+    
+  kD *= 1.0 - metallic;
+  
+  return (kD * albedo / PI + specular) * lightColor * NoL;  
+}
+
 vec3 IBL (vec3 N, vec3 V, vec3 R, vec3 albedo, float metallic, float roughness, float scalarF0)
 {
   vec3 F0 = vec3(scalarF0); 
@@ -475,6 +523,8 @@ void main()
   else
     objectRoughness = mix(texRoughness, 1.0, objectRoughness - 1.0);
 
+  objectRoughness = clamp(objectRoughness, 0.01, 0.9);
+
   // positional lights
   col += PositionalLight(v_worldPos, N, V, u_light0Pos, u_light0Color, objectAlbedo, objectMetallic, objectRoughness, u_objectF0) * objectAO;
   col += PositionalLight(v_worldPos, N, V, u_light1Pos, u_light1Color, objectAlbedo, objectMetallic, objectRoughness, u_objectF0) * objectAO;
@@ -482,7 +532,10 @@ void main()
   col += PositionalLight(v_worldPos, N, V, u_light3Pos, u_light3Color, objectAlbedo, objectMetallic, objectRoughness, u_objectF0) * objectAO;
 
   // directional light
-  col += DirectionalLight(v_worldPos, N, V, u_lightDir, u_lightDirColor, objectAlbedo, objectMetallic, objectRoughness, u_objectF0) * objectAO;
+  if (u_lightDirType == 1.0f)
+    col += DirectionalLight2(v_worldPos, N, V, u_lightDir, u_lightDirColor, objectAlbedo, objectMetallic, objectRoughness, u_objectF0) * objectAO;
+  else
+    col += DirectionalLight(v_worldPos, N, V, u_lightDir, u_lightDirColor, objectAlbedo, objectMetallic, objectRoughness, u_objectF0) * objectAO;
 
   // IBL diffuse and specular
   #if USE_IBL
@@ -1024,6 +1077,7 @@ function PrepareToDrawMesh (translation, yawPitchRoll, scale, albedo, emissive, 
 
   objectValues.u_normalMapping = document.getElementById("Debug_NormalMapping").checked ? 1.0 : 0.0;
   objectValues.u_AO = document.getElementById("Debug_AO").checked ? 1.0 : 0.0;
+  objectValues.u_lightDirType = document.getElementById("Debug_LightDirType").checked ? 1.0 : 0.0;
 
   // fill out the uniforms
   for (var key in shader.uniforms)
@@ -2388,6 +2442,7 @@ function Initialize ()
             <tr><td><input type="checkbox" id="Debug_DirectionalLight"/></td><td>Directional Light</td></tr>
             <tr><td><input type="checkbox" id="Debug_AnimateObjects"/></td><td>Animate Objects</td></tr>
             <tr><td><input type="checkbox" id="Debug_NormalMapping" checked="true"/></td><td>Normal Mapping</td></tr>
+            <tr><td><input type="checkbox" id="Debug_LightDirType"/></td><td>Alternate BRDF</td></tr>
             <tr><td><input type="checkbox" id="Debug_AO" checked="true"/></td><td>Ambient Occlusion</td></tr>
             </table>
             <table>            
