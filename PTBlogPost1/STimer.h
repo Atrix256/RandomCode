@@ -33,7 +33,7 @@ struct STimer
         }
 
         // make the string
-        sprintf(buffer, "%0.1f %s", remainingTime, remainingTimeUnits);
+        sprintf_s(buffer, 256, "%0.1f %s", remainingTime, remainingTimeUnits);
         return ret;
     }
 
@@ -64,7 +64,7 @@ struct STimer
         char timeString[256];
         PrettyPrintSeconds(remainingSeconds, timeString);
         char message[1024];
-        sprintf(message, "%0.0f%% (aprox. %s remaining)", 100.0f * percent, timeString);
+        sprintf_s(message, 1024, "%0.0f%% (aprox. %s remaining)", 100.0f * percent, timeString);
 
         // store off the length of the new message and print it
         m_lastMessageLength = (int)strlen(message);
@@ -82,6 +82,6 @@ struct STimer
             printf("\nRendering took %s\n", timeString);
     }
  
-    std::chrono::system_clock::time_point   m_start;
+    std::chrono::steady_clock::time_point   m_start;
     int                                     m_lastMessageLength;
 };

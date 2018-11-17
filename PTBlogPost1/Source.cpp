@@ -19,7 +19,7 @@
 #define COSINE_WEIGHTED_HEMISPHERE_SAMPLES() 0
 #define JITTER_AA() 0
 
-#define RENDER_SCENE() 2
+#define RENDER_SCENE() 0
 // Scenes:
 //  0 = sphere on plane with wall, small light            (slow convergence)
 //  1 = sphere on plane with wall, small light + blue sky (quick convergence)
@@ -377,7 +377,7 @@ bool SaveImage (const char* fileName)
     
     // open the file if we can
     FILE *file;
-    file = fopen(fileName, "wb");
+    fopen_s(&file, fileName, "wb");
     if (!file)
         return false;
  
@@ -420,8 +420,8 @@ int main (int argc, char**argv)
 
     // report the params
     const size_t numThreads = FORCE_SINGLE_THREAD() ? 1 : std::thread::hardware_concurrency();
-    printf("Rendering a %ix%i image with %i samples per pixel and %i ray bounces.\n", c_imageWidth, c_imageHeight, c_samplesPerPixel, c_numBounces);
-    printf("Using %i threads.\n", numThreads);
+    printf("Rendering a %zux%zu image with %zu samples per pixel and %zu ray bounces.\n", c_imageWidth, c_imageHeight, c_samplesPerPixel, c_numBounces);
+    printf("Using %zu threads.\n", numThreads);
 
     // allocate memory for our rendered image
     g_pixels.resize(c_numPixels);
