@@ -73,7 +73,7 @@ inline bool RayIntersects (const TVector3& rayPos, const TVector3& rayDir, const
     info.m_surfaceNormal = normal;
 
     #if OUTLINE_TRIANGLES()
-        static const SMaterial c_outlineMaterial = SMaterial({ 0.0f, 0.0f, 0.0f }, { 0.1f, 0.1f, 0.1f });
+        static const SMaterial c_outlineMaterial = SMaterial({ 0.0f, 0.0f, 0.0f }, { 0.3f, 0.3f, 0.3f });
 
         float d0 = (b[0] > 0.5f) ? 1.0f - b[0] : b[0];
         float d1 = (b[1] > 0.5f) ? 1.0f - b[1] : b[1];

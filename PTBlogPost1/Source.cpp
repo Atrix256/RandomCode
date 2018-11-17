@@ -27,6 +27,7 @@
 //  3 = sphere in box with larger dimmer light            (prettier scene, quick convergence)
 //  4 = furnace test
 //  5 = triangle scene
+//  6 = tetrahedral scene
 
 //=================================================================================
 // User tweakable parameters - Scenes
@@ -214,43 +215,120 @@ const TVector3 c_rayMissColor = { 1.0f, 1.0f, 1.0f };
 #elif RENDER_SCENE() == 5
 
 // camera parameters - assumes no roll (z axis rotation) and assumes that the camera isn't looking straight up
-const TVector3 c_cameraPos = { 0.0f, 3.0f, -5.0f };
-const TVector3 c_cameraLookAt = { 0.0f, 0.0f, 0.0f };
+const TVector3 c_cameraPos = { 1.0f, 2.0f, -5.0f };
+const TVector3 c_cameraLookAt = { 1.0f, 0.0f, 0.0f };
 float c_nearPlaneDistance = 0.1f;
 const float c_cameraVerticalFOV = 40.0f * c_pi / 180.0f;
 
 // the scene
-const std::vector<SSphere> c_spheres =
-{
-    //{ {  4.0f,  4.0f, 6.0f }, 5.0f, { { 1.0f, 1.0f, 1.0f }, { 0.0f, 0.0f, 0.0f } } },   // light
-};
 
 const TVector3 c_vertices[] =
 {
-    {0.0f, 0.25f, 0.0f},
-    {1.0f, 0.25f, 0.0f},
-    {0.0f, 0.25f, 1.0f},
-    {1.0f, 0.25f, 1.0f},
+    {-0.5f, 0.25f,  0.0f},
+    { 1.0f, 0.25f,  0.0f},
+    { 0.0f, 0.25f,  1.0f},
+    { 1.0f, 0.25f,  1.0f},
+    { 1.5f, 0.25f, -0.3f},
+    { 0.2f, 0.25f, -0.7f},
+    { 2.3f, 0.25f, -1.0f},
+    { 1.8f, 0.25f,  0.5f},
+    { 0.8f, 0.25f, -1.5f},
 };
 
-const SMaterial c_triangleMaterial = SMaterial( { 0.0f, 0.0f, 0.0f }, { 0.5f, 0.5f, 0.5f } );
+const SMaterial c_triangleMaterial = SMaterial( { 0.0f, 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f } );
+const SMaterial c_sphereMaterial = SMaterial({ 0.0f, 0.0f, 0.0f }, { 1.0f, 0.1f, 0.1f });
 
 const std::vector<STriangle> c_triangles =
 {
     STriangle(c_vertices[0], c_vertices[1], c_vertices[2], c_triangleMaterial),
     STriangle(c_vertices[1], c_vertices[2], c_vertices[3], c_triangleMaterial),
+    STriangle(c_vertices[1], c_vertices[3], c_vertices[4], c_triangleMaterial),
+    STriangle(c_vertices[1], c_vertices[4], c_vertices[5], c_triangleMaterial),
+    STriangle(c_vertices[4], c_vertices[5], c_vertices[6], c_triangleMaterial),
+    STriangle(c_vertices[6], c_vertices[4], c_vertices[7], c_triangleMaterial),
+    STriangle(c_vertices[5], c_vertices[6], c_vertices[8], c_triangleMaterial),
+};
+
+const std::vector<SSphere> c_spheres =
+{
+    { c_vertices[0], 0.05f, c_sphereMaterial },
+    { c_vertices[1], 0.05f, c_sphereMaterial },
+    { c_vertices[2], 0.05f, c_sphereMaterial },
+    { c_vertices[3], 0.05f, c_sphereMaterial },
+    { c_vertices[4], 0.05f, c_sphereMaterial },
+    { c_vertices[5], 0.05f, c_sphereMaterial },
+    { c_vertices[6], 0.05f, c_sphereMaterial },
+    { c_vertices[7], 0.05f, c_sphereMaterial },
+    { c_vertices[8], 0.05f, c_sphereMaterial },
+
+    {{1.21f, 0.25f, -1.0f}, 0.05f, SMaterial({ 0.0f, 0.0f, 0.0f } ,{ 1.0f, 0.0f, 0.3f })},
 };
 
 const std::vector<SQuad> c_quads = {
     // floor
-    SQuad({ -15.0f, 0.0f, 15.0f },{ 15.0f, 0.0f, 15.0f },{ 15.0f, 0.0f, -15.0f },{ -15.0f, 0.0f, -15.0f }, SMaterial({ 0.0f, 0.0f, 0.0f },{ 0.1f, 0.9f, 0.1f })),
+    SQuad({ -15.0f, 0.0f, 15.0f },{ 15.0f, 0.0f, 15.0f },{ 15.0f, 0.0f, -15.0f },{ -15.0f, 0.0f, -15.0f }, SMaterial({ 0.0f, 0.0f, 0.0f },{ 0.1f, 0.3f, 0.1f })),
+
+    // query
+    SQuad({ 1.22f, 0.0f, -1.0f },{ 1.2f, 0.0f, -1.0f },{ 1.2f, 1.0f, -1.0f },{ 1.22f, 1.0f, -1.0f }, SMaterial({ 0.0f, 0.0f, 0.0f } ,{ 1.0f, 0.0f, 0.3f })),
 };
 
 const std::vector<SAABB> c_aabbs = {};
 
 const std::vector<SOBB> c_obbs = {};
 
-const TVector3 c_rayMissColor = { 0.1f, 0.4f, 1.0f };
+const TVector3 c_rayMissColor = { 0.5f, 0.5f, 0.5f };
+
+#elif RENDER_SCENE() == 6
+
+// camera parameters - assumes no roll (z axis rotation) and assumes that the camera isn't looking straight up
+const TVector3 c_cameraPos = { 1.0f, 2.0f, -5.0f };
+const TVector3 c_cameraLookAt = { 1.0f, 0.0f, 0.0f };
+float c_nearPlaneDistance = 0.1f;
+const float c_cameraVerticalFOV = 40.0f * c_pi / 180.0f;
+
+// the scene
+
+const TVector3 c_vertices[] =
+{
+    { 0.0f, 0.25f, -1.0f},
+    { 1.0f, 0.25f,  0.5f},
+    { 2.0f, 0.25f, -1.0f},
+    { 1.0f, 1.5f,  -1.0f},
+};
+
+const SMaterial c_triangleMaterial = SMaterial({ 0.0f, 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f });
+const SMaterial c_sphereMaterial = SMaterial({ 0.0f, 0.0f, 0.0f }, { 1.0f, 0.1f, 0.1f });
+
+const std::vector<STriangle> c_triangles =
+{
+    STriangle(c_vertices[0], c_vertices[1], c_vertices[2], c_triangleMaterial),
+    STriangle(c_vertices[0], c_vertices[1], c_vertices[3], c_triangleMaterial),
+    STriangle(c_vertices[1], c_vertices[2], c_vertices[3], c_triangleMaterial),
+};
+
+const std::vector<SSphere> c_spheres =
+{
+    { c_vertices[0], 0.05f, c_sphereMaterial },
+    { c_vertices[1], 0.05f, c_sphereMaterial },
+    { c_vertices[2], 0.05f, c_sphereMaterial },
+    { c_vertices[3], 0.05f, c_sphereMaterial },
+
+    {{1.21f, 0.5f, -0.6f}, 0.05f, SMaterial({ 0.0f, 0.0f, 0.0f } ,{ 1.0f, 0.0f, 0.3f })},
+};
+
+const std::vector<SQuad> c_quads = {
+    // floor
+    SQuad({ -15.0f, 0.0f, 15.0f },{ 15.0f, 0.0f, 15.0f },{ 15.0f, 0.0f, -15.0f },{ -15.0f, 0.0f, -15.0f }, SMaterial({ 0.0f, 0.0f, 0.0f },{ 0.1f, 0.3f, 0.1f })),
+
+    // query
+    SQuad({ 1.22f, 0.0f, -0.6f },{ 1.2f, 0.0f, -0.6f },{ 1.2f, 1.5f, -0.6f },{ 1.22f, 1.5f, -0.6f }, SMaterial({ 0.0f, 0.0f, 0.0f } ,{ 1.0f, 0.0f, 0.3f })),
+};
+
+const std::vector<SAABB> c_aabbs = {};
+
+const std::vector<SOBB> c_obbs = {};
+
+const TVector3 c_rayMissColor = { 0.5f, 0.5f, 0.5f };
 
 #endif
 
