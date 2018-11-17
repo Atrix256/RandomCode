@@ -16,16 +16,17 @@
 
 #define FORCE_SINGLE_THREAD() 0
 
-#define COSINE_WEIGHTED_HEMISPHERE_SAMPLES() 0
-#define JITTER_AA() 0
+#define COSINE_WEIGHTED_HEMISPHERE_SAMPLES() 1
+#define JITTER_AA() 1
 
-#define RENDER_SCENE() 0
+#define RENDER_SCENE() 5
 // Scenes:
 //  0 = sphere on plane with wall, small light            (slow convergence)
 //  1 = sphere on plane with wall, small light + blue sky (quick convergence)
 //  2 = spheres in box with small bright light            (prettier scene, slow convergence)
 //  3 = sphere in box with larger dimmer light            (prettier scene, quick convergence)
 //  4 = furnace test
+//  5 = triangle scene
 
 //=================================================================================
 // User tweakable parameters - Scenes
@@ -36,7 +37,7 @@ const size_t c_imageWidth = 512;
 const size_t c_imageHeight = 512;
 
 // sampling parameters
-const size_t c_samplesPerPixel = 100;
+const size_t c_samplesPerPixel = 1000;
 const size_t c_numBounces = 5;
 const float c_rayBounceEpsilon = 0.001f;
 
@@ -210,12 +211,53 @@ const std::vector<SOBB> c_obbs = {};
 
 const TVector3 c_rayMissColor = { 1.0f, 1.0f, 1.0f };
 
+#elif RENDER_SCENE() == 5
+
+// camera parameters - assumes no roll (z axis rotation) and assumes that the camera isn't looking straight up
+const TVector3 c_cameraPos = { 0.0f, 3.0f, -5.0f };
+const TVector3 c_cameraLookAt = { 0.0f, 0.0f, 0.0f };
+float c_nearPlaneDistance = 0.1f;
+const float c_cameraVerticalFOV = 40.0f * c_pi / 180.0f;
+
+// the scene
+const std::vector<SSphere> c_spheres =
+{
+    //{ {  4.0f,  4.0f, 6.0f }, 5.0f, { { 1.0f, 1.0f, 1.0f }, { 0.0f, 0.0f, 0.0f } } },   // light
+};
+
+const TVector3 c_vertices[] =
+{
+    {0.0f, 0.25f, 0.0f},
+    {1.0f, 0.25f, 0.0f},
+    {0.0f, 0.25f, 1.0f},
+    {1.0f, 0.25f, 1.0f},
+};
+
+const SMaterial c_triangleMaterial = SMaterial( { 0.0f, 0.0f, 0.0f }, { 0.5f, 0.5f, 0.5f } );
+
+const std::vector<STriangle> c_triangles =
+{
+    STriangle(c_vertices[0], c_vertices[1], c_vertices[2], c_triangleMaterial),
+    STriangle(c_vertices[1], c_vertices[2], c_vertices[3], c_triangleMaterial),
+};
+
+const std::vector<SQuad> c_quads = {
+    // floor
+    SQuad({ -15.0f, 0.0f, 15.0f },{ 15.0f, 0.0f, 15.0f },{ 15.0f, 0.0f, -15.0f },{ -15.0f, 0.0f, -15.0f }, SMaterial({ 0.0f, 0.0f, 0.0f },{ 0.1f, 0.9f, 0.1f })),
+};
+
+const std::vector<SAABB> c_aabbs = {};
+
+const std::vector<SOBB> c_obbs = {};
+
+const TVector3 c_rayMissColor = { 0.1f, 0.4f, 1.0f };
+
 #endif
 
 //=================================================================================
 //=================================================================================
 // Globals
-std::atomic<size_t> g_currentPixelIndex(-1);
+std::atomic<size_t> g_currentRowIndex(-1);
 std::vector<TPixelRGBF32> g_pixels;
 
 //=================================================================================
@@ -313,38 +355,48 @@ void RenderPixel (float u, float v, TPixelRGBF32& pixel)
 }
 
 //=================================================================================
+
+template <typename T>
+T Lerp(const T& A, const T& B, float t)
+{
+    return A * (1.0f - t) + B * t;
+}
+
+//=================================================================================
 void ThreadFunc (STimer& timer)
 {
     // each thread grabs a pixel at a time and renders it
-    size_t pixelIndex = ++g_currentPixelIndex;
-    bool firstThread = pixelIndex == 0;
+    size_t rowIndex = ++g_currentRowIndex;
+    bool firstThread = rowIndex == 0;
     int lastPercent = -1;
-    while (pixelIndex < c_numPixels)
+
+    while (rowIndex < c_imageHeight)
     {
-        float jitterX = JITTER_AA() ? RandomFloat() : 0.5f;
-        float jitterY = JITTER_AA() ? RandomFloat() : 0.5f;
-
-        // get the current pixel's UV coordinate and memory location
-        size_t x = pixelIndex % c_imageWidth;
-        size_t y = pixelIndex / c_imageWidth;
-        float u = ((float)x + jitterX) / (float)c_imageWidth;
-        float v = ((float)y + jitterY) / (float)c_imageHeight;
-        TPixelRGBF32& pixel = g_pixels[pixelIndex];
-
-        // render the pixel by taking multiple samples and incrementally averaging them
-        for (size_t i = 0; i < c_samplesPerPixel; ++i)
+        TPixelRGBF32* pixel = &g_pixels[rowIndex * c_imageWidth];
+        for (size_t x = 0; x < c_imageWidth; ++x)
         {
-            TPixelRGBF32 sample;
-            RenderPixel(u, v, sample);
-            pixel += (sample - pixel) / float(i + 1.0f);
+            // render the pixel by taking multiple samples and incrementally averaging them
+            for (size_t i = 0; i < c_samplesPerPixel; ++i)
+            {
+                float jitterX = JITTER_AA() ? RandomFloat() : 0.5f;
+                float jitterY = JITTER_AA() ? RandomFloat() : 0.5f;
+                float u = ((float)x + jitterX) / (float)c_imageWidth;
+                float v = ((float)rowIndex + jitterY) / (float)c_imageHeight;
+
+                TPixelRGBF32 sample;
+                RenderPixel(u, v, sample);
+                *pixel += (sample - *pixel) / float(i + 1.0f);
+            }
+
+            ++pixel;
         }
 
-        // move to next pixel
-        pixelIndex = ++g_currentPixelIndex;
+        // move to next row
+        rowIndex = ++g_currentRowIndex;
 
         // report our progress (from a single thread only)
         if (firstThread)
-            timer.ReportProgress(pixelIndex, c_numPixels);
+            timer.ReportProgress(rowIndex, c_imageHeight);
     }
 }
 

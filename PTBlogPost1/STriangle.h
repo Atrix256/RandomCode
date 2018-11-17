@@ -4,6 +4,8 @@
 #include "SMaterial.h"
 #include "SRayHitInfo.h"
 
+#define OUTLINE_TRIANGLES() 1
+
 struct STriangle
 {
     STriangle(const TVector3& a, const TVector3& b, const TVector3& c, const SMaterial& material)
@@ -69,5 +71,17 @@ inline bool RayIntersects (const TVector3& rayPos, const TVector3& rayDir, const
     info.m_intersectionPoint = rayPos + rayDir * t;
     info.m_material = &triangle.m_material;
     info.m_surfaceNormal = normal;
+
+    #if OUTLINE_TRIANGLES()
+        static const SMaterial c_outlineMaterial = SMaterial({ 0.0f, 0.0f, 0.0f }, { 0.1f, 0.1f, 0.1f });
+
+        float d0 = (b[0] > 0.5f) ? 1.0f - b[0] : b[0];
+        float d1 = (b[1] > 0.5f) ? 1.0f - b[1] : b[1];
+        float d2 = (b[2] > 0.5f) ? 1.0f - b[2] : b[2];
+        float mind = std::min(d0, std::min(d1, d2));
+        if (mind < 0.02f)
+            info.m_material = &c_outlineMaterial;
+    #endif
+
     return true;
 }
