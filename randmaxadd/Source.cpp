@@ -50,7 +50,7 @@ int main(int argc, char** argv)
     FILE *file = nullptr;
     fopen_s(&file, "histograms.csv", "w+t");
 
-    fprintf(file, "\"Index\",\"Count1\",\"Average2\",\"Average3\",\"Average4\",\"Max2\",\"Max3\",\"Max4\",\"Min2\",\"Min3\",\"Min4\",\"y=x/2\",\"y=(x^2)/3\",\"y=(x^3)/4\"\n");
+    fprintf(file, "\"Index\",\"Count1\",\"Average2\",\"Average3\",\"Average4\",\"Max2\",\"Max3\",\"Max4\",\"Min2\",\"Min3\",\"Min4\",\"y=x*2\",\"y=(x^2)*3\",\"y=(x^3)*4\"\n");
 
     for (size_t index = 0; index < c_maxValue + 1; ++index)
     {
@@ -66,8 +66,7 @@ int main(int argc, char** argv)
         fprintf(file, "\"%zu\",", countsMin3[index]);
         fprintf(file, "\"%zu\",", countsMin4[index]);
 
-        // why these calculations look weird:
-        // un-normalize and then multiply by number of samples and divide by the number of histogram buckets.
+        // make the PDFs be the same scale as the histogram counts.
         float x = float(index) / float(c_maxValue);
         fprintf(file, "\"%zu\",", size_t(float(c_numSamples)*x * 2.0f / float(c_maxValue)));
         fprintf(file, "\"%zu\",", size_t(float(c_numSamples)*x*x * 3.0f / float(c_maxValue)));
