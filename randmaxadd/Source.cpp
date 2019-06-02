@@ -50,7 +50,7 @@ int main(int argc, char** argv)
     FILE *file = nullptr;
     fopen_s(&file, "histograms.csv", "w+t");
 
-    fprintf(file, "\"Index\",\"Count1\",\"Average2\",\"Average3\",\"Average4\",\"Max2\",\"Max3\",\"Max4\",\"Min2\",\"Min3\",\"Min4\",\"y=x*2\",\"y=(x^2)*3\",\"y=(x^3)*4\"\n");
+    fprintf(file, "\"Index\",\"Count1\",\"Average2\",\"Average3\",\"Average4\",\"Max2\",\"Max3\",\"Max4\",\"Min2\",\"Min3\",\"Min4\",\"y=x\",\"y=x^2\",\"y=x^3\"\n");
 
     for (size_t index = 0; index < c_maxValue + 1; ++index)
     {
