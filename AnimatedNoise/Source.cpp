@@ -689,6 +689,32 @@ void GenerateInterleavedGradientNoise (SImageData& image, size_t width, size_t h
 }
 
 //======================================================================================
+void GenerateBayerNoise(SImageData& image, size_t width, size_t height, float offsetX, float offsetY)
+{
+    SImageData bayer;
+    if (!ImageLoad("src/bayer16x16.bmp", bayer))
+    {
+        printf("Could not load %s", "src/bayer16x16.bmp");
+        return;
+    }
+
+    ImageInit(image, width, height);
+
+    for (size_t y = 0; y < height; ++y)
+    {
+        SColor* pixel = (SColor*)&image.m_pixels[y * image.m_pitch];
+        for (size_t x = 0; x < width; ++x)
+        {
+            uint8 value = bayer.m_pixels[((y % bayer.m_height) * bayer.m_pitch) + (x % bayer.m_width) * 3];
+            pixel->R = value;
+            pixel->G = value;
+            pixel->B = value;
+            ++pixel;
+        }
+    }
+}
+
+//======================================================================================
 void GenerateR2Noise(SImageData& image, size_t width, size_t height, float offsetX, float offsetY)
 {
     ImageInit(image, width, height);
@@ -840,6 +866,25 @@ void DitherR2Noise(const SImageData& ditherImage)
     SImageData combined;
     ImageCombine3(ditherImage, noise, dither, combined);
     ImageSave(combined, "out/still_r2noise.bmp");
+}
+
+//======================================================================================
+void DitherBayerNoise(const SImageData& ditherImage)
+{
+    printf("\n%s\n", __FUNCTION__);
+
+    // make noise
+    SImageData noise;
+    GenerateBayerNoise(noise, ditherImage.m_width, ditherImage.m_height, 0.0f, 0.0f);
+
+    // dither the image
+    SImageData dither;
+    DitherWithTexture(ditherImage, noise, dither);
+
+    // save the results
+    SImageData combined;
+    ImageCombine3(ditherImage, noise, dither, combined);
+    ImageSave(combined, "out/still_bayernoise.bmp");
 }
 
 //======================================================================================
@@ -2836,6 +2881,7 @@ int main (int argc, char** argv)
 
     g_logFile = fopen("log.txt", "w+t");
 
+    DitherBayerNoise(ditherImage);
     DitherR2Noise(ditherImage);
     DitherPlusNoise(ditherImage);
 
