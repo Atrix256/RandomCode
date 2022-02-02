@@ -689,6 +689,51 @@ void GenerateInterleavedGradientNoise (SImageData& image, size_t width, size_t h
 }
 
 //======================================================================================
+void GenerateR2Noise(SImageData& image, size_t width, size_t height, float offsetX, float offsetY)
+{
+    ImageInit(image, width, height);
+
+    for (size_t y = 0; y < height; ++y)
+    {
+        SColor* pixel = (SColor*)&image.m_pixels[y * image.m_pitch];
+        for (size_t x = 0; x < width; ++x)
+        {
+            static const float g = 1.32471795724474602596f;
+            static const float a1 = 1.0f / g;
+            static const float a2 = 1.0f / (g * g);
+            float valueFloat = float(x) * a1  + float(y) * a2;
+            size_t valueBig = size_t(valueFloat * 256.0f);
+            uint8 value = uint8(valueBig % 256);
+            pixel->R = value;
+            pixel->G = value;
+            pixel->B = value;
+            ++pixel;
+        }
+    }
+}
+
+//======================================================================================
+void GeneratePlusNoise(SImageData& image, size_t width, size_t height, float offsetX, float offsetY)
+{
+    ImageInit(image, width, height);
+
+    for (size_t y = 0; y < height; ++y)
+    {
+        SColor* pixel = (SColor*)&image.m_pixels[y * image.m_pitch];
+        for (size_t x = 0; x < width; ++x)
+        {
+            float valueFloat = fmodf((float(x) + 3.0f * float(y)) / 5.0f, 1.0f);
+            size_t valueBig = size_t(valueFloat * 256.0f);
+            uint8 value = uint8(valueBig % 256);
+            pixel->R = value;
+            pixel->G = value;
+            pixel->B = value;
+            ++pixel;
+        }
+    }
+}
+
+//======================================================================================
 template <size_t NUM_SAMPLES>
 void GenerateVanDerCoruptSequence (std::array<float, NUM_SAMPLES>& samples, size_t base)
 {
@@ -776,6 +821,44 @@ void DitherInterleavedGradientNoise (const SImageData& ditherImage)
     SImageData combined;
     ImageCombine3(ditherImage, noise, dither, combined);
     ImageSave(combined, "out/still_ignoise.bmp");
+}
+
+//======================================================================================
+void DitherR2Noise(const SImageData& ditherImage)
+{
+    printf("\n%s\n", __FUNCTION__);
+
+    // make noise
+    SImageData noise;
+    GenerateR2Noise(noise, ditherImage.m_width, ditherImage.m_height, 0.0f, 0.0f);
+
+    // dither the image
+    SImageData dither;
+    DitherWithTexture(ditherImage, noise, dither);
+
+    // save the results
+    SImageData combined;
+    ImageCombine3(ditherImage, noise, dither, combined);
+    ImageSave(combined, "out/still_r2noise.bmp");
+}
+
+//======================================================================================
+void DitherPlusNoise(const SImageData& ditherImage)
+{
+    printf("\n%s\n", __FUNCTION__);
+
+    // make noise
+    SImageData noise;
+    GeneratePlusNoise(noise, ditherImage.m_width, ditherImage.m_height, 0.0f, 0.0f);
+
+    // dither the image
+    SImageData dither;
+    DitherWithTexture(ditherImage, noise, dither);
+
+    // save the results
+    SImageData combined;
+    ImageCombine3(ditherImage, noise, dither, combined);
+    ImageSave(combined, "out/still_plusnoise.bmp");
 }
 
 //======================================================================================
@@ -2753,6 +2836,9 @@ int main (int argc, char** argv)
 
     g_logFile = fopen("log.txt", "w+t");
 
+    DitherR2Noise(ditherImage);
+    DitherPlusNoise(ditherImage);
+
     /*
     // --------------  PART 1: Animating noise over time
     
@@ -2808,6 +2894,7 @@ int main (int argc, char** argv)
     DitherInterleavedGradientNoiseOffsetVDCAnimatedIntegrated(ditherImage);
     */
 
+    /*
     // exponential decay offsets
     DitherInterleavedGradientNoiseOffset1AnimatedIntegratedDecay(ditherImage);
     DitherInterleavedGradientNoiseOffset33AnimatedIntegratedDecay(ditherImage);
@@ -2816,6 +2903,7 @@ int main (int argc, char** argv)
     DitherInterleavedGradientNoiseOffsetVDCAnimatedIntegratedDecay(ditherImage);
     DitherInterleavedGradientNoiseOffsetVDC32AnimatedIntegratedDecay(ditherImage);
     DitherInterleavedGradientNoiseOffsetVDCJitteredAnimatedIntegratedDecay(ditherImage);
+    */
 
     fclose(g_logFile);
 
