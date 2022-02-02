@@ -748,7 +748,7 @@ void GeneratePlusNoise(SImageData& image, size_t width, size_t height, float off
         SColor* pixel = (SColor*)&image.m_pixels[y * image.m_pitch];
         for (size_t x = 0; x < width; ++x)
         {
-            float valueFloat = fmodf((float(x) + 3.0f * float(y)) / 5.0f, 1.0f);
+            float valueFloat = fmodf((float(x) + 3.0f * float(y) + 0.5f) / 5.0f, 1.0f);
             size_t valueBig = size_t(valueFloat * 256.0f);
             uint8 value = uint8(valueBig % 256);
             pixel->R = value;
